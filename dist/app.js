@@ -111,3 +111,36 @@ function registerModelTools(){
   });
 }
 registerModelTools();
+
+function strategyArchetype(st){
+  if(st.price<=94&&st.marketing>=2500000)return'Hacim avcısı';
+  if(st.risk==='selective'&&st.price>=106)return'Seçici marj';
+  if(st.coverage==='wide'&&st.service>=2000000)return'Premium güvence';
+  if(st.channels[0]>=60)return'Dijital hücum';
+  if(st.channels[1]>=55)return'Acente gücü';
+  return'Dengeli operatör';
+}
+function strategySignals(st){
+  const limit=state.config.assumptions.budget.value||1;
+  const bound=value=>Math.max(8,Math.min(100,Math.round(value)));
+  return[
+    {label:'Büyüme baskısı',value:bound(48+(100-st.price)*1.4+st.marketing/limit*30+(st.risk==='broad'?14:st.risk==='selective'?-12:0))},
+    {label:'Marj disiplini',value:bound(48+(st.price-100)*1.7+st.deductible/10000*12+(st.risk==='selective'?17:st.risk==='broad'?-14:0)+(st.coverage==='narrow'?10:st.coverage==='wide'?-11:0))},
+    {label:'Hizmet hazırlığı',value:bound(18+st.service/limit*82)}
+  ];
+}
+function decorateGameSurface(){
+  const studioPage=document.querySelector('.studio-page');
+  if(!studioPage)return;
+  let hud=studioPage.querySelector('.arena-hud');
+  if(!hud){hud=document.createElement('section');hud.className='arena-hud';studioPage.querySelector('.team-context')?.insertAdjacentElement('afterend',hud);}
+  const labels=['Ürün tasarımı','Pazar pozisyonu','Büyüme planı','Operasyon gücü'];
+  const signals=strategySignals(s());
+  hud.style.setProperty('--team',t().color);
+  studioPage.style.setProperty('--team',t().color);
+  hud.innerHTML=`<div class="arena-identity"><span class="arena-command">TAKIM TAKTİK EKRANI</span><div>${emblem(t(),true)}<span><small>STRATEJİ SINIFI</small><strong>${strategyArchetype(s())}</strong></span></div></div><div class="strategy-radar"><div class="radar-heading"><span>Karar yönü</span><small>Nitel gösterge · sonuç tahmini değildir</small></div>${signals.map(signal=>`<div class="radar-line"><span>${signal.label}</span><div><i style="width:${signal.value}%"></i></div><b>${signal.value<38?'Temkinli':signal.value>68?'Güçlü':'Dengeli'}</b></div>`).join('')}</div><div class="round-card"><small>KARAR TURU</small><strong>${String(state.step+1).padStart(2,'0')}<em>/04</em></strong><span>${labels[state.step]}</span><i>${t().locked?'KİLİTLİ':'KAPTAN KARARI'}</i></div>`;
+}
+document.addEventListener('input',()=>queueMicrotask(decorateGameSurface));
+document.addEventListener('change',()=>queueMicrotask(decorateGameSurface));
+document.addEventListener('click',()=>queueMicrotask(decorateGameSurface));
+decorateGameSurface();
