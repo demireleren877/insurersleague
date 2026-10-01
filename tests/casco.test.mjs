@@ -1,0 +1,145 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { CASCO_MARKET } from '../dist/data/casco-market.js';
+import { simulateCasco, defaultCascoStrategy, defaultCascoRules, validateCasco, actuarialCoefficients, actuarialBase, cascoMoney, cascoAssumptions, cellRisk, DIMENSIONS } from '../dist/casco.js';
+
+const rules = defaultCascoRules();
+const config = (seed = 1) => ({ lang: 'en', seed, weights: [50, 30, 20], events: [], rules, assumptions: cascoAssumptions('en', rules) });
+const act = actuarialCoefficients(rules);
+const flat = Object.fromEntries(DIMENSIONS.map(d => [d, act[d].map(() => 1)]));
+const team = (id, coef, lossRatio, extra = {}) => ({ id, name: `T${id}`, strategy: { ...defaultCascoStrategy(config()), coef, basePremium: actuarialBase(coef, lossRatio, rules), ...extra } });
+const field = (subject, seed) => simulateCasco([subject, ...[1, 2, 3, 4, 5].map(i => team(i, act, [0.58, 0.62, 0.66, 0.6, 0.64][i - 1]))], config(seed))[11].rows;
+const mean = (seeds, f) => seeds.reduce((a, s) => a + f(s), 0) / seeds.length;
+const seeds = Array.from({ length: 12 }, (_, i) => i + 1);
+
+test('the market profile keeps every customer of the case-study data', () => {
+  assert.equal(CASCO_MARKET.cells.reduce((a, c) => a + c[5], 0), CASCO_MARKET.customers);
+  assert.deepEqual(Object.keys(CASCO_MARKET.dimensions), DIMENSIONS);
+  assert.deepEqual(DIMENSIONS.map(d => CASCO_MARKET.dimensions[d].length), [6, 4, 3, 4, 2]);
+});
+
+test('claims follow the model config: base frequency × severity × level coefficients, normalized as in the data', () => {
+  const cell = CASCO_MARKET.cells[0];
+  const d = rules.dimensions;
+  const freq = DIMENSIONS.reduce((p, dim, k) => p * d[dim][cell[k]].freq, rules.model.frequency * rules.model.freqNorm);
+  const sev = DIMENSIONS.reduce((p, dim, k) => p * d[dim][cell[k]].sev, rules.model.severity * rules.model.sevNorm);
+  const r = cellRisk(cell, rules);
+  assert.ok(Math.abs(r.freq - freq) < 1e-12 && Math.abs(r.sev - sev) < 1e-9);
+});
+
+test('the same decisions and seed reproduce the season exactly', () => {
+  const a = field(team(0, act, 0.6), 3), b = field(team(0, act, 0.6), 3);
+  assert.deepEqual(a, b);
+});
+
+test('validation catches out-of-range coefficients, a bad channel split and an overspent budget', () => {
+  const money = cascoMoney(config());
+  const ok = team(0, act, 0.6);
+  assert.deepEqual(validateCasco(ok, config()), []);
+  const bad = structuredClone(ok);
+  bad.strategy.coef.city[0] = 3;
+  bad.strategy.channelFocus = [50, 50, 50, 0];
+  bad.strategy.marketing = money.budget;
+  bad.strategy.claimsOps = money.budget;
+  assert.equal(validateCasco(bad, config()).length, 3);
+});
+
+test('pricing from the data beats ignoring it: flat coefficients attract the risky cells', () => {
+  const smart = mean(seeds, s => field(team(0, act, 0.6), s).find(r => r.id === 0).rank);
+  const naive = mean(seeds, s => field(team(0, flat, 0.6), s).find(r => r.id === 0).rank);
+  const naiveLoss = mean(seeds, s => field(team(0, flat, 0.6), s).find(r => r.id === 0).expectedLossRatio);
+  assert.ok(smart < naive, `smart ${smart} vs naive ${naive}`);
+  assert.ok(naiveLoss > 0.75, `flat book should run hot, got ${naiveLoss}`);
+});
+
+test('cheaper prices buy market share at the cost of profit', () => {
+  const cheap = seeds.map(s => field(team(0, act, 0.8), s).find(r => r.id === 0));
+  const dear = seeds.map(s => field(team(0, act, 0.55), s).find(r => r.id === 0));
+  const avg = (rows, k) => rows.reduce((a, r) => a + r[k], 0) / rows.length;
+  assert.ok(avg(cheap, 'share') > avg(dear, 'share'));
+  assert.ok(avg(cheap, 'profit') < avg(dear, 'profit'));
+});
+
+test('starving claims operations hurts customer satisfaction', () => {
+  const B = cascoMoney(config()).budget;
+  const light = mean(seeds, s => field(team(0, act, 0.6, { marketing: B * 0.85, claimsOps: B * 0.05 }), s).find(r => r.id === 0).service);
+  const heavy = mean(seeds, s => field(team(0, act, 0.6, { marketing: B * 0.3, claimsOps: B * 0.7 }), s).find(r => r.id === 0).service);
+  assert.ok(heavy > light + 20, `heavy ${heavy} vs light ${light}`);
+});
+
+test('the quota share cedes premium and claims and softens an underpriced book', () => {
+  const money = cascoMoney(config());
+  const withRe = team(0, act, 0.85, { reinsurance: true, marketing: money.budget * 0.5 - money.reinsuranceFee });
+  const rows = seeds.map(s => field(withRe, s).find(r => r.id === 0));
+  for (const r of rows) {
+    assert.ok(Math.abs(r.ceded - r.gwp * rules.reinsurance.share) < 1e-6);
+    assert.ok(r.recovery > 0);
+  }
+  const lossWith = rows.reduce((a, r) => a + r.profit, 0) / rows.length;
+  const lossWithout = mean(seeds, s => field(team(0, act, 0.85), s).find(r => r.id === 0).profit);
+  assert.ok(lossWith > lossWithout, `with ${lossWith} vs without ${lossWithout}`);
+});
+
+test('the moderator sets the market size; every cell keeps its sample share of it', () => {
+  const small = { ...config(), assumptions: cascoAssumptions('en', rules, 100000) };
+  const large = { ...config(), assumptions: cascoAssumptions('en', rules, 400000) };
+  const rows = c => simulateCasco([0, 1].map(id => ({ id, name: `T${id}`, strategy: { ...defaultCascoStrategy(c), coef: act, basePremium: actuarialBase(act, 0.6 + id * 0.05, rules) } })), c)[11];
+  const a = rows(small), b = rows(large);
+  assert.ok(Math.abs(b.available / a.available - 4) < 0.05, `pool ratio ${b.available / a.available}`);
+  assert.ok(Math.abs(cascoMoney(large).budget / cascoMoney(small).budget - 4) < 0.05);
+});
+
+test('luck is a table drawn from the seed alone: decisions never change it', async () => {
+  const { drawsFor, claimDraw, normInv } = await import('../dist/casco.js');
+  const a = drawsFor(config(4), [team(0, act, 0.6), team(1, act, 0.7)]);
+  const b = drawsFor(config(4), [team(0, flat, 0.9), team(1, act, 0.5)]);
+  assert.deepEqual(a, b);
+  assert.notDeepEqual(a, drawsFor(config(5), [team(0, act, 0.6), team(1, act, 0.7)]));
+  for (const u of [...a.market.flat(), ...Object.values(a.teams).flat(2)]) assert.ok(u > 0 && u < 1 && Math.abs(u * 1e10 - Math.round(u * 1e10)) < 1e-3, 'ten decimals, strictly inside (0, 1)');
+  // The claim draw is exactly the published formula.
+  const lambda = 312.4, s = 140, k = 2.2, u1 = 0.7310000005, u2 = 0.2000000005;
+  const n = Math.max(0, Math.round(lambda + Math.sqrt(lambda) * normInv(u1)));
+  assert.deepEqual(claimDraw(lambda, s, k, u1, u2), { count: n, amount: Math.max(0, n * s + s * Math.sqrt(n / k) * normInv(u2)) });
+  assert.ok(Math.abs(normInv(0.975) - 1.959963984540054) < 1e-14);
+});
+
+test('rows carry NPS and the gross loss ratio the stage shows', () => {
+  const c = config(7);
+  const season = simulateCasco([0, 1, 2].map(id => team(id, act, 0.58 + id * 0.04)), c);
+  for (const m of season) for (const r of m.rows) {
+    assert.ok(r.nps >= -100 && r.nps <= 100 && Number.isInteger(r.nps), `NPS in range: ${r.nps}`);
+    assert.ok(r.monthNps >= -100 && r.monthNps <= 100);
+    assert.ok(Math.abs(r.grossLossRatio - (r.gwp ? season.slice(0, season.indexOf(m) + 1).reduce((s, x) => s + x.rows.find(y => y.id === r.id).monthClaims, 0) / r.gwp : 0)) < 1e-9, 'gross loss ratio is cumulative claims / cumulative GWP');
+  }
+});
+
+test('the live commentary follows the gross-premium race', async () => {
+  const { monthDigest } = await import('../dist/js/narrative.js');
+  const c = config(7), teams = [0, 1, 2].map(id => ({ id, name: `T${id}` }));
+  const season = simulateCasco([0, 1, 2].map(id => team(id, act, 0.58 + id * 0.04)), c);
+  const first = monthDigest(season, 0, teams, c);
+  const leader = [...season[0].rows].sort((a, b) => b.gwp - a.gwp)[0];
+  assert.deepEqual(first.ranked.map(r => r.id), [...season[0].rows].sort((a, b) => b.gwp - a.gwp).map(r => r.id));
+  assert.ok(first.items.some(i => i.type === 'leader' && i.teams[0] === leader.id), 'January names the gross-premium leader');
+  for (let m = 0; m < 12; m++) for (const item of monthDigest(season, m, teams, c).items) assert.ok(['good', 'bad', 'event', 'neutral'].includes(item.tone));
+});
+
+test('the model is calibrated to the data: portfolio frequency 10% and the data’s premium level', () => {
+  let n = 0, claims = 0, freq = 0, gwp = 0;
+  for (const cell of CASCO_MARKET.cells) { const r = cellRisk(cell, rules); n += cell[5]; freq += cell[5] * r.freq; claims += cell[5] * r.cost; gwp += cell[5] * r.reference; }
+  assert.ok(Math.abs(freq / n - 0.1) < 0.002, `portfolio frequency ${freq / n}`);
+  assert.ok(Math.abs(gwp / n - CASCO_MARKET.calibration.dataPremium) < 1, `reference premium ${gwp / n} vs data ${CASCO_MARKET.calibration.dataPremium}`);
+  const lr = claims / gwp;
+  assert.ok(lr > 0.55 && lr < 0.65, `market loss ratio ${lr}`);
+});
+
+test('coefficients go on a 0.05 grid and every channel keeps at least 10% of the focus', () => {
+  const c = config(), money = cascoMoney(c);
+  const ok = team(0, act, 0.6);
+  assert.deepEqual(validateCasco(ok, c), []);
+  const off = structuredClone(ok); off.strategy.coef.city[0] = 1.03;
+  assert.match(validateCasco(off, c).join(' '), /steps of 0.05/);
+  const thin = structuredClone(ok); thin.strategy.channelFocus = [60, 25, 10, 5];
+  assert.match(validateCasco(thin, c).join(' '), /at least 10%/);
+  assert.ok(money.budget > 0);
+});

@@ -1,17 +1,172 @@
-export const MONTHS=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
-export const SEGMENTS=[{id:'urban',name:'Şehirli sürücüler',size:.44,price:3.3,risk:.69,base:18000,description:'Büyük müşteri havuzu · yüksek fiyat hassasiyeti'},{id:'family',name:'Aileler',size:.36,price:2.2,risk:.62,base:21000,description:'Güvence ve hizmet odaklı · orta risk'},{id:'premium',name:'Premium araç sahipleri',size:.20,price:1.2,risk:.85,base:30000,description:'Kapsam odaklı · yüksek hasar tutarı'}];
-export const COVERAGES=[{id:'narrow',name:'Dar kapsam',factor:.84,loss:.82,description:'Çarpışma, çalınma ve yangın',detail:'Daha düşük referans prim ve hasar maliyeti.'},{id:'balanced',name:'Dengeli kapsam',factor:1,loss:1,description:'Temel güvence + doğal afet + asistans',detail:'Fiyat, koruma ve maliyet arasında denge.'},{id:'wide',name:'Geniş kapsam',factor:1.2,loss:1.26,description:'Dengeli + ikame araç + mini onarım',detail:'Daha güçlü talep; daha yüksek hasar maliyeti.'}];
-export const REGIONS=[{id:'marmara',name:'Marmara',reach:1,risk:1.08},{id:'aegean',name:'Ege ve Akdeniz',reach:.86,risk:.95},{id:'anatolia',name:'İç Anadolu',reach:.76,risk:.88}];
-export const ASSUMPTIONS={capital:{value:30000000,unit:'TL',label:'Başlangıç sermayesi',description:'Her şirket için aynı özkaynak.',min:1000000,max:100000000},budget:{value:6000000,unit:'TL',label:'Karar bütçesi',description:'Pazarlama ve hizmet yatırımı toplam üst sınırı.',min:100000,max:20000000},pool:{value:6000,unit:'müşteri / ay',label:'Aylık müşteri havuzu',description:'Satın almayanlar dahil, altı şirketin ortak havuzu.',min:100,max:100000},baseExpense:{value:150000,unit:'TL / ay',label:'Sabit operasyon gideri',description:'Karar bütçesine dahil değil; her ay teknik gider.',min:0,max:1000000},paidRatio:{value:.72,unit:'oran (0–1)',label:'Hasar ödeme oranı',description:'Gerçekleşen net hasarın ödenen payı; kalan rezervdir.',min:0,max:1},inflation:{value:.015,unit:'oran / ay',label:'Baz hasar enflasyonu',description:'Başlangıçta bilinen demo maliyet beklentisi.',min:0,max:.1},outside:{value:1.8,unit:'fayda ağırlığı',label:'Satın almama seçeneği',description:'Seçim modelinde sigorta almama ağırlığı.',min:.1,max:10},profitFloor:{value:-.2,unit:'kâr / sermaye',label:'Kârlılık sıfır puan eşiği',description:'Bu oranda veya altında 0 puan.',min:-1,max:0},profitTarget:{value:.45,unit:'kâr / sermaye',label:'Kârlılık 100 puan hedefi',description:'Bu oranda veya üzerinde 100 puan.',min:.01,max:2},shareTarget:{value:.28,unit:'pazar payı (0–1)',label:'Pazar payı 100 puan hedefi',description:'Sıfır üretim 0 puan; hedefte 100 puan.',min:.01,max:1},serviceTarget:{value:95,unit:'hizmet skoru / 100',label:'Hizmet 100 puan hedefi',description:'0 hizmet skoru 0 puan; hedefte 100 puan.',min:1,max:100}};
-export const EVENTS=[{month:2,title:'Parça maliyetleri yükseliyor',description:'İthal parça baskısı hasar maliyetini artırıyor.',cost:1.13,demand:1,channel:1},{month:5,title:'Müşteri fiyatı yeniden tartıyor',description:'Talep daralıyor; fiyat hassasiyeti güçleniyor.',cost:1,demand:.82,channel:1},{month:8,title:'Acentelerden yeni komisyon talebi',description:'Acente ağırlıklı portföylerde edinim maliyeti artıyor.',cost:1,demand:1,channel:1.18},{month:10,title:'Yoğun trafikte hasar frekansı arttı',description:'Marmara odaklı portföylerde hasar yükü büyüyor.',cost:1.16,demand:1,channel:1}];
-export function scenario(){return {version:'demo-1.0',seed:2023,year:2023,branch:'Kasko',minutes:25,speed:5,weights:[50,30,20],assumptions:structuredClone(ASSUMPTIONS),events:structuredClone(EVENTS)};}
-export function teams(){const names=['Atlas','Pusula','Nova','Kalkan','Mavi','Zirve'],colors=['#43C6FF','#AB98F8','#FFBE55','#57D8B3','#6D9CFF','#FF887C'];return names.map((name,i)=>({id:i,name,code:['ATL','PUS','NOV','KLK','MAV','ZRV'][i],color:colors[i],emblem:i,connected:true,locked:i>0,revision:false,strategy:{product:['Atlas Güvence','Pusula Seçkin','Nova Plus','Kalkan Denge','Mavi Dijital','Zirve Yanında'][i],sentence:['Akıllı fiyat, güçlü güvence.','Doğru riskle sürdürülebilir büyüme.','Daha fazlasını koruyoruz.','Güçlü acente, dengeli portföy.','Dijitalde hızlı ve erişilebilir.','Her hasarda müşterinin yanında.'][i],primary:['urban','family','premium','family','urban','family'][i],secondary:['family','premium','family','urban','family','premium'][i],region:['marmara','anatolia','marmara','aegean','marmara','aegean'][i],price:[95,114,108,102,87,109][i],coverage:['balanced','narrow','wide','balanced','narrow','wide'][i],deductible:[5000,10000,0,5000,10000,0][i],risk:['balanced','selective','broad','balanced','broad','selective'][i],marketing:[2500000,1500000,2800000,2000000,3800000,1200000][i],marketingMix:[[50,30,20],[20,40,40],[20,60,20],[25,25,50],[80,10,10],[20,40,40]][i],channels:[[50,35,15],[20,40,40],[30,20,50],[15,75,10],[85,10,5],[30,55,15]][i],commission:[1,1,1.2,1.2,.8,1][i],service:[1500000,1600000,2200000,1800000,1000000,4500000][i],reinsurance:false}}));}
-export function reference(s){return SEGMENTS.find(x=>x.id===s.primary).base*COVERAGES.find(x=>x.id===s.coverage).factor;}
-export const spend=s=>Number(s.marketing)+Number(s.service);
-export function validate(t,c){const s=t.strategy,e=[];if(!t.name.trim())e.push('Şirket adını girin.');if(!s.product.trim())e.push('Ürün adını girin.');if(!s.sentence.trim())e.push('Stratejinizi bir cümleyle yazın.');if(s.primary===s.secondary)e.push('Ana ve ikincil segment farklı olmalı.');if(s.price<80||s.price>120||!Number.isFinite(s.price))e.push('Fiyat endeksini 80–120 aralığına getirin.');for(const [key,title] of [['marketingMix','Pazarlama'],['channels','Satış kanalı']])if(s[key].some(x=>!Number.isFinite(x)||x<0||x>100)||Math.abs(s[key].reduce((a,b)=>a+b,0)-100)>.01)e.push(`${title} dağılımı toplamı %100 olmalı.`);if(s.marketing<0||s.service<0||!Number.isFinite(spend(s)))e.push('Bütçeler sıfır veya pozitif olmalı.');if(spend(s)>c.assumptions.budget.value)e.push('Karar bütçesi aşıldı. Pazarlama veya hizmet yatırımını azaltın.');return e;}
-const clamp=(x,l=0,h=100)=>Math.max(l,Math.min(h,x));
-function random(seed){let a=seed>>>0;return()=>{a+=0x6D2B79F5;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
-export function rank(rows,metric='score'){const sorted=[...rows].sort((a,b)=>(metric==='score'?Number(b.eligible)-Number(a.eligible):0)||b[metric]-a[metric]||b.profit-a.profit||b.share-a.share);let place=1;return sorted.map((r,i)=>{if(i&&!(r[metric]===sorted[i-1][metric]&&r.profit===sorted[i-1].profit&&r.share===sorted[i-1].share&&r.eligible===sorted[i-1].eligible))place=i+1;return {...r,rank:place};});}
-export function simulate(ts,c){const errors=ts.flatMap(t=>validate(t,c));if(errors.length)throw Error(errors.join(' '));if(c.weights.reduce((a,b)=>a+b,0)!==100)throw Error('Puan ağırlıkları toplamı %100 olmalı.');const a=Object.fromEntries(Object.entries(c.assumptions).map(([k,v])=>[k,v.value]));const rnd=random(c.seed);const ledgers=ts.map(t=>({id:t.id,policies:0,gwp:0,earned:0,claims:0,ceded:0,recovery:0,expenses:spend(t.strategy),paid:0,cohorts:[],segmentCounts:[0,0,0],channelCounts:[0,0,0],serviceSum:0,eligible:true}));let costIndex=1,demandIndex=1,channelIndex=1;const months=[];
-for(let m=0;m<12;m++){const ev=c.events.filter(e=>e.month===m);for(const e of ev){costIndex*=e.cost;demandIndex*=e.demand;channelIndex*=e.channel;}const counts=ts.map(()=>[0,0,0]);let available=0;for(let j=0;j<SEGMENTS.length;j++){const seg=SEGMENTS[j];const pool=Math.round(a.pool*seg.size*demandIndex*(1+.08*Math.sin(m/2))*(.98+rnd()*.04));available+=pool;const strengths=ts.map(t=>{const s=t.strategy;const cv=COVERAGES.find(x=>x.id===s.coverage);const reg=REGIONS.find(x=>x.id===s.region);const match=s.primary===seg.id?1.4:s.secondary===seg.id?1.06:.55;const marketing=1+Math.log1p(s.marketing/900000)*.38;const channelFit=1+(s.channels[j===0?0:j===1?1:2]/100)*.3;const mixFit=1+s.marketingMix[j===0?0:j===1?2:1]/100*.2;const acceptance=s.risk==='selective'?.7:s.risk==='broad'?1.14:1;const coverageAttraction=j===2?cv.factor:Math.pow(cv.factor,.35);return match*reg.reach*marketing*mixFit*channelFit*acceptance*coverageAttraction*Math.exp(-(s.price-100)/100*seg.price*(m>=5?1.18:1))*(1-s.deductible/110000)*(s.commission*.14+.86);});const total=a.outside+strengths.reduce((x,y)=>x+y,0);strengths.forEach((w,i)=>counts[i][j]=Math.floor(pool*w/total));}
-const rows=ts.map((t,i)=>{const s=t.strategy,l=ledgers[i],cv=COVERAGES.find(x=>x.id===s.coverage),reg=REGIONS.find(x=>x.id===s.region);const policies=counts[i].reduce((x,y)=>x+y,0);const gwp=counts[i].reduce((sum,n,j)=>sum+n*SEGMENTS[j].base*cv.factor*s.price/100,0);const baseClaim=counts[i].reduce((sum,n,j)=>sum+n*SEGMENTS[j].base*SEGMENTS[j].risk*cv.loss*reg.risk*(s.risk==='selective'?.78:s.risk==='broad'?1.12:1)*(1-s.deductible/85000)/12,0);l.cohorts.push({gwp,baseClaim});const earned=l.cohorts.reduce((v,x)=>v+x.gwp/12,0);const claims=l.cohorts.reduce((v,x)=>v+x.baseClaim,0)*costIndex*(1+a.inflation)**m*(m>=10&&s.region==='marmara'?1.07:1);const mix=s.channels.map((v,j)=>v*(j===0?1.08:j===1?s.commission:1));const mixTotal=mix.reduce((x,y)=>x+y,0);const actualChannels=mix.map(x=>x/mixTotal);const acquisition=gwp*(actualChannels[0]*.045+actualChannels[1]*.12*s.commission*channelIndex+actualChannels[2]*.16*s.commission);const re=s.reinsurance?.15:0;const capacity=3500+Math.sqrt(s.service/1000000)*6500;const service=clamp(99-Math.max(0,(l.policies+policies)-capacity)/capacity*25+Math.log1p(s.service/1e6)*2,35,99);l.policies+=policies;l.gwp+=gwp;l.earned+=earned;l.claims+=claims;l.ceded+=gwp*re;l.recovery+=claims*re;l.expenses+=acquisition+a.baseExpense;l.paid+=claims*(1-re)*a.paidRatio;l.serviceSum+=service;counts[i].forEach((v,j)=>l.segmentCounts[j]+=v);actualChannels.forEach((v,j)=>l.channelCounts[j]+=v*policies);const netEarned=l.earned*(1-re),netClaims=l.claims-l.recovery,profit=netEarned-netClaims-l.expenses;const equity=a.capital+profit;l.eligible=l.eligible&&equity>=0;const upr=(l.gwp-l.earned)*(1-re),outstanding=netClaims-l.paid,cash=a.capital+l.gwp-l.ceded-l.paid-l.expenses;return {id:t.id,policies:l.policies,newPolicies:policies,gwp:l.gwp,earned:l.earned,netEarned,netClaims,ceded:l.ceded,recovery:l.recovery,expenses:l.expenses,profit,equity,cash,upr,outstanding,service:l.serviceSum/(m+1),lossRatio:netEarned?netClaims/netEarned:0,combinedRatio:netEarned?(netClaims+l.expenses)/netEarned:0,eligible:l.eligible,segments:[...l.segmentCounts],channels:[...l.channelCounts],monthGwp:gwp,monthClaims:claims,score:0,share:0,unitShare:0,components:[],explanations:[`Bu ay ${policies.toLocaleString('tr-TR')} yeni poliçe üretildi. Fiyat endeksi ${s.price}; ${s.primary===SEGMENTS[0].id?'fiyat hassasiyeti yüksek':'hedef'} segmentte rekabet edildi.`,`Hasar maliyeti endeksi ${Math.round(costIndex*(1+a.inflation)**m*100)} oldu; ${cv.name.toLocaleLowerCase('tr-TR')} ve ${s.risk==='selective'?'seçici':s.risk==='broad'?'geniş':'dengeli'} risk kabulü maliyeti belirledi.`,`Hizmet yatırımı ${Math.round(capacity).toLocaleString('tr-TR')} poliçelik kapasite yarattı. Portföy ${l.policies.toLocaleString('tr-TR')} poliçeye, hizmet sonucu ${Math.round(service)} puana ulaştı.`]};});const totalGwp=rows.reduce((v,x)=>v+x.gwp,0),totalPolicies=rows.reduce((v,x)=>v+x.policies,0);for(const r of rows){r.share=totalGwp?r.gwp/totalGwp:0;r.unitShare=totalPolicies?r.policies/totalPolicies:0;r.components=[clamp((r.profit/a.capital-a.profitFloor)/(a.profitTarget-a.profitFloor)*100),clamp(r.share/a.shareTarget*100),clamp(r.service/a.serviceTarget*100)];r.score=r.components.reduce((sum,v,i)=>sum+v*c.weights[i]/100,0);}months.push({month:m,rows:rank(rows),events:ev,totalGwp,totalPolicies,available,nonBuyers:available-counts.flat().reduce((x,y)=>x+y,0),costIndex});}return months;}
+// INSURERS LEAGUE — game content and engine façade.
+// The market model lives in casco.js. This module gives the rest of the app one stable surface: the
+// scenario (rules, assumptions, events), bilingual names for every segment level, and simulate/validate.
+// Room content is fixed once in config.lang; names below are looked up per viewer for display.
+import {
+  DIMENSIONS, QUARTER_KEYS, NOMINAL_TEAMS, defaultCascoRules, cascoRulesOf, cascoAssumptions, cascoMoney, cascoSpend,
+  defaultCascoStrategy, validateCasco, simulateCasco, strategyAt, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef
+} from './casco.js';
+
+export {
+  DIMENSIONS, QUARTER_KEYS, cascoMoney, cascoSpend, strategyAt, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef
+};
+
+export const BASE_TEAMS = NOMINAL_TEAMS;
+export const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+export const monthsOf = lang => (lang === 'tr' ? MONTHS_TR : MONTHS_EN);
+export const MONTHS = MONTHS_EN;
+
+const L = (lang, en, tr) => (lang === 'tr' ? tr : en);
+
+// ——— The one line of business ———
+export const PRESET_IDS = ['casco'];
+export const DEFAULT_PRESET = 'casco';
+export const presetOf = () => DEFAULT_PRESET;
+export const presetName = (_preset, lang = 'en') => L(lang, 'Casco', 'Kasko');
+export const presetBlurb = (_preset, lang = 'en') => L(lang, 'Motor own-damage cover priced by city, channel, vehicle age, persona and customer type.', 'İl, kanal, araç yaşı, persona ve müşteri tipine göre fiyatlanan kasko.');
+
+// ——— Segment names ———
+// Level ids are the data's own labels ("Istanbul", "New/0-1y"); these are the display names.
+const DIMENSION_NAMES = {
+  city: ['City', 'İl'], channel: ['Channel', 'Kanal'], vehicle: ['Vehicle age', 'Araç yaşı'], persona: ['Persona', 'Persona'], type: ['Customer type', 'Müşteri tipi']
+};
+const LEVEL_NAMES = {
+  city: [['Istanbul', 'İstanbul'], ['Ankara', 'Ankara'], ['Izmir', 'İzmir'], ['Bursa', 'Bursa'], ['Antalya', 'Antalya'], ['Other cities', 'Diğer iller']],
+  channel: [['Agency', 'Acente'], ['Bank', 'Banka'], ['Digital', 'Dijital'], ['Broker', 'Broker']],
+  vehicle: [['New (0–1 yrs)', 'Yeni (0–1 yaş)'], ['Mid (2–6 yrs)', 'Orta (2–6 yaş)'], ['Old (7+ yrs)', 'Eski (7+ yaş)']],
+  persona: [['Bank customer', 'Banka müşterisi'], ['Post-claim', 'Hasar sonrası'], ['Price-driven', 'Fiyat odaklı'], ['Value-driven', 'Değer odaklı']],
+  type: [['Individual', 'Bireysel'], ['Commercial', 'Ticari']]
+};
+export const dimensionName = (dim, lang = 'en') => L(lang, ...DIMENSION_NAMES[dim]);
+export const levelName = (dim, i, lang = 'en') => (LEVEL_NAMES[dim]?.[i] ? L(lang, ...LEVEL_NAMES[dim][i]) : String(i));
+export const levelNames = (dim, lang = 'en') => LEVEL_NAMES[dim].map(pair => L(lang, ...pair));
+// Every way a level can be written: display names in both languages and the data's own id.
+export const levelAliases = (dim, i, R = defaultCascoRules()) => [...LEVEL_NAMES[dim][i], R.dimensions[dim][i].id];
+
+// ——— Rules, assumptions and events ———
+export const defaultRules = () => defaultCascoRules();
+export const rulesOf = config => cascoRulesOf(config);
+export const assumptionsFor = (lang = 'en') => cascoAssumptions(lang);
+export const ASSUMPTIONS = cascoAssumptions('en');
+
+// Scope ids: 'all' or '<dimension>:<level>'.
+export const eventScopesFor = lang => [
+  { id: 'all', name: L(lang, 'Whole market', 'Tüm pazar') },
+  ...DIMENSIONS.flatMap(dim => LEVEL_NAMES[dim].map((_, i) => ({ id: `${dim}:${i}`, name: `${dimensionName(dim, lang)}: ${levelName(dim, i, lang)}` })))
+];
+export const EVENT_SCOPES = eventScopesFor('en');
+
+// cost: claims multiplier in scope · demand: customers coming to market in scope · duration in months.
+const EVENT_TEXT = [
+  { month: 2, duration: 10, cost: 1.08, demand: 1, scope: 'all',
+    en: ['Spare-parts prices jump', 'The currency slide lifts imported parts prices; every claim costs about 8% more for the rest of the year.'],
+    tr: ['Yedek parça fiyatları sıçradı', 'Kur artışı ithal parça fiyatlarını yükseltti; yıl sonuna kadar her hasar yaklaşık %8 daha pahalı.'] },
+  { month: 5, duration: 1, cost: 1.6, demand: 1, scope: 'city:0',
+    en: ['Hailstorm over Istanbul', 'A severe hailstorm hits Istanbul: claims from Istanbul policies written this month run 60% higher.'],
+    tr: ['İstanbul’da dolu fırtınası', 'İstanbul’u sert bir dolu vurdu: bu ay yazılan İstanbul poliçelerinde hasar %60 yüksek.'] },
+  { month: 6, duration: 2, cost: 1, demand: 1.3, scope: 'vehicle:0',
+    en: ['New-car loan campaign', 'Cheap auto loans bring 30% more new-vehicle buyers to market for two months.'],
+    tr: ['Sıfır araç kredi kampanyası', 'Ucuz taşıt kredisi iki ay boyunca pazara %30 daha fazla sıfır araç sahibi getiriyor.'] },
+  { month: 8, duration: 1, cost: 1.12, demand: 1, scope: 'all',
+    en: ['Holiday traffic', 'Long-weekend traffic lifts claim frequency across the market this month.'],
+    tr: ['Bayram trafiği', 'Uzun bayram tatili trafiği bu ay tüm pazarda hasar sıklığını artırıyor.'] },
+  { month: 9, duration: 2, cost: 1, demand: 0.8, scope: 'channel:2',
+    en: ['Aggressive online rival', 'A digital-only insurer undercuts the market: 20% fewer digital customers are left for you.'],
+    tr: ['Agresif dijital rakip', 'Yalnızca dijital çalışan bir sigortacı fiyat kırıyor: dijital müşterinin %20’si pazardan çekiliyor.'] }
+];
+const eventsFor = lang => EVENT_TEXT.map(e => ({ month: e.month, duration: e.duration, cost: e.cost, demand: e.demand, scope: e.scope, title: e[lang === 'tr' ? 'tr' : 'en'][0], description: e[lang === 'tr' ? 'tr' : 'en'][1] }));
+export const EVENTS = eventsFor('en');
+
+export function scenario(lang = 'en') {
+  return {
+    version: 'casco-1.0', seed: 2026, year: 2026, branch: presetName(DEFAULT_PRESET, lang), preset: DEFAULT_PRESET, minutes: 25, speed: 6,
+    weights: [50, 30, 20], lang, assumptions: cascoAssumptions(lang), events: eventsFor(lang), rules: defaultCascoRules()
+  };
+}
+
+// Market figures for briefings: customers per month and the share that earns full points.
+export function scaledMarket(config, n) {
+  const money = cascoMoney(config);
+  return { pool: policiesOf(config) / 12, shareTarget: Math.min(1, money.shareTarget / Math.max(1, n)) };
+}
+
+// ——— Display in the viewer's language ———
+export const localizeRules = config => rulesOf(config);
+export function localizedBranch(config, viewerLang) {
+  const own = presetName(DEFAULT_PRESET, config?.lang);
+  return !config?.branch || config.branch === own ? presetName(DEFAULT_PRESET, viewerLang) : config.branch;
+}
+export function localizedEventText(event, config, viewerLang) {
+  if (!event || !config?.lang || config.lang === viewerLang) return event;
+  const i = eventsFor(config.lang).findIndex(d => d.title === event.title && d.description === event.description);
+  return i === -1 ? event : { ...event, title: eventsFor(viewerLang)[i].title, description: eventsFor(viewerLang)[i].description };
+}
+export function localizedEventTitle(title, config, viewerLang) {
+  if (!config?.lang || config.lang === viewerLang) return title;
+  const i = eventsFor(config.lang).findIndex(d => d.title === title);
+  return i === -1 ? title : eventsFor(viewerLang)[i].title;
+}
+export function localizedTeamProduct(team, config, viewerLang) {
+  const own = `${team.name} ${presetName(DEFAULT_PRESET, config?.lang)}`;
+  return team.strategy.product === own ? `${team.name} ${presetName(DEFAULT_PRESET, viewerLang)}` : team.strategy.product;
+}
+export function localizedAssumption(config, key, viewerLang) {
+  const a = config.assumptions[key];
+  if (!config?.lang || config.lang === viewerLang) return a;
+  const own = cascoAssumptions(config.lang)[key], target = cascoAssumptions(viewerLang)[key];
+  return !own || a.label !== own.label ? a : { ...a, label: target.label, description: target.description };
+}
+
+// ——— Teams ———
+export const TEAM_META = [
+  { name: 'Atlas', code: 'ATL', color: '#43C6FF' },
+  { name: 'Compass', code: 'CMP', color: '#AB98F8' },
+  { name: 'Nova', code: 'NOV', color: '#FFBE55' },
+  { name: 'Shield', code: 'SHD', color: '#57D8B3' },
+  { name: 'Blue Wave', code: 'BLU', color: '#6D9CFF' },
+  { name: 'Summit', code: 'SUM', color: '#FF887C' }
+];
+
+// Six sample approaches for previews and the balance test.
+export function sampleStrategies(config) {
+  const R = rulesOf(config), money = cascoMoney(config), B = money.budget;
+  const act = actuarialCoefficients(R), flat = Object.fromEntries(DIMENSIONS.map(d => [d, act[d].map(() => 1)]));
+  const tilt = (coef, dim, factors) => ({ ...coef, [dim]: coef[dim].map((v, i) => snapCoef(v * factors[i], R)) });
+  const k = v => Math.round(v / 1000) * 1000;
+  const base = { product: '', sentence: '', marketing: k(B * 0.5), channelFocus: [40, 25, 15, 20], claimsOps: k(B * 0.4), reinsurance: false };
+  return [
+    { id: 'actuary', ...base, coef: act, basePremium: actuarialBase(act, 0.62, R) },
+    { id: 'flat', ...base, coef: flat, basePremium: actuarialBase(flat, 0.62, R) },
+    { id: 'volume', ...base, coef: act, basePremium: actuarialBase(act, 0.75, R), marketing: k(B * 0.65), claimsOps: k(B * 0.3) },
+    { id: 'margin', ...base, coef: act, basePremium: actuarialBase(act, 0.52, R), reinsurance: true, marketing: k(B * 0.45 - money.reinsuranceFee) },
+    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), channelFocus: [15, 10, 65, 10] },
+    { id: 'service', ...base, coef: act, basePremium: actuarialBase(act, 0.6, R), marketing: k(B * 0.3), claimsOps: k(B * 0.65) }
+  ];
+}
+export function teams(lang = 'en', config = scenario(lang)) {
+  return sampleStrategies(config).map((st, i) => ({
+    id: i, ...TEAM_META[i], emblem: i, connected: true, locked: false, revision: false,
+    strategy: { ...st, product: `${TEAM_META[i].name} ${presetName(DEFAULT_PRESET, lang)}`, sentence: '' }
+  }));
+}
+
+// ——— Helpers and the engine ———
+export const find = (list, id) => list.find(x => String(x.id) === String(id));
+export const spend = (s, config) => cascoSpend(s, cascoMoney(config));
+export const defaultStrategy = config => defaultCascoStrategy(config);
+export const validate = (team, config, lang) => validateCasco(team, config, lang);
+export const simulate = (teamList, config) => simulateCasco(teamList, config);
+
+export function rank(rows, metric = 'score') {
+  const sorted = [...rows].sort((a, b) =>
+    (metric === 'score' ? Number(b.eligible) - Number(a.eligible) : 0) || b[metric] - a[metric] || b.profit - a.profit || b.share - a.share);
+  let place = 1;
+  return sorted.map((r, i) => {
+    const p = sorted[i - 1];
+    if (i && !(r[metric] === p[metric] && r.profit === p.profit && r.share === p.share && r.eligible === p.eligible)) place = i + 1;
+    return { ...r, rank: place };
+  });
+}

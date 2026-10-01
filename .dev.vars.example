@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local development. Never commit the real key.
+OPENROUTER_API_KEY=sk-or-v1-your-key
+# Optional: pin another compatible Jev release.
+JEV_MODEL=typesafe/jev-1.13

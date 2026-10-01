@@ -1,0 +1,38 @@
+name = "risk-arenasi"
+main = "worker/index.js"
+compatibility_date = "2025-09-01"
+# The account that owns the demireleren.com zone — a Worker can only take a custom domain
+# on a zone in its own account.
+account_id = "ded47c55374c6cf83ee86e6983b5bdb9"
+workers_dev = true
+
+# Cloudflare manages the DNS record and certificate for these hostnames.
+# Both zones live in this account; a specific record here overrides the zone's wildcard.
+[[routes]]
+pattern = "insurersleague.demireleren.com"
+custom_domain = true
+
+[[routes]]
+pattern = "insurersleague.ozgecmis.info"
+custom_domain = true
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+run_worker_first = true
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "Room"
+
+[[durable_objects.bindings]]
+name = "ARCHIVE"
+class_name = "Archive"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Room"]
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Archive"]
