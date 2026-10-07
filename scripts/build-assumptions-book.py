@@ -26,6 +26,8 @@ console.log(JSON.stringify({
   rules: { ...R, dimensions: undefined }, levels, dimNames, dims, act, money, policies, ref, scopes,
   customers: CASCO_MARKET.customers, source: CASCO_MARKET.source, calibration: CASCO_MARKET.calibration,
   cells, nominal: c.NOMINAL_TEAMS, quarterKeys: c.QUARTER_KEYS,
+  audienceYear: e.campaignAudience(R, money), offerNames: Object.fromEntries(e.campaignRules(R).offers.map(o => [o.id, e.offerName(o.id, 'tr')])),
+  digitalPolicies: CASCO_MARKET.cells.filter(x => x[1] === e.campaignRules(R).channel).reduce((a, x) => a + x[5], 0) / CASCO_MARKET.customers * policies,
   session: { minTeams: g.MIN_TEAMS, maxTeams: g.MAX_TEAMS, reviewMonths: g.STRATEGY_REVIEW_MONTHS, reviewSeconds: g.EXCEL_REVIEW_MS / 1000, finalDelay: g.FINAL_DELAY_MS / 1000 }
 }));
 """
@@ -111,6 +113,7 @@ for name, text in [
     ('Segment katsayıları', 'Beş boyutun (il, kanal, araç yaşı, persona, müşteri tipi) her seviyesi için frekans, şiddet, piyasa prim katsayısı ve gider oranı.'),
     ('Müşteri davranışı', 'Her personanın fiyata, hizmete ve kanala ne kadar duyarlı olduğu. Takımlara verilmez; veriden ve yarıştan çıkarırlar.'),
     ('Pazarlama ve hizmet', 'Pazarlama harcamasının görünürlüğe, hasar operasyonu bütçesinin kapasiteye ve memnuniyete (NPS) dönüşümü.'),
+    ('Dijital kampanya', 'Marketing_Input dosyasından gelen müşteri kazanma kampanyası: medya maliyeti, hedef kitle, hediyeler ve huni.'),
     ('Reasürans', 'Tek kota paylı anlaşmanın devir oranı, komisyonu ve bedeli.'),
     ('Takım kararları', 'Takımların teslim ettiği her karar, sınırları ve çeyrek molalarında değişip değişemeyeceği.'),
     ('Olay takvimi', 'Sezon boyunca pazara düşen olaylar: ay, süre, kapsam, hasar ve talep çarpanı.'),
@@ -118,6 +121,8 @@ for name, text in [
     ('Ödüller ve göstergeler', 'Üç kupa, sahnede gösterilen göstergeler ve arka plandaki birleşik puanın tanımı.'),
     ('Hesap adımları', 'Bir ayın motor içinde nasıl hesaplandığı, sırasıyla.'),
     ('Pazar hücreleri', f'Örneklemdeki {len(cells)} segment hücresi: müşteri adedi, yıllık poliçe, referans prim, beklenen hasar ve hasar/prim oranı.'),
+    ('Veri kullanımı', 'Vaka verisinin her sütunu: oyunda kullanılıyor mu, nasıl.'),
+    ('Denetim bulguları', 'Veri, girdi dosyaları ve oyun mantığı arasındaki tutarsızlıklar; durumu ve öneri.'),
 ]:
     row(ws, [name, text])
 ws._next += 1
@@ -207,6 +212,7 @@ mk, sv = R['marketing'], R['service']
 row(ws, ['Taban görünürlük', mk['presence'], 'katsayı', 'Hiç pazarlama yapmayan takımın bir kanaldaki görünürlüğü.'], [None, N2])
 row(ws, ['Pazarlama gücü', mk['strength'], 'katsayı', 'Görünürlük = taban + güç × ln(1 + kanal harcaması ÷ pazarlama ölçeği). Getiri azalarak artar.'], [None, N2])
 row(ws, ['Pazarlama ölçeği', mk['scale'], '× adil dilim', f"Payda; varsayılan oyunda €{M['marketingScale']:,.0f}.".replace(',', '.')], [None, N4])
+row(ws, ['Görünürlüğe giden pazarlama', 'pazarlama × (1 − kampanya %)', '', 'Kampanyaya ayrılan pay kanal görünürlüğü almaz; ikisi arasında takım seçim yapar.'])
 row(ws, ['Kanal başına en az odak', mk['minFocus'], '%', 'Pazarlama odağı dört satış kanalına dağıtılır; her biri en az bu kadar, toplam %100.'], [None, N0])
 section(ws, 'Hasar operasyonu ve memnuniyet', 4)
 row(ws, ['Dosya başına işlem maliyeti', sv['handling'], '× şiddet', 'Aylık kapasite (dosya) = hasar operasyonu bütçesi ÷ 12 ÷ (bu oran × temel şiddet).'], [None, N2])
@@ -216,6 +222,34 @@ row(ws, ['En düşük hizmet skoru', sv['floor'], 'puan', 'Hizmet skoru bunun al
 row(ws, ['En yüksek hizmet skoru', sv['max'], 'puan', 'Kapasite yeterliyse hizmet skoru (NPS +96).'], [None, N0])
 row(ws, ['Hasar sızıntısı', sv['leakage'], 'oran', 'Kapasite aşılınca (kullanım > 1) hasarlar 1 + bu oran × (kullanım − 1) kadar büyür; en çok 3 birim aşım sayılır.'], [None, PCT])
 row(ws, ['NPS', '2 × ort. hizmet − 100', '', 'Yılın ortalama hizmet skorunun −100…+100 ölçeğine çevrilmiş hali.'])
+
+# ——— Dijital kampanya ———
+K = R['campaign']
+ws = sheet('Dijital kampanya', ['Değişken', 'Değer', 'Birim', 'Ne yapar'], [36, 16, 12, 92],
+           'Marketing_Input.xlsx dosyasındaki kampanya: medya gösterim alır, ulaşılan kişi ilgi × tıklama × hit ile müşteriye dönüşür, her müşteri bir hediye alır. Vakadaki euro başına kişi korunarak pazarımıza ölçeklenmiştir.')
+section(ws, 'Parametreler', 4)
+row(ws, ['Medya maliyeti (CPM)', K['cpm'], '€ / 1.000', 'Bin gösterimin maliyeti.'], [None, N2])
+row(ws, ['Dijital kullanıcı (vaka)', K['digitalUsers'], 'kişi', '18–55 yaş dijital kullanıcı (vaka metni).'], [None, N0])
+row(ws, ['Hedef kitle payı', K['targetShare'], 'oran', '“Joyful Disregarders” (vaka metni).'], [None, PCT])
+row(ws, ['Vakadaki kampanya bütçesi', K['referenceBudget'], '€', 'Bu bütçeye düşen kitle = kullanıcı × hedef payı. Euro başına kişi korunur.'], [None, EUR])
+row(ws, ['Takım-yılı başına hedef kitle', D['audienceYear'], 'kişi', 'kullanıcı × hedef payı × karar bütçesi ÷ vakadaki bütçe. Tüm takımlar toplam kitleyi paylaşır.'], [None, N0])
+row(ws, ['Aylık kitle (6 takımla)', D['audienceYear'] * 6 / 12, 'kişi', 'Takım sayısıyla büyür; ayrıca mevsimsellik ve kapsamdaki olayların talep çarpanıyla oynar.'], [None, N0])
+row(ws, ['Frekans eşiği', K['frequency'], 'görüntüleme', 'Ortalama görüntüleme bunu aşarsa…'], [None, N0])
+row(ws, ['Hit artışı', K['frequencyBonus'], 'oran', '…tüm kampanyaların hit oranı bu kadar artar.'], [None, PCT])
+row(ws, ['Fiyat etkisi tavanı', K['priceCap'], 'kat', 'Piyasadan ucuz fiyat dönüşümü artırır, en fazla bu kat. Pahalı fiyat azaltır.'], [None, N2])
+row(ws, ['Kampanya kanalı', 'Dijital', '', 'Kampanya müşterileri dijital kanal hücrelerine, örneklemdeki paylarıyla girer.'])
+row(ws, ['Organik dijital pazar (yıllık)', D['digitalPolicies'], 'poliçe', 'Karşılaştırma için: kampanya müşterileri bunun üstüne yeni müşteri olarak eklenir.'], [None, N0])
+section(ws, 'Hediyeler (vaka)', 4)
+for o in K['offers']:
+    conv = o['interest'] * o['click'] * o['hit']
+    row(ws, [D['offerNames'][o['id']], f"ilgi %{o['interest'] * 100:.0f} · tıklama %{o['click'] * 100:.0f} · hit %{o['hit'] * 100:.0f}", f"€{o['cost']}",
+             f"1.000 erişimde {conv * 1000:.1f} müşteri. Müşteri başı maliyet ≈ medya €{K['cpm'] / 1000 / conv:.2f} + hediye €{o['cost']} (hedef kitle doymadıysa)."])
+section(ws, 'Kurallar', 4)
+for a, b in [('Gösterim', 'medya bütçesi ÷ CPM × 1.000'), ('Erişim', 'gösterim × min(1, kitle ÷ tüm takımların gösterimi)'),
+             ('Frekans', 'max(1, tüm gösterimler ÷ kitle) — tüm takımlar için aynı'), ('Müşteri', 'erişim × ilgi × tıklama × hit × fiyat etkisi'),
+             ('Hediye sınırı', 'kazanılan müşteri ≤ hediye bütçesi ÷ hediye maliyeti; kullanılmayan hediye parası geri dönmez'),
+             ('Muhasebe', 'Kampanya müşterileri takımın kendi fiyatıyla yeni poliçe olur; hasarı, kanal gideri ve hasar operasyonu yükü normal işler.')]:
+    row(ws, [a, b, '', ''])
 
 # ——— 7. Reasürans ———
 ws = sheet('Reasürans', ['Değişken', 'Değer', 'Birim', 'Ne yapar'], [30, 14, 10, 90],
@@ -235,6 +269,9 @@ row(ws, ['Segment katsayıları (19 adet)', 'çarpan', f"Her biri {tr(R['coef'][
 row(ws, ['Pazarlama bütçesi', '€', 'Sıfır ya da pozitif. Pazarlama + hasar operasyonu + reasürans bedeli ≤ karar bütçesi.', yes('marketing'), 'Bütçenin %50’si'])
 row(ws, ['Pazarlama odağı (4 kanal)', '%', f"Acente, banka, dijital, broker; her biri en az %{mk['minFocus']}, toplam %100.", yes('channelFocus'), 'Her kanala %25'])
 row(ws, ['Hasar operasyonu bütçesi', '€', 'Sıfır ya da pozitif; kapasiteyi ve dolayısıyla NPS’i belirler.', yes('claimsOps'), 'Bütçenin %40’ı'])
+row(ws, ['Kampanya payı', '% pazarlamanın', '0–100, 5’er adım. Pazarlamanın bu kısmı kampanyaya, kalanı kanal görünürlüğüne gider.', yes('campaign'), '%20'])
+row(ws, ['Medya payı', '% kampanyanın', '0–100, 5’er adım. Kalanı hediye bütçesidir.', yes('mediaShare'), '%50'])
+row(ws, ['Kampanya hediyesi', 'liste', 'Konser/etkinlik indirimi, restoran kartı, kahve kartı, spor salonu indirimi; biri seçilir.', yes('offer'), 'Konser / etkinlik indirimi'])
 row(ws, ['Reasürans (kota paylı)', 'açık/kapalı', 'Açılırsa anlaşma bedeli bütçeden düşer.', 'Hayır', 'Kapalı'])
 
 # ——— 9. Olay takvimi ———
@@ -280,8 +317,10 @@ ws = sheet('Hesap adımları', ['Adım', 'Ne olur', 'Formül'], [8, 50, 90], 'Mo
 steps = [
     ('Müşteri havuzu', 'Hücrenin o ay pazara çıkan müşterisi.', 'yıllık poliçe × hücre payı ÷ 12 × mevsimsellik × olay talep çarpanı × (0,985 + şans × 0,03)'),
     ('Teklif', 'Takımın o hücreye fiyatı.', 'baz prim × beş segment katsayısının çarpımı'),
-    ('Seçim ağırlığı', 'Müşterinin takımı tercih etme gücü.', '(teklif ÷ referans prim)^(−β) × görünürlük^sadakat × e^(hizmet ağırlığı × itibar × (hizmet − 98) ÷ 40)'),
+    ('Seçim ağırlığı', 'Müşterinin takımı tercih etme gücü.', '(teklif ÷ referans prim)^(−β) × görünürlük^sadakat × e^(hizmet ağırlığı × itibar × (hizmet − 98) ÷ 40); görünürlük pazarlama × (1 − kampanya %) ile hesaplanır'),
     ('Satış', 'Havuzun takımlar ve dış seçenek arasında paylaşılması.', 'havuz × ağırlık ÷ (dış seçenek + Σ ağırlık)'),
+    ('Kampanya erişimi', 'Ortak hedef kitlede gösterim ve erişim.', 'gösterim = medya ÷ CPM × 1.000; erişim = gösterim × min(1, kitle ÷ Σ gösterim); frekans = max(1, Σ gösterim ÷ kitle)'),
+    ('Kampanya müşterisi', 'Huniden geçen ve hediye bütçesine sığan müşteri.', 'erişim × ilgi × tıklama × hit (frekans > 5 ise ×1,1) × dijital hücre payı × mevsimsellik × olay talebi × min(2, (teklif ÷ referans)^(−β)); en fazla hediye bütçesi ÷ hediye maliyeti'),
     ('Prim ve kanal gideri', 'Yazılan prim ve satış maliyeti.', 'satış × teklif; kanal gideri = prim × kanal gider oranı'),
     ('Beklenen hasar', 'Satılan poliçelerin beklenen adedi ve maliyeti.', 'satış × frekans × olay hasar çarpanı; maliyet = adet × şiddet'),
     ('Kapasite ve hizmet', 'Gelen dosya ile kapasitenin karşılaştırılması.', 'kapasite = hasar op. ÷ 12 ÷ (0,1 × şiddet); hizmet = 98 − 60 × max(0, kullanım − 0,8), 30–98 arası'),
@@ -303,6 +342,52 @@ for x in cells:
              c[5], c[5] / D['customers'] * D['policies'], c[6], c[7], x['freq'], x['sev'], x['cost'], x['reference'], x['cost'] / x['reference']],
         [None, None, None, None, None, N0, N0, EUR2, N4, PCT1, EUR, EUR2, EUR2, PCT1])
 ws.auto_filter.ref = f"A{ws.freeze_panes[1:] and int(ws.freeze_panes[1:]) - 1}:N{ws._next - 1}"
+
+# ——— Veri kullanımı ———
+ws = sheet('Veri kullanımı', ['Sütun (pricing_case_data · DATA)', 'Oyunda', 'Nasıl'], [32, 16, 100],
+           'Vaka verisinin 26 sütunu ve oyunun onları nasıl kullandığı. Verinin bir örneklem olduğunu unutmayın: oyun profili kullanır, satırları tek tek oynatmaz.')
+for col, used, how in [
+    ('customer_id', 'Hayır', 'Yalnızca satır kimliği.'),
+    ('renewal_channel', 'Evet', 'Kanal boyutu (hücre). Not: oyun yenileme değil, sıfırdan yeni iş yarışıdır.'),
+    ('city', 'Evet', 'İl boyutu (hücre).'), ('vehicle_segment', 'Evet', 'Araç yaşı boyutu (hücre).'),
+    ('customer_type', 'Evet', 'Müşteri tipi boyutu (hücre).'), ('persona', 'Evet', 'Persona boyutu (hücre) ve davranış (fiyat/hizmet/kanal duyarlılığı).'),
+    ('base_premium_prev_term', 'Bilgi', 'Hücre ortalaması olarak saklanır (hesap dosyasında görünür); hesaba girmez.'),
+    ('offer_premium_gross', 'Hayır', 'Yenileme teklifi; oyunda yenileme yok.'), ('price_change_pct', 'Hayır', 'Yenileme fiyat değişimi; oyunda karşılığı yok.'),
+    ('discount_offered', 'Hayır', 'İndirim kararı; oyunda indirim kaldıracı yok (fiyat katsayılarla verilir).'), ('discount_pct', 'Hayır', 'Aynı.'),
+    ('final_premium_gross', 'Evet', 'Kalibrasyon: piyasa referans primi bu ortalamayı (€294,67) yeniden üretir.'),
+    ('competitor_price_index', 'Evet', 'Hücrenin referans primine çarpan olarak girer.'),
+    ('claims_count_12m', 'Hayır', 'Hasar modelden üretilir. Bu sütun eski şiddetle (€133) üretildiği için oyunla tutarsız.'),
+    ('claims_paid_12m', 'Hayır', 'Aynı; gerçekleşen hasar/prim ≈ %4,5 gösterir, oyun ≈ %60.'),
+    ('freq_coef_combined', 'Kalibrasyon', 'Frekans normalizasyon sabiti buradan ölçülür. Takımlara giderse cevabı verir.'),
+    ('sev_coef_combined', 'Kalibrasyon', 'Şiddet normalizasyon sabiti buradan ölçülür. Takımlara giderse cevabı verir.'),
+    ('premium_coef_combined', 'Hayır', 'Piyasa prim katsayıları COEFFICIENTS sayfasından okunur.'),
+    ('poisson_lambda … expected_combined_ratio', 'Hayır', 'Modelin türetilmiş çıktıları; takımlara giderse fiyatlamayı doğrudan çözer.'),
+]:
+    row(ws, [col, used, how])
+
+# ——— Denetim bulguları ———
+ws = sheet('Denetim bulguları', ['#', 'Konu', 'Bulgu', 'Etki', 'Durum', 'Öneri'], [5, 26, 70, 12, 18, 60],
+           'Veri, model konfigürasyonu, girdi dosyaları ve oyun mantığı karşılaştırıldı. “Düzeltildi” oyunda çözüldü; “Sizin dosyanız” veri/girdi dosyasında düzeltilmeli; “Karar” sizin tasarım kararınız.')
+findings = [
+    ('Hasar tutarı', 'Model konfigürasyonunda temel şiddet €133; verideki primler €295 olduğundan gerçekleşen hasar/prim %4,5 çıkıyor.', 'Yüksek', 'Oyunda düzeltildi', 'Konfigürasyonda Base Severity = 1753,90 yapın ve verideki hasar sütunlarını yeniden üretin.'),
+    ('Verideki hasar sütunları', 'claims_count_12m / claims_paid_12m eski şiddetle üretilmiş; takımlar analizde %4,5 hasar/prim görür, oyun %60 oynar.', 'Yüksek', 'Sizin dosyanız', 'Hasarları yeni şiddetle yeniden çekin (isterseniz ben üretebilirim).'),
+    ('Cevabı veren sütunlar', 'P–Z sütunları (katsayı çarpımları, beklenen hasar/prim) fiyatlamayı doğrudan çözer.', 'Yüksek', 'Sizin dosyanız', 'Katılımcı sürümünden silin.'),
+    ('İl prim katsayıları', 'Konfigürasyondaki CITY prim katsayıları verideki COEFFICIENTS ile farklı (ör. Ankara 0,945 / 1,018).', 'Orta', 'Oyunda düzeltildi', 'Konfigürasyonu verideki değerlerle eşitleyin.'),
+    ('Yenileme verisi, yeni iş oyunu', 'Veri bir yenileme portföyü (önceki prim, fiyat değişimi, indirim); oyun herkesin sıfırdan yarıştığı yeni iş pazarı. İndirim/yenileme kaldıracı yok.', 'Orta', 'Karar', 'Brifingde açıkça söyleyin: indirim ve fiyat değişimi sütunları bağlam içindir.'),
+    ('Banka müşterisi personası', 'Banka müşterilerinin yalnızca %20’si banka kanalından, %61’i acenteden geliyor; persona en yüksek kanal sadakatine (1,4) sahip.', 'Düşük', 'Karar', 'Sadakat “her kanalda görünürlüğe hassas” anlamında çalışıyor; isim yanıltıcıysa davranışı ya da adı gözden geçirin.'),
+    ('Kampanya hedef kitlesi', '“18–55 yaş dijital, Joyful Disregarders” veride yok (yaş ve bu persona yok). Kampanya müşterileri dijital kanal hücrelerine örneklem payıyla dağıtılıyor.', 'Orta', 'Varsayım', 'Hedef kitleyi bir personaya bağlamak isterseniz söyleyin.'),
+    ('Kampanya hacmi', f"Örnek stratejilerle kampanya yılda ~14 bin müşteri getiriyor; bu organik dijital pazarın (~{D['digitalPolicies']:,.0f}) ~%56’sı.".replace(',', '.'), 'Orta', 'Varsayım', 'Fazla bulursanız Kural stüdyosunda hedef kitle payını ya da hediye hit oranlarını düşürün.'),
+    ('Medya maliyeti', 'Dosyada “1 kullanıcıya gösterme maliyeti €10” yazıyor; oyunda bin gösterim başına €10 (CPM) kullanılıyor.', 'Orta', 'Karar (CPM)', 'Dosyadaki metni “1.000 gösterim başına” olarak düzeltin.'),
+    ('Kampanya ve olaylar', 'Dijital rakip / sıfır araç kredisi olayları kampanya kitlesini etkilemiyordu; mevsimsellik de uygulanmıyordu.', 'Orta', 'Oyunda düzeltildi', '—'),
+    ('Katsayı aralığı', 'Oyun 0,50–2,50 (0,05 adım) kullanıyor; verideki risk katsayıları (ortalamaya göre dijital ~0,70 … broker ~1,75, ticari ~1,50) bu aralığa sığıyor. Marketing_Input dosyasındaki 0,80–1,20 notu artık geçerli değil.', 'Bilgi', 'Oyunda ayarlandı', 'Elinizdeki eski dosyada aralığı güncelleyin ya da sitedeki şablonu dağıtın.'),
+    ('Karar dosyası', 'Oyunun indirdiği şablon artık Marketing_Input tasarımında (Input, Premium, Marketing, Claim). Claim sayfası oyunun yapısında: hasar operasyonu (€) ve kota paylı var/yok; Marketing sayfasına pazarlama bütçesi, kampanya payı, kanal tablosu ve seçilen hediye eklendi.', 'Bilgi', 'Oyunda yapıldı', 'Takımlara sitedeki şablonu dağıtın; elinizdeki eski input dosyaları oyuna uymaz.'),
+    ('Girdi dosyası: metinler', '“Interest Rate” aslında ilgi oranı; F14’teki “ad only once” notu yarım. Oyunun şablonunda bunlar dosyadaki gibi bırakıldı, yalnızca medya maliyeti “1.000 gösterim” olarak düzeltildi.', 'Düşük', 'Sizin dosyanız', 'İsterseniz metinleri düzeltin, şablona da yansıtırım.'),
+    ('Sermaye açıklaması', 'Açıklama “sıfırın altına düşen şampiyon olamaz” diyordu; özkaynak kuralı kapalı.', 'Düşük', 'Oyunda düzeltildi', '—'),
+    ('Kârlılık dengesi', 'Örnek botlar ucuz fiyatladığı için zarar ediyor; aynı sahaya karşı pahalı fiyat (hedef hasar/prim %45) + %40 kampanya ile €1,19 mn kâr mümkün.', 'Bilgi', 'Kontrol edildi', 'Kâr kupası anlamlı; sabit gider ve bütçe adil dilimin %10’u.'),
+    ('Birleşik puan', 'Sahne ve final üç kupa kullanıyor; ağırlıklı puan yalnızca hesap dosyasında duruyor.', 'Bilgi', 'Bilerek', 'İsterseniz tamamen kaldırılabilir.'),
+]
+for i, f in enumerate(findings, 1):
+    row(ws, [i, *f], [N0])
 
 wb.save('oyun-varsayimlari.xlsx')
 print(f'oyun-varsayimlari.xlsx · {len(wb.sheetnames)} sayfa · {len(cells)} hücre')

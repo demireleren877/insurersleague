@@ -5,13 +5,20 @@
 import {
   DIMENSIONS, QUARTER_KEYS, NOMINAL_TEAMS, defaultCascoRules, cascoRulesOf, cascoAssumptions, cascoMoney, cascoSpend,
   defaultCascoStrategy, validateCasco, simulateCasco, strategyAt, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
-  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience
 } from './casco.js';
 
 export {
   DIMENSIONS, QUARTER_KEYS, cascoMoney, cascoSpend, strategyAt, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
-  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience
 };
+
+// Campaign gifts (Marketing_Input.xlsx), named per viewer.
+const OFFER_NAMES = {
+  concert: ['Discount on concert/event', 'Konser / etkinlik indirimi'], restaurant: ['Restaurant gift card', 'Restoran hediye kartı'],
+  coffee: ['Coffee gift card', 'Kahve hediye kartı'], gym: ['Discount on gym membership', 'Spor salonu üyelik indirimi']
+};
+export const offerName = (id, lang = 'en') => (OFFER_NAMES[id] ? (lang === 'tr' ? OFFER_NAMES[id][1] : OFFER_NAMES[id][0]) : String(id));
 
 export const BASE_TEAMS = NOMINAL_TEAMS;
 export const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -136,13 +143,13 @@ export function sampleStrategies(config) {
   const act = actuarialCoefficients(R), flat = Object.fromEntries(DIMENSIONS.map(d => [d, act[d].map(() => 1)]));
   const tilt = (coef, dim, factors) => ({ ...coef, [dim]: coef[dim].map((v, i) => snapCoef(v * factors[i], R)) });
   const k = v => Math.round(v / 1000) * 1000;
-  const base = { product: '', sentence: '', marketing: k(B * 0.5), channelFocus: [40, 25, 15, 20], claimsOps: k(B * 0.4), reinsurance: false };
+  const base = { product: '', sentence: '', marketing: k(B * 0.5), channelFocus: [40, 25, 15, 20], claimsOps: k(B * 0.4), reinsurance: false, campaign: 20, mediaShare: 50, offer: 'concert' };
   return [
     { id: 'actuary', ...base, coef: act, basePremium: actuarialBase(act, 0.62, R) },
     { id: 'flat', ...base, coef: flat, basePremium: actuarialBase(flat, 0.62, R) },
     { id: 'volume', ...base, coef: act, basePremium: actuarialBase(act, 0.75, R), marketing: k(B * 0.65), claimsOps: k(B * 0.3) },
     { id: 'margin', ...base, coef: act, basePremium: actuarialBase(act, 0.52, R), reinsurance: true, marketing: k(B * 0.45 - money.reinsuranceFee) },
-    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), channelFocus: [15, 10, 65, 10] },
+    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), channelFocus: [15, 10, 65, 10], campaign: 45, mediaShare: 20, offer: 'coffee' },
     { id: 'service', ...base, coef: act, basePremium: actuarialBase(act, 0.6, R), marketing: k(B * 0.3), claimsOps: k(B * 0.65) }
   ];
 }

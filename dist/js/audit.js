@@ -5,7 +5,7 @@
 // score the app would give that plan.
 import {
   rulesOf, cascoMoney, policiesOf, marketCells, drawsFor, strategyAt, simulate, rank, DIMENSIONS,
-  dimensionName, levelName, eventScopesFor, monthsOf
+  dimensionName, levelName, eventScopesFor, monthsOf, campaignRules, offerName
 } from '../engine.js';
 
 const L = (lang, en, tr) => (lang === 'tr' ? tr : en);
@@ -99,7 +99,8 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   const SH = {
     guide: L(lang, 'Read me', 'Oku beni'), rules: L(lang, 'Rules', 'Kurallar'), events: L(lang, 'Events', 'Olaylar'),
     plans: L(lang, 'Decisions', 'Kararlar'), market: L(lang, 'Market', 'Pazar'), luck: L(lang, 'Luck', 'Sans'),
-    teamLuck: L(lang, 'Team luck', 'Sans takim'), calc: L(lang, 'Calc', 'Hesap'), ledger: L(lang, 'Ledger', 'Defter'), score: L(lang, 'Score', 'Puan')
+    teamLuck: L(lang, 'Team luck', 'Sans takim'), calc: L(lang, 'Calc', 'Hesap'), ledger: L(lang, 'Ledger', 'Defter'), score: L(lang, 'Score', 'Puan'),
+    campaign: L(lang, 'Campaign', 'Kampanya')
   };
 
   // ——— Rules ———
@@ -136,6 +137,16 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   param('SvcMax', L(lang, 'Highest service score', 'En yüksek hizmet skoru'), R.service.max);
   param('Leakage', L(lang, 'Cost leakage when overloaded', 'Aşırı yükte maliyet kaçağı'), R.service.leakage);
   param('Reputation', L(lang, 'Reputation effect', 'İtibar etkisi'), R.service.reputation);
+  const K = campaignRules(R);
+  section(L(lang, 'Digital campaign', 'Dijital kampanya'));
+  param('CampCPM', L(lang, 'Media cost per 1,000 impressions (EUR)', '1.000 gösterim maliyeti (EUR)'), K.cpm);
+  param('CampUsers', L(lang, 'Digital users (case)', 'Dijital kullanıcı (vaka)'), K.digitalUsers);
+  param('CampTarget', L(lang, 'Target group share', 'Hedef kitle payı'), K.targetShare);
+  param('CampRefBudget', L(lang, 'Case campaign budget (EUR)', 'Vakadaki kampanya bütçesi (EUR)'), K.referenceBudget, L(lang, 'People per euro of the case are kept: audience per team-year = users × target share × decision budget ÷ this.', 'Vakadaki euro başına kişi korunur: takım-yılı başına kitle = kullanıcı × hedef payı × karar bütçesi ÷ bu.'));
+  param('CampFreq', L(lang, 'Frequency threshold', 'Frekans eşiği'), K.frequency);
+  param('CampBonus', L(lang, 'Hit ratio bonus above it', 'Eşik üstü dönüşüm artışı'), K.frequencyBonus);
+  param('CampPriceCap', L(lang, 'Price effect cap', 'Fiyat etkisi tavanı'), K.priceCap);
+  param('CampChannel', L(lang, 'Campaign channel (row in the channel table)', 'Kampanya kanalı (kanal tablosunda satır)'), K.channel + 1);
   section(L(lang, 'Reinsurance and money', 'Reasürans ve para'));
   param('ReShare', L(lang, 'Quota-share ceded', 'Kota paylı devir'), R.reinsurance.share);
   param('ReCommission', L(lang, 'Ceding commission', 'Reasürans komisyonu'), R.reinsurance.commission);
@@ -187,6 +198,12 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   const bFirst = tr;
   R.behavior.forEach((b, i) => { rules.put(tr, 0, levelName('persona', i, lang)); rules.put(tr, 2, b.price, S.inputDec); rules.put(tr, 3, b.service, S.inputDec); rules.put(tr, 4, b.channel, S.inputDec); tr++; });
   names.T_behavior = `${q(SH.rules)}!$C$${bFirst}:$E$${tr - 1}`;
+  tr++;
+  rules.put(tr, 0, L(lang, 'Campaign gifts', 'Kampanya hediyeleri'), S.head); rules.put(tr, 1, '#', S.head); rules.put(tr, 2, L(lang, 'Interest', 'İlgi'), S.head); rules.put(tr, 3, L(lang, 'Click', 'Tıklama'), S.head); rules.put(tr, 4, 'Hit', S.head); rules.put(tr, 5, L(lang, 'Cost (EUR)', 'Maliyet (EUR)'), S.head);
+  tr++;
+  const oFirst = tr;
+  K.offers.forEach((o, i) => { rules.put(tr, 0, offerName(o.id, lang)); rules.put(tr, 1, i + 1); rules.put(tr, 2, o.interest, S.inputDec); rules.put(tr, 3, o.click, S.inputDec); rules.put(tr, 4, o.hit, S.inputDec); rules.put(tr, 5, o.cost, S.inputDec); tr++; });
+  names.T_offer = `${q(SH.rules)}!$C$${oFirst}:$F$${tr - 1}`;
 
   // ——— Events ———
   const ev = sheet();
@@ -213,11 +230,20 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     ['marketing', L(lang, 'Marketing (EUR)', 'Pazarlama (EUR)')],
     ...R.dimensions.channel.map((_, i) => [`channelFocus.${i}`, `${L(lang, 'Marketing focus %', 'Pazarlama odağı %')} · ${levelName('channel', i, lang)}`]),
     ['claimsOps', L(lang, 'Claims operations (EUR)', 'Hasar operasyonu (EUR)')],
-    ['reinsurance', L(lang, 'Quota-share (1 = yes, 0 = no)', 'Kota paylı reasürans (1 = evet, 0 = hayır)')]
+    ['reinsurance', L(lang, 'Quota-share (1 = yes, 0 = no)', 'Kota paylı reasürans (1 = evet, 0 = hayır)')],
+    ['campaign', L(lang, 'Campaign share % (of marketing)', 'Kampanya payı % (pazarlamanın)')],
+    ['mediaShare', L(lang, 'Media share % (of the campaign)', 'Medya payı % (kampanyanın)')],
+    ['offer', L(lang, `Gift (${K.offers.map((o, i) => `${i + 1} = ${offerName(o.id, lang)}`).join(', ')})`, `Hediye (${K.offers.map((o, i) => `${i + 1} = ${offerName(o.id, lang)}`).join(', ')})`)]
   ];
   const D0 = 5; // first decision row
   const rowOf = key => D0 + decisionRows.findIndex(([k]) => k === key);
-  const valueOf = (st, key) => { if (key === 'reinsurance') return st.reinsurance ? 1 : 0; return key.split('.').reduce((o, k) => o[k], st); };
+  const valueOf = (st, key) => {
+    if (key === 'reinsurance') return st.reinsurance ? 1 : 0;
+    if (key === 'campaign') return st.campaign ?? 0;
+    if (key === 'mediaShare') return st.mediaShare ?? 50;
+    if (key === 'offer') return Math.max(0, K.offers.findIndex(o => o.id === (st.offer ?? 'concert'))) + 1;
+    return key.split('.').reduce((o, k) => o[k], st);
+  };
   plans.put(1, 0, L(lang, 'Team decisions (inputs)', 'Takım kararları (girdiler)'), S.title);
   plans.put(2, 0, L(lang, 'Q1 = months 1–3. A later quarter that repeats the previous one is a formula, so editing Q1 flows through. Reinsurance holds all year.', 'Ç1 = 1–3. aylar. Önceki çeyreği tekrar eden çeyrekler formüldür; Ç1’i değiştirince devam eder. Reasürans yıl boyunca sabittir.'), S.text);
   plans.put(3, 0, L(lang, 'Team', 'Takım'), S.head); plans.put(4, 0, L(lang, 'Quarter', 'Çeyrek'), S.head);
@@ -249,7 +275,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     L(lang, 'Frequency', 'Frekans'), L(lang, 'Severity', 'Şiddet'), L(lang, 'Market premium factor', 'Piyasa prim faktörü'), L(lang, 'Expected cost / policy', 'Poliçe başı beklenen maliyet'),
     L(lang, 'Reference premium', 'Referans prim'), L(lang, 'Price sensitivity β', 'Fiyat hassasiyeti β'), L(lang, 'Policies a year', 'Yıllık poliçe'),
     L(lang, 'Channel loyalty', 'Kanal sadakati'), L(lang, 'Service weight', 'Hizmet ağırlığı'), L(lang, 'Channel expense', 'Kanal gideri'),
-    L(lang, 'Label', 'Etiket')].forEach((h, c) => market.put(1, c, h, S.head));
+    L(lang, 'Label', 'Etiket'), L(lang, 'Campaign target share', 'Kampanya hedef payı')].forEach((h, c) => market.put(1, c, h, S.head));
   const T = (dim, idxCol, row, k) => `INDEX(T_${dim},${idxCol}${row},${k})`;
   cells.forEach((cell, i) => {
     const row = i + 2;
@@ -267,6 +293,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     market.put(row, 17, `=INDEX(T_behavior,E${row},2)`, S.dec);
     market.put(row, 18, `=INDEX(T_channel,C${row},4)`, S.dec);
     market.put(row, 19, DIMENSIONS.map((dim, k) => levelName(dim, cell[k], lang)).join(' · '));
+    market.put(row, 20, `=IF(C${row}=CampChannel,G${row}/SUMIF($C$2:$C$${C + 1},CampChannel,$G$2:$G$${C + 1}),0)`, S.dec);
   });
   const M = c => `${q(SH.market)}!$${c}$2:$${c}$${C + 1}`;
 
@@ -290,9 +317,9 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   const base = ['m', L(lang, 'Cell', 'Hücre'), L(lang, 'Quarter', 'Çeyrek'), 'city', 'channel', 'vehicle', 'persona', 'type',
     L(lang, 'Demand ×', 'Talep ×'), L(lang, 'Claims ×', 'Hasar ×'), L(lang, 'Customers', 'Müşteri'), 'Σ w', L(lang, 'Channel expense', 'Kanal gideri')];
   const B = base.length; // first team column
-  const TC = 6;          // columns per team: offer, w, policies, premium, expected count, expected cost
+  const TC = 9;          // columns per team: offer, w, market policies, campaign pull, campaign policies, policies, premium, expected count, expected cost
   base.forEach((h, c) => calc.put(1, c, h, S.head));
-  teams.forEach((team, ti) => ['offer', 'w', 'policies', 'premium', 'E[count]', 'E[cost]'].forEach((h, k) => calc.put(1, B + ti * TC + k, `${team.name} · ${h}`, S.head)));
+  teams.forEach((team, ti) => ['offer', 'w', L(lang, 'market policies', 'pazar poliçesi'), L(lang, 'campaign pull', 'kampanya çekimi'), L(lang, 'campaign policies', 'kampanya poliçesi'), 'policies', 'premium', 'E[count]', 'E[cost]'].forEach((h, k) => calc.put(1, B + ti * TC + k, `${team.name} · ${h}`, S.head)));
   const inScope = row => `((EvScope="all")+(EvScope="city")*(EvLevel=D${row})+(EvScope="channel")*(EvLevel=E${row})+(EvScope="vehicle")*(EvLevel=F${row})+(EvScope="persona")*(EvLevel=G${row})+(EvScope="type")*(EvLevel=H${row}))`;
   const active = row => `(EvMonth<=A${row})*(A${row}<EvMonth+EvLast)`;
   const planCol = (ti, row) => `${ti * QUARTERS}+C${row}`;
@@ -309,21 +336,58 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     calc.put(row, 11, `=${ws.join('+')}`, S.dec);
     calc.put(row, 12, `=INDEX(${M('S')},B${row})`, S.dec);
     teams.forEach((team, ti) => {
-      const pc = planCol(ti, row), oc = col(B + ti * TC), wc = col(B + ti * TC + 1), kc = col(B + ti * TC + 2);
+      const pc = planCol(ti, row), oc = col(B + ti * TC), wc = col(B + ti * TC + 1), mk = col(B + ti * TC + 2), pu = col(B + ti * TC + 3), cp = col(B + ti * TC + 4), kc = col(B + ti * TC + 5);
       const plan = rr => `INDEX(Plans,${rr},${pc})`;
       const offer = `${plan(P('basePremium'))}*${plan(`${P('coef.city.0') - 1}+D${row}`)}*${plan(`${P('coef.channel.0') - 1}+E${row}`)}*${plan(`${P('coef.vehicle.0') - 1}+F${row}`)}*${plan(`${P('coef.persona.0') - 1}+G${row}`)}*${plan(`${P('coef.type.0') - 1}+H${row}`)}`;
       calc.put(row, B + ti * TC, `=${offer}`, S.dec);
-      const presence = `(MktPresence+MktStrength*LN(1+${plan(P('marketing'))}*${plan(`${P('channelFocus.0') - 1}+E${row}`)}/100/MktScaleEUR))`;
+      const presence = `(MktPresence+MktStrength*LN(1+${plan(P('marketing'))}*(1-${plan(P('campaign'))}/100)*${plan(`${P('channelFocus.0') - 1}+E${row}`)}/100/MktScaleEUR))`;
       const prevService = `IF(A${row}=1,SvcMax,INDEX(${q(SH.ledger)}!$P$${ledgerFirst}:$P$${ledgerFirst + n * 12 - 1},${ti * 12}+A${row}-1))`;
       const service = `EXP(INDEX(${M('R')},B${row})*Reputation*(${prevService}-SvcMax)/40)`;
       calc.put(row, B + ti * TC + 1, `=EXP(-INDEX(${M('O')},B${row})*LN(${oc}${row}/INDEX(${M('N')},B${row})))*POWER(${presence},INDEX(${M('Q')},B${row}))*${service}`, S.dec);
       calc.put(row, B + ti * TC + 2, `=K${row}*${wc}${row}/(Outside+L${row})`, S.dec);
-      calc.put(row, B + ti * TC + 3, `=${kc}${row}*${oc}${row}`, S.dec);
-      calc.put(row, B + ti * TC + 4, `=${kc}${row}*INDEX(${M('J')},B${row})*J${row}`, S.dec);
-      calc.put(row, B + ti * TC + 5, `=${kc}${row}*INDEX(${M('M')},B${row})*J${row}`, S.dec);
+      calc.put(row, B + ti * TC + 3, `=IF(INDEX(${M('U')},B${row})>0,INDEX(${M('U')},B${row})*(1+Seasonality*SIN(A${row}/1.9))*I${row}*MIN(CampPriceCap,EXP(-INDEX(${M('O')},B${row})*LN(${oc}${row}/INDEX(${M('N')},B${row})))),0)`, S.dec);
+      calc.put(row, B + ti * TC + 4, `=${pu}${row}*INDEX(${q(SH.campaign)}!$S$2:$S$${1 + n * 12},${ti * 12}+A${row})`, S.dec);
+      calc.put(row, B + ti * TC + 5, `=${mk}${row}+${cp}${row}`, S.dec);
+      calc.put(row, B + ti * TC + 6, `=${kc}${row}*${oc}${row}`, S.dec);
+      calc.put(row, B + ti * TC + 7, `=${kc}${row}*INDEX(${M('J')},B${row})*J${row}`, S.dec);
+      calc.put(row, B + ti * TC + 8, `=${kc}${row}*INDEX(${M('M')},B${row})*J${row}`, S.dec);
     });
   }
   const CR = c => `${q(SH.calc)}!$${c}$2:$${c}$${ROWS + 1}`;
+
+  // ——— Campaign: one row per team × month ———
+  const camp = sheet();
+  const CH = [L(lang, 'Team', 'Takım'), 'm', L(lang, 'Quarter', 'Çeyrek'), L(lang, 'Campaign / month', 'Aylık kampanya'), L(lang, 'Media', 'Medya'), L(lang, 'Gift budget', 'Hediye bütçesi'),
+    L(lang, 'Impressions', 'Gösterim'), L(lang, 'All teams’ impressions', 'Tüm takımların gösterimi'), L(lang, 'Audience / month', 'Aylık kitle'), L(lang, 'Frequency', 'Frekans'), L(lang, 'Reach', 'Erişim'),
+    L(lang, 'Gift #', 'Hediye #'), L(lang, 'Interest', 'İlgi'), L(lang, 'Click', 'Tıklama'), L(lang, 'Hit (with frequency bonus)', 'Hit (frekans bonusuyla)'), L(lang, 'Leads', 'Aday'),
+    L(lang, 'Σ price-weighted pull', 'Σ fiyat ağırlıklı çekim'), L(lang, 'Customers wanted', 'İstenen müşteri'), L(lang, 'Multiplier', 'Çarpan'), L(lang, 'Gift cap (customers)', 'Hediye sınırı (müşteri)'), L(lang, 'Customers won', 'Kazanılan müşteri')];
+  CH.forEach((h, c) => camp.put(1, c, h, S.head));
+  const CA = c => `$${c}$2:$${c}$${1 + n * 12}`;
+  teams.forEach((team, ti) => {
+    const pullCol = col(B + ti * TC + 3);
+    for (let m = 1; m <= 12; m++) {
+      const row = 2 + ti * 12 + m - 1, pc = `${ti * QUARTERS}+C${row}`, plan = rr => `INDEX(Plans,${rr},${pc})`;
+      camp.put(row, 0, team.name); camp.put(row, 1, m); camp.put(row, 2, `=IF(B${row}<=3,1,IF(B${row}<=6,2,IF(B${row}<=9,3,4)))`);
+      camp.put(row, 3, `=${plan(P('marketing'))}*${plan(P('campaign'))}/100/12`, S.dec);
+      camp.put(row, 4, `=D${row}*${plan(P('mediaShare'))}/100`, S.dec);
+      camp.put(row, 5, `=D${row}*(1-${plan(P('mediaShare'))}/100)`, S.dec);
+      camp.put(row, 6, `=E${row}/CampCPM*1000`, S.dec);
+      camp.put(row, 7, `=SUMIFS(${CA('G')},${CA('B')},B${row})`, S.dec);
+      camp.put(row, 8, `=CampUsers*CampTarget*Budget/CampRefBudget*Teams/12`, S.dec);
+      camp.put(row, 9, `=MAX(1,H${row}/I${row})`, S.dec);
+      camp.put(row, 10, `=G${row}*MIN(1,I${row}/MAX(H${row},1E-9))`, S.dec);
+      camp.put(row, 11, `=${plan(P('offer'))}`);
+      camp.put(row, 12, `=INDEX(T_offer,L${row},1)`, S.dec);
+      camp.put(row, 13, `=INDEX(T_offer,L${row},2)`, S.dec);
+      camp.put(row, 14, `=INDEX(T_offer,L${row},3)*IF(J${row}>CampFreq,1+CampBonus,1)`, S.dec);
+      camp.put(row, 15, `=K${row}*M${row}*N${row}`, S.dec);
+      camp.put(row, 16, `=SUMIFS(${CR(pullCol)},${CR('A')},B${row})`, S.dec);
+      camp.put(row, 17, `=P${row}*O${row}*Q${row}`, S.dec);
+      camp.put(row, 19, `=F${row}/INDEX(T_offer,L${row},4)`, S.dec);
+      camp.put(row, 18, `=P${row}*O${row}*IF(R${row}>T${row},T${row}/R${row},1)`, S.dec);
+      camp.put(row, 20, `=MIN(R${row},T${row})`, S.dec);
+    }
+  });
 
   // ——— Ledger: one row per team × month ———
   const ledger = sheet();
@@ -336,7 +400,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     L(lang, 'Profit pts', 'Kâr puanı'), L(lang, 'Share pts', 'Pay puanı'), L(lang, 'Satisfaction pts', 'Memnuniyet puanı'), L(lang, 'Score', 'Puan'), L(lang, 'Loss ratio', 'Hasar oranı')];
   LH.forEach((h, c) => ledger.put(1, c, h, S.head));
   teams.forEach((team, ti) => {
-    const kc = col(B + ti * TC + 2), prc = col(B + ti * TC + 3), ecc = col(B + ti * TC + 4), eco = col(B + ti * TC + 5);
+    const kc = col(B + ti * TC + 5), prc = col(B + ti * TC + 6), ecc = col(B + ti * TC + 7), eco = col(B + ti * TC + 8);
     const first = ledgerFirst + ti * 12;
     for (let m = 1; m <= 12; m++) {
       const row = first + m - 1, pc = `${ti * QUARTERS}+C${row}`, plan = rr => `INDEX(Plans,${rr},${pc})`;
@@ -417,7 +481,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     [L(lang, 'Change a decision on the Decisions sheet and the workbook shows the score the app would give that plan in this same game.', 'Kararlar sayfasında bir kararı değiştirirsen dosya, uygulamanın aynı oyunda o plana vereceği puanı gösterir.')],
     ['', 0],
     [L(lang, '1 · The market (Market sheet)', '1 · Pazar (Pazar sayfası)'), S.section],
-    [L(lang, 'The case-study data is a sample: 247 cells of city × channel × vehicle age × persona × customer type. A cell gets its sample share of the yearly policies: policies = sample count ÷ sample size × policies a year.', 'Vaka verisi bir örneklemdir: il × kanal × araç yaşı × persona × müşteri tipinden 247 hücre. Her hücre yıllık poliçenin örneklemdeki payı kadarını alır: poliçe = örneklem adedi ÷ örneklem büyüklüğü × yıllık poliçe.')],
+    [L(lang, 'The case-study data is a sample: the cells of city × channel × vehicle age × persona × customer type. A cell gets its sample share of the yearly policies: policies = sample count ÷ sample size × policies a year.', 'Vaka verisi bir örneklemdir: il × kanal × araç yaşı × persona × müşteri tipi hücreleri. Her hücre yıllık poliçenin örneklemdeki payı kadarını alır: poliçe = örneklem adedi ÷ örneklem büyüklüğü × yıllık poliçe.')],
     [L(lang, 'Expected claims per policy = base frequency × the five frequency coefficients × base severity × the five severity coefficients.', 'Poliçe başı beklenen hasar = temel frekans × beş frekans katsayısı × temel şiddet × beş şiddet katsayısı.')],
     [L(lang, 'The rest of the market charges: reference premium = base frequency × base severity ÷ market loss ratio × the five market premium coefficients × the cell’s competitor index.', 'Piyasanın geri kalanı şunu ister: referans prim = temel frekans × temel şiddet ÷ piyasa hasar oranı × beş piyasa prim katsayısı × hücrenin rakip endeksi.')],
     [L(lang, '2 · Who buys from whom (Calc sheet, one row per month × cell)', '2 · Kim kimden alır (Hesap sayfası, her ay × hücre bir satır)'), S.section],
@@ -426,6 +490,8 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     [L(lang, 'Visibility in the cell’s channel = presence + strength × ln(1 + marketing × focus% ÷ marketing scale).', 'Hücrenin kanalında görünürlük = taban + güç × ln(1 + pazarlama × odak% ÷ pazarlama ölçeği).')],
     [L(lang, 'Attraction w = (offer ÷ reference premium)^(−β) × visibility^loyalty × exp(service weight × reputation × (last month’s service score − max) ÷ 40).', 'Çekim w = (teklif ÷ referans prim)^(−β) × görünürlük^sadakat × exp(hizmet ağırlığı × itibar × (geçen ayın hizmet skoru − en yüksek) ÷ 40).')],
     [L(lang, 'Policies won = customers × w ÷ (rest of the market’s pull + Σ w of all teams).', 'Kazanılan poliçe = müşteri × w ÷ (piyasanın çekimi + tüm takımların Σ w’si).')],
+    [L(lang, 'Visibility uses only the marketing left after the campaign: marketing × (1 − campaign %).', 'Görünürlük yalnızca kampanyadan kalan pazarlamayı kullanır: pazarlama × (1 − kampanya %).')],
+    [L(lang, 'Campaign (Campaign sheet): impressions = media ÷ cost per 1,000 × 1,000. All teams share one monthly audience; reach = impressions × min(1, audience ÷ all impressions), frequency = max(1, all impressions ÷ audience). Leads = reach × interest × click; hit = hit ratio × (1 + bonus if frequency > threshold). Customers go to the campaign channel’s cells by sample share × seasonality × event demand × min(cap, (offer ÷ reference)^(−β)), and at most gift budget ÷ gift cost of them are won.', 'Kampanya (Kampanya sayfası): gösterim = medya ÷ 1.000 gösterim maliyeti × 1.000. Tüm takımlar aylık tek bir kitleyi paylaşır; erişim = gösterim × min(1, kitle ÷ tüm gösterimler), frekans = max(1, tüm gösterimler ÷ kitle). Aday = erişim × ilgi × tıklama; hit = hit oranı × (frekans eşiği aşarsa 1 + bonus). Müşteriler kampanya kanalının hücrelerine örneklem payı × mevsimsellik × olay talebi × min(tavan, (teklif ÷ referans)^(−β)) ile dağılır ve en fazla hediye bütçesi ÷ hediye maliyeti kadarı kazanılır.')],
     [L(lang, '3 · A team’s month (Ledger sheet)', '3 · Takımın ayı (Defter sayfası)'), S.section],
     [L(lang, 'Accounts run on an underwriting-year basis: a month’s policies book their full premium, channel expense and ultimate claims in that month.', 'Hesaplar poliçe yılı esasındadır: bir ayın poliçeleri tam primini, kanal giderini ve nihai hasarını o ay yazar.')],
     [L(lang, 'λ = Σ policies × frequency (× event claims multiplier). Claim count N = max(0, round(λ + √λ × NORMSINV(u₁))) — Poisson in its normal form.', 'λ = Σ poliçe × frekans (× olay hasar çarpanı). Hasar adedi N = max(0, round(λ + √λ × NORMSINV(u₁))) — Poisson’un normal hali.')],
@@ -451,9 +517,10 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     ['plans', plans.toXml({ widths: [44, 4, ...Array(n * QUARTERS).fill(11)], freeze: [2, 4] })],
     ['rules', rules.toXml({ widths: [46, 16, 14, 14, 14, 14] })],
     ['events', ev.toXml({ widths: [4, 40, 8, 12, 12, 8, 10, 10] })],
+    ['campaign', camp.toXml({ widths: [16, 5, 8, ...Array(CH.length - 3).fill(13)], freeze: [2, 1] })],
     ['ledger', ledger.toXml({ widths: [16, 5, 8, ...Array(LH.length - 3).fill(13)], freeze: [2, 1] })],
     ['calc', calc.toXml({ freeze: [2, 1] })],
-    ['market', market.toXml({ widths: [5, 6, 7, 7, 8, 6, 10, 12, 11, 11, 11, 11, 12, 12, 11, 12, 10, 10, 10, 60], freeze: [1, 1] })],
+    ['market', market.toXml({ widths: [5, 6, 7, 7, 8, 6, 10, 12, 11, 11, 11, 11, 12, 12, 11, 12, 10, 10, 10, 60, 12], freeze: [1, 1] })],
     ['luck', luck.toXml({ freeze: [1, 1] })],
     ['teamLuck', teamLuck.toXml({ freeze: [2, 1] })]
   ];

@@ -24,7 +24,8 @@ for (const lang of ['tr', 'en']) {
     marketing: Math.round(money.budget * 0.45 / 1000) * 1000,
     channelFocus: [45, 25, 15, 15],
     claimsOps: Math.round(money.budget * 0.42 / 1000) * 1000,
-    reinsurance: false
+    reinsurance: false,
+    campaign: 30, mediaShare: 25, offer: 'restaurant'
   };
   const file = `dist/samples/${lang === 'tr' ? 'kasko-karar-ornegi' : 'casco-decision-sample'}.xlsx`;
   writeFileSync(file, buildTemplate(s, { lang, teams: [{ name, strategy }] }));

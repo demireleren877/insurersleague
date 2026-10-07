@@ -7,7 +7,7 @@ import { esc, fmt, money, pct } from '../format.js';
 import {
   assumptionsFor, eventScopesFor, defaultRules, rulesOf, localizedAssumption, localizedEventText, scenario, simulate, rank,
   scaledMarket, monthsOf, DIMENSIONS, dimensionName, levelName, marketCells, cellRisk, referenceMarket, policiesOf, cascoMoney,
-  sampleStrategies, TEAM_META
+  sampleStrategies, TEAM_META, campaignRules, campaignAudience, offerName
 } from '../../engine.js';
 import { questionsOf } from '../game.js';
 import { ARCHETYPES } from '../narrative.js';
@@ -37,12 +37,13 @@ export const SECTIONS = [
   { id: 'segmentler', get name() { return t('Segment coefficients', 'Segment katsayıları'); }, icon: 'users', reset: { keys: ['dimensions'] }, changes: count(['dimensions']) },
   { id: 'davranis', get name() { return t('Customer behaviour', 'Müşteri davranışı'); }, icon: 'eye', reset: { keys: ['behavior', 'commercialPrice'] }, changes: count(['behavior', 'commercialPrice']) },
   { id: 'operasyon', get name() { return t('Marketing & service', 'Pazarlama ve hizmet'); }, icon: 'megaphone', reset: { keys: ['marketing', 'service'] }, changes: count(['marketing', 'service']) },
+  { id: 'kampanya', get name() { return t('Digital campaign', 'Dijital kampanya'); }, icon: 'megaphone', reset: { keys: ['campaign'] }, changes: count(['campaign']) },
   { id: 'reasurans', get name() { return t('Reinsurance', 'Reasürans'); }, icon: 'tower', reset: { keys: ['reinsurance'] }, changes: count(['reinsurance']) },
   { id: 'olaylar', get name() { return t('Event calendar', 'Olay takvimi'); }, icon: 'bolt', reset: { keys: [], events: true }, changes: s => (sameJson(s.config.events, scenario(s.config.lang).events) ? 0 : 1) },
   { id: 'denge', get name() { return t('Balance test', 'Denge testi'); }, icon: 'scale', reset: null, changes: () => 0 }
 ];
 // Wide tables get the full width; the live preview steps aside.
-const WIDE = ['segmentler', 'davranis', 'denge'];
+const WIDE = ['segmentler', 'davranis', 'kampanya', 'denge'];
 export const sectionOf = id => SECTIONS.find(x => x.id === id) || SECTIONS[0];
 
 // ——— Field components ———
@@ -59,7 +60,7 @@ function numberAttrs(spec, path, value, locked) {
 
 // A single rule field: label, unit-tagged input, hint, and a reset link if it differs from default.
 function ruleField(path, label, hint = '') {
-  const R = rulesOf(getState().config), spec = fieldSpec(path), value = getPath(R, path), def = getPath(defaultRules(), path);
+  const R = rulesOf(getState().config), spec = fieldSpec(path), def = getPath(defaultRules(), path), value = getPath(R, path) ?? def;
   const changed = value !== def, locked = raceStarted(), unit = UNIT()[spec.format];
   return `<div class="rf ${changed ? 'changed' : ''}">
     <label class="rf-label" for="${inputId(path)}">${label}</label>
@@ -70,7 +71,7 @@ function ruleField(path, label, hint = '') {
 }
 
 function numCell(path, label) {
-  const R = rulesOf(getState().config), spec = fieldSpec(path), value = getPath(R, path), def = getPath(defaultRules(), path);
+  const R = rulesOf(getState().config), spec = fieldSpec(path), def = getPath(defaultRules(), path), value = getPath(R, path) ?? def;
   const changed = value !== def, unit = UNIT()[spec.format];
   return `<span class="rt-cell ${changed ? 'changed' : ''}" ${changed ? `title="${t('Default', 'Varsayılan')}: ${shown(spec, def)}"` : ''}><input class="input" ${numberAttrs(spec, path, value, raceStarted())} aria-label="${esc(label)}${changed ? ` (${t('default', 'varsayılan')} ${shown(spec, def)})` : ''}">${unit ? `<em>${unit}</em>` : ''}</span>`;
 }
@@ -223,6 +224,23 @@ function operationsSection(s, R) {
       </div>`);
 }
 
+function campaignSection(s, R) {
+  const m = cascoMoney(s.config), K = campaignRules(R), perTeam = campaignAudience(R, m) / 12;
+  const offers = `<div class="rt-wrap"><table class="rt"><thead><tr><th>${t('Gift', 'Hediye')}</th><th>${t('Interest', 'İlgi')}</th><th>${t('Click', 'Tıklama')}</th><th>Hit</th><th>${t('Cost', 'Maliyet')}</th><th>${t('Customers per 1,000 reached', '1.000 erişimde müşteri')}</th></tr></thead><tbody>${K.offers.map((o, i) => `<tr><th>${esc(offerName(o.id, getLang()))}</th><td>${numCell(`campaign.offers.${i}.interest`, `${offerName(o.id, getLang())} · ${t('interest', 'ilgi')}`)}</td><td>${numCell(`campaign.offers.${i}.click`, `${offerName(o.id, getLang())} · ${t('click', 'tıklama')}`)}</td><td>${numCell(`campaign.offers.${i}.hit`, `${offerName(o.id, getLang())} · hit`)}</td><td>${numCell(`campaign.offers.${i}.cost`, `${offerName(o.id, getLang())} · ${t('cost', 'maliyet')}`)}</td><td class="num">${fmt(o.interest * o.click * o.hit * 1000, 1)}</td></tr>`).join('')}</tbody></table></div>`;
+  return block(t('Digital acquisition campaign', 'Dijital müşteri kazanma kampanyası'), t('Teams send part of their marketing here: media buys impressions in a shared target group; interest × click × hit turns reach into customers; each one costs a gift.', 'Takımlar pazarlamanın bir kısmını buraya ayırır: medya ortak bir hedef kitlede gösterim alır; ilgi × tıklama × hit erişimi müşteriye çevirir; her müşteri bir hediyeye mal olur.'), `
+      <div class="rf-grid">
+        ${ruleField('campaign.cpm', t('Media cost per 1,000 impressions', '1.000 gösterim maliyeti'), t('CPM.', 'CPM.'))}
+        ${ruleField('campaign.digitalUsers', t('Digital users (case)', 'Dijital kullanıcı (vaka)'), t('18–55 digital users in the case.', 'Vakadaki 18–55 yaş dijital kullanıcı.'))}
+        ${ruleField('campaign.targetShare', t('Target group share', 'Hedef kitle payı'), t('“Joyful Disregarders” among them.', 'İçlerinde “Joyful Disregarders”.'))}
+        ${ruleField('campaign.referenceBudget', t('Case campaign budget', 'Vakadaki kampanya bütçesi'), t('Keeps the case’s people per euro: the audience scales with the decision budget.', 'Vakadaki euro başına kişiyi korur: kitle karar bütçesiyle ölçeklenir.'))}
+        ${ruleField('campaign.frequency', t('Frequency threshold', 'Frekans eşiği'), t('Average views above this raise the hit ratio.', 'Ortalama görüntüleme bunu aşarsa hit oranı artar.'))}
+        ${ruleField('campaign.frequencyBonus', t('Hit ratio bonus', 'Hit oranı artışı'))}
+        ${ruleField('campaign.priceCap', t('Price effect cap', 'Fiyat etkisi tavanı'), t('A cheap price can raise conversion at most this many times.', 'Ucuz fiyat dönüşümü en fazla bu kat artırabilir.'))}
+      </div>
+      ${offers}
+      ${insight([t(`In this game the target group is about ${fmt(perTeam)} people a month per team (${fmt(perTeam * s.teams.length || perTeam)} with ${Math.max(1, s.teams.length)} teams). Reaching all of them once costs ${money(perTeam * K.cpm / 1000)} a month per team.`, `Bu oyunda hedef kitle takım başına ayda yaklaşık ${fmt(perTeam)} kişi (${Math.max(1, s.teams.length)} takımla ${fmt(perTeam * s.teams.length || perTeam)}). Hepsine bir kez ulaşmak takım başına ayda ${money(perTeam * K.cpm / 1000)}.`)])}`);
+}
+
 function reinsuranceSection(s, R) {
   const m = cascoMoney(s.config);
   return block(t('Quota-share treaty', 'Kota paylı anlaşma'), t('One treaty, the same fixed terms for every team. The fee is set in Market & money.', 'Tek anlaşma, her takıma aynı sabit şartlar. Bedeli Pazar ve para bölümünde ayarlanır.'), `
@@ -312,7 +330,7 @@ export function rulesPage(sectionId) {
   const R = rulesOf(s.config), section = sectionOf(sectionId);
   const counts = SECTIONS.map(x => x.changes(s, R));
   const total = counts.reduce((a, b) => a + b, 0), locked = raceStarted();
-  const bodies = { puanlama: scoringSection, pazar: marketSection, hasar: claimsSection, segmentler: segmentsSection, davranis: behaviorSection, operasyon: operationsSection, reasurans: reinsuranceSection, olaylar: eventsSection, denge: balanceSection };
+  const bodies = { puanlama: scoringSection, pazar: marketSection, hasar: claimsSection, segmentler: segmentsSection, davranis: behaviorSection, operasyon: operationsSection, kampanya: campaignSection, reasurans: reinsuranceSection, olaylar: eventsSection, denge: balanceSection };
   const actions = `
     <button class="btn ghost sm" data-action="rules-export">${icon('file', 15)} ${t('Download rules file', 'Kural dosyasını indir')}</button>
     <label class="btn ghost sm ${locked ? 'disabled' : ''}" title="${t('Upload a rules file', 'Kural dosyası yükle')}">${icon('arrow', 15)} ${t('Upload from file', 'Dosyadan yükle')}<input type="file" id="import-file" accept="application/json" hidden ${locked ? 'disabled' : ''}></label>

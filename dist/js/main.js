@@ -10,12 +10,12 @@ import { resultsPage } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=39';
+import { stageMarkup, mountStage } from './views/stage.js?v=42';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=39';
-import { buildAuditWorkbook } from './audit.js?v=39';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=42';
+import { buildAuditWorkbook } from './audit.js?v=42';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 

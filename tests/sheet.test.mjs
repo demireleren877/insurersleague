@@ -52,19 +52,20 @@ test('strategy workbook template round-trips localized Excel decisions', async (
   const state = freshSession(1_000, { lang: 'tr', preset: 'casco' });
   const strategy = { ...defaultStrategy('Atlas', state.config), product: 'Atlas Güvence', sentence: 'Dengeli fiyatla aileleri büyüt.' };
   strategy.basePremium = 21.5;
-  strategy.coef.persona = [0.9, 1.7, 1, 0.7];
-  strategy.coef.channel = [0.95, 1.05, 0.7, 1.8];
+  strategy.coef.persona = [0.9, 1.15, 1, 0.8];
+  strategy.coef.channel = [0.95, 1.05, 0.8, 1.2];
+  strategy.campaign = 35; strategy.mediaShare = 20; strategy.offer = 'coffee';
   strategy.channelFocus = [40, 30, 20, 10];
   strategy.reinsurance = true;
   strategy.marketing = 30_000;
   const bytes = buildTemplate(state, { lang: 'tr', teams: [{ name: 'Atlas', strategy }] });
   const archiveText = new TextDecoder().decode(bytes);
   const workbookXml = archiveText.slice(archiveText.indexOf('<workbook '), archiveText.indexOf('</workbook>') + 11);
-  const decisionXml = archiveText.slice(archiveText.indexOf('<worksheet '), archiveText.indexOf('</worksheet>') + 12);
-  assert.match(workbookXml, /<definedName name="options_reinsurance">'Listeler'!\$A\$2:\$A\$3<\/definedName>/);
-  assert.equal([...workbookXml.matchAll(/<definedName name="options_/g)].length, 1);
-  assert.match(decisionXml, /<formula1>options_reinsurance<\/formula1>/);
-  assert.doesNotMatch(decisionXml, /<formula1>'Listeler'!/);
+  // The case file's design: its four sheets and its named dropdown lists.
+  for (const sheet of ['Input', 'Premium', 'Marketing', 'Claim']) assert.match(workbookXml, new RegExp(`<sheet name="${sheet}"`));
+  for (const list of ['CoefficientList', 'PercentageList', 'FocusList', 'OfferList', 'YesNoList']) assert.match(workbookXml, new RegExp(`<definedName name="${list}">`));
+  assert.match(archiveText, /<formula1>CoefficientList<\/formula1>/);
+  assert.match(archiveText, /<tabColor rgb="FF004FA3"\/>/);
   const result = await readSheets([fileOf('atlas.xlsx', bytes)], state.config, 'tr');
 
   assert.deepEqual(result.errors, []);
@@ -78,6 +79,9 @@ test('strategy workbook template round-trips localized Excel decisions', async (
   assert.equal(result.teams[0].strategy.marketing, 30_000);
   assert.equal(result.teams[0].strategy.claimsOps, strategy.claimsOps);
   assert.equal(result.teams[0].strategy.reinsurance, true);
+  assert.equal(result.teams[0].strategy.campaign, 35);
+  assert.equal(result.teams[0].strategy.mediaShare, 20);
+  assert.equal(result.teams[0].strategy.offer, 'coffee');
 });
 
 test('compressed Excel workbooks import correctly', async () => {
@@ -113,10 +117,11 @@ test('quarter workbooks merge changes from separate team copies and ignore uncha
   const novaCopy = structuredClone(roster);
   novaCopy[1].strategy.marketing = 28_000;
   const unchangedCopy = structuredClone(roster);
+  // One workbook carries one team.
   const workbooks = [
-    fileOf('atlas.xlsx', buildTemplate(state, { lang: 'tr', teams: atlasCopy, quarter: true })),
-    fileOf('nova.xlsx', buildTemplate(state, { lang: 'tr', teams: novaCopy, quarter: true })),
-    fileOf('unchanged.xlsx', buildTemplate(state, { lang: 'tr', teams: unchangedCopy, quarter: true }))
+    fileOf('atlas.xlsx', buildTemplate(state, { lang: 'tr', teams: [atlasCopy[0]], quarter: true })),
+    fileOf('nova.xlsx', buildTemplate(state, { lang: 'tr', teams: [novaCopy[1]], quarter: true })),
+    fileOf('unchanged.xlsx', buildTemplate(state, { lang: 'tr', teams: [unchangedCopy[0]], quarter: true }))
   ];
 
   const result = await readSheets(workbooks, state.config, 'tr', { quarter: true, currentTeams: roster });
@@ -154,10 +159,10 @@ test('unchanged rows from a quarter copy do not count as submitted plans', async
 test('workbook imports report out-of-range coefficients by segment name', async () => {
   const state = freshSession(1_000, { lang: 'tr', preset: 'casco' });
   const strategy = defaultStrategy('Atlas', state.config);
-  strategy.coef.city[0] = 2.5;
+  strategy.coef.city[0] = 3;
   const result = await readSheets([fileOf('atlas.xlsx', buildTemplate(state, { lang: 'tr', teams: [{ name: 'Atlas', strategy }] }))], state.config, 'tr');
   assert.equal(result.teams.length, 0);
-  assert.match(result.errors.join(' '), /İl · İstanbul katsayısı 0.5–2 olmalı/);
+  assert.match(result.errors.join(' '), /İl · İstanbul katsayısı 0.5–2.5 olmalı/);
 });
 
 test('an English template imports into a Turkish room: rows are keyed, not matched by label', async () => {
@@ -179,7 +184,22 @@ test('a team’s own workbook is read into that team, whatever the name cell say
   assert.equal(read.strategy.basePremium, 23.4);
   assert.equal(read.fileName, 'Kartal Sig.');
 
-  const two = buildTemplate(state, { lang: 'tr', teams: [{ name: 'Atlas', strategy }, { name: 'Nova', strategy }] });
-  assert.equal((await readTeamSheet(fileOf('iki.xlsx', two), { name: 'Nova' }, state.config, 'tr')).errors.length, 0, 'the column named after the team is taken');
-  assert.match((await readTeamSheet(fileOf('iki.xlsx', two), { name: 'Zirve' }, state.config, 'tr')).errors[0], /2 takım var/);
+  // A file with the team name left empty is still the team's own.
+  const blank = buildTemplate(state, { lang: 'tr', teams: [{ name: '', strategy }] });
+  const unnamed = await readTeamSheet(fileOf('bos.xlsx', blank), { name: 'Kartal' }, state.config, 'tr');
+  assert.deepEqual(unnamed.errors, []);
+  assert.equal(unnamed.strategy.basePremium, 23.4);
+});
+
+test('the media and offer shares of the campaign must total 100%', async () => {
+  const { readWorkbook, teamsFromSheets } = await import('../dist/js/sheet.js');
+  const state = freshSession(1_000, { lang: 'en' });
+  const bytes = buildTemplate(state, { lang: 'en', teams: [{ name: 'Atlas', strategy: defaultStrategy('Atlas', state.config) }] });
+  const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const ok = teamsFromSheets([{ file: 'atlas.xlsx', sheets }], state.config, 'en');
+  assert.deepEqual(ok.errors, []);
+  sheets.find(sh => sh.name === 'Marketing').rows[11][3] = 0.3; // Marketing!D12: offer 30% with media 50%
+  const bad = teamsFromSheets([{ file: 'atlas.xlsx', sheets }], state.config, 'en');
+  assert.equal(bad.teams.length, 0);
+  assert.match(bad.errors.join(' '), /media \+ offer must total 100%/);
 });

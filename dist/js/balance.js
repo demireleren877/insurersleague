@@ -23,12 +23,12 @@ const between = (rnd, lo, hi) => lo + (hi - lo) * rnd();
 // How each approach plays: target loss ratio, budget split (shares of the decision budget),
 // marketing focus by channel (agency, bank, digital, broker) and how it reads the data.
 const PLAYBOOK = {
-  actuary: { lr: [0.55, 0.66], marketing: [0.45, 0.55], ops: [0.35, 0.45], focus: [45, 25, 15, 15], coef: 'actuarial' },
-  flat:    { lr: [0.55, 0.68], marketing: [0.45, 0.55], ops: [0.35, 0.45], focus: [45, 25, 15, 15], coef: 'flat' },
-  volume:  { lr: [0.72, 0.85], marketing: [0.6, 0.7], ops: [0.25, 0.32], focus: [50, 25, 15, 10], coef: 'actuarial' },
-  margin:  { lr: [0.45, 0.55], marketing: [0.35, 0.45], ops: [0.35, 0.45], focus: [40, 30, 15, 15], coef: 'actuarial', reinsurance: true },
-  digital: { lr: [0.58, 0.68], marketing: [0.5, 0.6], ops: [0.3, 0.4], focus: [10, 10, 70, 10], coef: 'digital' },
-  service: { lr: [0.56, 0.64], marketing: [0.25, 0.35], ops: [0.55, 0.65], focus: [45, 25, 15, 15], coef: 'actuarial' }
+  actuary: { lr: [0.55, 0.66], marketing: [0.45, 0.55], ops: [0.35, 0.45], focus: [45, 25, 15, 15], coef: 'actuarial', camp: [[20, 40], [20, 30], 'restaurant'] },
+  flat:    { lr: [0.55, 0.68], marketing: [0.45, 0.55], ops: [0.35, 0.45], focus: [45, 25, 15, 15], coef: 'flat', camp: [[0, 20], [40, 60], 'concert'] },
+  volume:  { lr: [0.72, 0.85], marketing: [0.6, 0.7], ops: [0.25, 0.32], focus: [50, 25, 15, 10], coef: 'actuarial', camp: [[50, 70], [30, 50], 'concert'] },
+  margin:  { lr: [0.45, 0.55], marketing: [0.35, 0.45], ops: [0.35, 0.45], focus: [40, 30, 15, 15], coef: 'actuarial', reinsurance: true, camp: [[0, 10], [40, 60], 'gym'] },
+  digital: { lr: [0.58, 0.68], marketing: [0.5, 0.6], ops: [0.3, 0.4], focus: [10, 10, 70, 10], coef: 'digital', camp: [[40, 60], [15, 25], 'coffee'] },
+  service: { lr: [0.56, 0.64], marketing: [0.25, 0.35], ops: [0.55, 0.65], focus: [45, 25, 15, 15], coef: 'actuarial', camp: [[10, 30], [30, 50], 'gym'] }
 };
 
 export function botStrategy(approach, config, rnd) {
@@ -50,7 +50,8 @@ export function botStrategy(approach, config, rnd) {
   focus[focus.indexOf(Math.max(...focus))] += 100 - focus.reduce((a, b) => a + b, 0);
   return {
     product: approach, sentence: approach, basePremium: actuarialBase(coef, between(rnd, ...p.lr), R),
-    coef, marketing, channelFocus: focus, claimsOps, reinsurance: !!p.reinsurance
+    coef, marketing, channelFocus: focus, claimsOps, reinsurance: !!p.reinsurance,
+    campaign: Math.round(between(rnd, ...p.camp[0]) / 5) * 5, mediaShare: Math.round(between(rnd, ...p.camp[1]) / 5) * 5, offer: p.camp[2]
   };
 }
 

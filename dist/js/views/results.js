@@ -44,7 +44,8 @@ function realized(r) {
   const lang = getLang();
   const split = (list, dim) => list.map((n, i) => `${levelName(dim, i, lang)} ${fmt(n / Math.max(1, r.policies) * 100)}%`).join(' · ');
   return `<dl class="plan-budget"><div><dt>${t('Customers won, by persona', 'Kazanılan müşteri, personaya göre')}</dt><dd>${split(r.segments, 'persona')}</dd></div>
-    <div><dt>${t('…and by channel', '…ve kanala göre')}</dt><dd>${split(r.channels, 'channel')}</dd></div></dl>`;
+    <div><dt>${t('…and by channel', '…ve kanala göre')}</dt><dd>${split(r.channels, 'channel')}</dd></div>
+    <div><dt>${t('Won by the digital campaign', 'Dijital kampanyayla gelen')}</dt><dd>${fmt(r.campaign?.total ?? 0)} ${t('customers', 'müşteri')} (${fmt((r.campaign?.total ?? 0) / Math.max(1, r.policies) * 100)}%)</dd></div></dl>`;
 }
 
 export function resultsPage() {

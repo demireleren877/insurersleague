@@ -16,7 +16,7 @@
 import { CASCO_MARKET } from './data/casco-market.js';
 
 export const DIMENSIONS = ['city', 'channel', 'vehicle', 'persona', 'type'];
-export const QUARTER_KEYS = ['basePremium', 'coef', 'marketing', 'channelFocus', 'claimsOps'];
+export const QUARTER_KEYS = ['basePremium', 'coef', 'marketing', 'channelFocus', 'claimsOps', 'campaign', 'mediaShare', 'offer'];
 export const NOMINAL_TEAMS = 6;
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const L = (lang, en, tr) => (lang === 'tr' ? tr : en);
@@ -37,15 +37,40 @@ export function defaultCascoRules() {
     ],
     commercialPrice: 0.8,
     market: { outside: 1.2, seasonality: 0.06 },
-    coef: { min: 0.5, max: 2, step: 0.05 },
+    coef: { min: 0.5, max: 2.5, step: 0.05 },
     marketing: { presence: 0.3, strength: 0.7, scale: 0.004, minFocus: 10 },
     service: { handling: 0.1, threshold: 0.8, slope: 60, floor: 30, max: 98, leakage: 0.15, reputation: 1 },
     reinsurance: { share: 0.3, commission: 0.25 },
+    // The digital acquisition campaign (Marketing_Input.xlsx): media buys impressions in the target group,
+    // reached people go through interest → click → hit, every acquired customer gets one gift.
+    // The case's audience-per-euro is kept: the target group grows with the decision budget and the teams.
+    campaign: {
+      channel: 2,                 // campaign customers buy through this channel (Digital)
+      cpm: 10,                    // EUR per 1,000 impressions
+      digitalUsers: 43000000,     // 18–55 digital users in the case
+      targetShare: 0.21,          // the target group's share of them
+      referenceBudget: 5000000,   // the case's campaign budget for that audience
+      frequency: 5,               // seen more than this many times on average →
+      frequencyBonus: 0.1,        // … the hit ratio rises by this much
+      priceCap: 2,                // a cheap price can at most double the hit ratio
+      offers: [
+        { id: 'concert', interest: 0.5, cost: 50, click: 0.35, hit: 0.1 },
+        { id: 'restaurant', interest: 0.7, cost: 30, click: 0.15, hit: 0.07 },
+        { id: 'coffee', interest: 0.6, cost: 15, click: 0.06, hit: 0.09 },
+        { id: 'gym', interest: 0.81, cost: 85, click: 0.5, hit: 0.15 }
+      ]
+    },
     capitalRule: false // on: a team whose equity ever goes below zero can't win
   });
 }
 const DEFAULT_RULES = defaultCascoRules();
 export const cascoRulesOf = config => (config?.rules?.model ? config.rules : DEFAULT_RULES);
+// Rooms created before the campaign existed carry no campaign rules; they get the defaults.
+export const campaignRules = R => R?.campaign ?? DEFAULT_RULES.campaign;
+// A plan's campaign decisions; plans written before the campaign existed run none.
+export const campaignOf = s => ({ share: Number.isFinite(s?.campaign) ? s.campaign : 0, media: Number.isFinite(s?.mediaShare) ? s.mediaShare : 50, offer: s?.offer ?? 'concert' });
+// The target group in this market for one team-year: the case's people per euro × the decision budget.
+export const campaignAudience = (R, money) => { const K = campaignRules(R); return K.digitalUsers * K.targetShare * money.budget / K.referenceBudget; };
 
 // ——— Market arithmetic ———
 const cells = () => CASCO_MARKET.cells;
@@ -80,7 +105,7 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
     policies: A(policies, 1000, 5000000, 'policies', 'Annual market size', 'Yıllık pazar büyüklüğü',
       'Policies the whole market buys in a year. Its profile matches the sample exactly.', 'Tüm pazarın bir yılda aldığı poliçe. Profili örneklemle birebir aynı.'),
     capital: A(k(0.3), 1000, 1e9, 'EUR', 'Starting capital', 'Başlangıç sermayesi',
-      'The same equity for every company. Going below zero rules a team out of the title.', 'Her şirkete aynı özkaynak. Sıfırın altına düşen şampiyon olamaz.'),
+      'The same equity for every company; profit and loss move it. With the capital rule on, going below zero rules a team out.', 'Her şirkete aynı özkaynak; kâr ve zarar onu değiştirir. Özkaynak kuralı açıksa sıfırın altına düşen takım kupa alamaz.'),
     budget: A(k(0.08), 1000, 1e9, 'EUR', 'Decision budget', 'Karar bütçesi',
       'Marketing + claims operations + the reinsurance fee, spread over the year.', 'Pazarlama + hasar operasyonu + reasürans bedeli; yıla yayılır.'),
     fixedCost: A(k(0.02), 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
@@ -123,7 +148,8 @@ export function defaultCascoStrategy(config) {
     marketing: Math.round(money.budget * 0.5 / 1000) * 1000,
     channelFocus: evenSplit(R.dimensions.channel.length),
     claimsOps: Math.round(money.budget * 0.4 / 1000) * 1000,
-    reinsurance: false
+    reinsurance: false,
+    campaign: 20, mediaShare: 50, offer: 'concert'
   };
 }
 
@@ -155,6 +181,13 @@ export function validateCasco(team, config, lang = config?.lang) {
     errors.push(m(`The channel focus must total 100% (currently ${total}%).`, `Kanal odağı toplamı %100 olmalı (şu an %${total}).`));
   } else if (focus.some(v => v < minFocus - 1e-9))
     errors.push(m(`Every sales channel gets at least ${minFocus}% of the marketing focus.`, `Her satış kanalına pazarlama odağının en az %${minFocus}'u verilmeli.`));
+  const K = campaignRules(R);
+  if (s.campaign !== undefined || s.mediaShare !== undefined || s.offer !== undefined) {
+    const pct5 = v => Number.isFinite(v) && v >= 0 && v <= 100 && onStep(v, 5);
+    if (!pct5(s.campaign)) errors.push(m('The campaign share of marketing goes from 0 to 100% in steps of 5.', 'Kampanya payı (pazarlamanın) %0–100 arasında, 5’er adımla girilir.'));
+    if (!pct5(s.mediaShare)) errors.push(m('The media share of the campaign goes from 0 to 100% in steps of 5.', 'Medya payı (kampanyanın) %0–100 arasında, 5’er adımla girilir.'));
+    if (!K.offers.some(o => o.id === s.offer)) errors.push(m('Pick one of the campaign gifts.', 'Kampanya hediyelerinden birini seç.'));
+  }
   if (!(s.marketing >= 0) || !(s.claimsOps >= 0)) errors.push(m('Budgets must be zero or positive.', 'Bütçeler sıfır veya pozitif olmalı.'));
   else if (cascoSpend(s, money) > money.budget + 0.5) errors.push(m('Marketing, claims operations and the reinsurance fee exceed the decision budget.', 'Pazarlama, hasar operasyonu ve reasürans bedeli karar bütçesini aşıyor.'));
   return errors;
@@ -225,7 +258,8 @@ export const inScope = (scope, cell) => { if (!scope || scope === 'all') return 
 const activeEvents = (events, m) => events.filter(e => e.month <= m && m < e.month + (e.duration || 1));
 
 // ——— Simulation ———
-export function simulateCasco(teamList, config) {
+// `trace` (optional) keeps every team's policies per cell and month, split market / campaign, for audits and exports.
+export function simulateCasco(teamList, config, { trace = false } = {}) {
   const R = cascoRulesOf(config), n = teamList.length, money = cascoMoney(config), policies = policiesOf(config);
   const errors = teamList.flatMap(t => {
     const snapshots = Array.isArray(t.strategyHistory) && t.strategyHistory.length ? t.strategyHistory : [{ strategy: t.strategy }];
@@ -234,7 +268,11 @@ export function simulateCasco(teamList, config) {
   if (errors.length) throw Error([...new Set(errors)].join(' '));
   if (config.weights.reduce((a, b) => a + b, 0) !== 100) throw Error(L(config.lang, 'Score weights must total 100%.', 'Puan ağırlıkları toplamı %100 olmalı.'));
 
-  const svc = R.service, events = config.events || [];
+  const svc = R.service, events = config.events || [], K = campaignRules(R);
+  // Campaign target cells: the campaign channel's cells, weighted by their share of the sample.
+  const targetCount = cells().reduce((a, c) => a + (c[1] === K.channel ? c[5] : 0), 0);
+  const targetShare = cells().map(c => (c[1] === K.channel ? c[5] / targetCount : 0));
+  const audience = campaignAudience(R, money) * n / 12; // target-group people shopping a month, all teams
   const draws = drawsFor(config, teamList);
   const risk = cells().map(c => cellRisk(c, R));
   const channels = R.dimensions.channel.length, personas = R.dimensions.persona.length;
@@ -249,16 +287,18 @@ export function simulateCasco(teamList, config) {
     const season = 1 + R.market.seasonality * Math.sin((m + 1) / 1.9);
     const strategies = teamList.map(t => strategyAt(t, m));
     const counts = teamList.map(() => new Float64Array(cells().length));
+    const demandOf = new Float64Array(cells().length);
     let available = 0, outsideSold = 0;
 
     cells().forEach((cell, c) => {
       const demand = live.reduce((x, e) => x * (inScope(e.scope, cell) ? e.demand ?? 1 : 1), 1);
+      demandOf[c] = demand;
       const pool = yearly(cell, policies) / 12 * season * demand * (0.985 + draws.market[m][c] * 0.03);
       available += pool;
       const who = R.behavior[cell[3]];
       const beta = who.price * (cell[4] === 1 ? R.commercialPrice : 1);
       const weights = strategies.map((s, i) => {
-        const spend = s.marketing * s.channelFocus[cell[1]] / 100;
+        const spend = s.marketing * (1 - campaignOf(s).share / 100) * s.channelFocus[cell[1]] / 100;
         const presence = R.marketing.presence + R.marketing.strength * Math.log1p(spend / money.marketingScale);
         const service = Math.exp(who.service * svc.reputation * (ledgers[i].service - svc.max) / 40);
         return Math.exp(-beta * Math.log(offerFor(s, cell) / risk[c].reference)) * presence ** who.channel * service;
@@ -268,8 +308,28 @@ export function simulateCasco(teamList, config) {
       outsideSold += pool * R.market.outside / total;
     });
 
+    const marketCounts = trace ? counts.map(a => Array.from(a)) : null;
+    // The campaign: impressions share one target group; reach, frequency, the funnel, then the gift cap.
+    const plans = strategies.map(s => { const c = campaignOf(s), spend = s.marketing * c.share / 100 / 12; return { ...c, media: spend * c.media / 100, gifts: spend * (1 - c.media / 100), gift: K.offers.find(o => o.id === c.offer) ?? K.offers[0] }; });
+    const impressions = plans.map(p => p.media / K.cpm * 1000), allImpressions = impressions.reduce((a, b) => a + b, 0);
+    const frequency = Math.max(1, allImpressions / audience);
+    const campaign = plans.map((p, i) => {
+      const reach = impressions[i] * Math.min(1, audience / Math.max(allImpressions, 1e-9));
+      const hit = p.gift.hit * (frequency > K.frequency ? 1 + K.frequencyBonus : 1);
+      const leads = reach * p.gift.interest * p.gift.click;
+      // A cheaper price than the market converts more (the cell's own price sensitivity), at most priceCap ×.
+      // The same seasonality and event demand that move the market move the target group.
+      const pull = cells().map((cell, c) => (targetShare[c] ? targetShare[c] * season * demandOf[c] * Math.min(K.priceCap, Math.exp(-R.behavior[cell[3]].price * (cell[4] === 1 ? R.commercialPrice : 1) * Math.log(offerFor(strategies[i], cell) / risk[c].reference))) : 0));
+      const wanted = leads * hit * pull.reduce((a, b) => a + b, 0);
+      const cap = p.gifts / p.gift.cost, scale = wanted > cap ? cap / wanted : 1;
+      pull.forEach((v, c) => { if (v) counts[i][c] += leads * hit * v * scale; });
+      return { offer: p.gift.id, share: p.share, reach, leads, customers: wanted * scale, wanted, giftsUsed: wanted * scale * p.gift.cost, giftBudget: p.gifts, media: p.media, impressions: impressions[i] };
+    });
+
     const rows = teamList.map((t, i) => {
       const s = strategies[i], l = ledgers[i], [u1, u2] = draws.teams[t.id][m];
+      const camp = campaign[i];
+      l.campaignCustomers = (l.campaignCustomers || 0) + camp.customers;
       let policiesSold = 0, gwp = 0, expectedCount = 0, expectedCost = 0, acquisition = 0;
       const byChannel = Array(channels).fill(0), byPersona = Array(personas).fill(0);
       counts[i].forEach((k, c) => {
@@ -321,6 +381,7 @@ export function simulateCasco(teamList, config) {
         monthLossRatio: gwp ? claims / gwp : 0, eligible: l.eligible, minEquity: l.minEquity,
         segments: [...l.persona], channels: [...l.channel], monthSegments: byPersona, monthGwp: gwp, monthClaims: claims,
         expectedLossRatio: l.gwp ? l.expectedCost / l.gwp : 0,
+        campaign: { ...camp, frequency, audience, total: l.campaignCustomers },
         exposed: live.filter(e => e.scope !== 'all').map(e => e.title),
         score: 0, share: 0, unitShare: 0, monthShare: 0, components: []
       };
@@ -344,7 +405,8 @@ export function simulateCasco(teamList, config) {
     // Market-wide indices for the stage: effects of events that hit the whole market this month.
     const wide = live.filter(e => !e.scope || e.scope === 'all');
     const costIndex = wide.reduce((x, e) => x * (e.cost ?? 1), 1), demandIndex = wide.reduce((x, e) => x * (e.demand ?? 1), 1);
-    months.push({ month: m, rows: rankRows(rows), events: live, totalGwp, monthGwp, totalPolicies, available, nonBuyers: outsideSold, pace, costIndex, demandIndex });
+    months.push({ month: m, rows: rankRows(rows), events: live, totalGwp, monthGwp, totalPolicies, available, nonBuyers: outsideSold, pace, costIndex, demandIndex,
+      ...(trace ? { trace: teamList.map((t, i) => ({ id: t.id, market: marketCounts[i], campaign: Array.from(counts[i], (v, c) => v - marketCounts[i][c]) })) } : {}) });
   }
   return months;
 }
@@ -388,7 +450,8 @@ export function bookProfile(s, config) {
   const R = cascoRulesOf(config), act = actuarialCoefficients(R);
   let cost = 0, premium = 0;
   for (const c of cells()) { cost += c[5] * cellRisk(c, R).cost; premium += c[5] * offerFor(s, c); }
-  let dataGap = 0, flatGap = 0, n = 0;
-  for (const dim of DIMENSIONS) s.coef[dim].forEach((v, i) => { dataGap += Math.abs(Math.log(v / act[dim][i])); flatGap += Math.abs(Math.log(v)); n++; });
-  return { impliedLossRatio: premium ? cost / premium : 0, dataGap: dataGap / n, flatGap: flatGap / n };
+  let dataGap = 0, flatGap = 0, spread = 0, n = 0;
+  for (const dim of DIMENSIONS) s.coef[dim].forEach((v, i) => { dataGap += Math.abs(Math.log(v / act[dim][i])); flatGap += Math.abs(Math.log(v)); spread += Math.abs(Math.log(act[dim][i])); n++; });
+  // spread: how far the risk-based coefficients sit from a flat tariff — the yardstick for both gaps.
+  return { impliedLossRatio: premium ? cost / premium : 0, dataGap: dataGap / n, flatGap: flatGap / n, spread: spread / n };
 }

@@ -25,6 +25,10 @@ export const RULE_FIELDS = {
   'service.slope': F('num', 0, 300, 1), 'service.floor': F('num', 0, 100, 1), 'service.max': F('num', 1, 100, 1),
   'service.leakage': F('pct', 0, 1, 0.01), 'service.reputation': F('num', 0, 3, 0.1),
   'reinsurance.share': F('pct', 0, 0.9, 0.01), 'reinsurance.commission': F('pct', 0, 1, 0.01),
+  'campaign.cpm': F('eur', 0.5, 200, 0.5), 'campaign.digitalUsers': F('num', 100000, 100000000, 100000), 'campaign.targetShare': F('pct', 0.01, 1, 0.01),
+  'campaign.referenceBudget': F('eur', 100000, 100000000, 100000), 'campaign.frequency': F('num', 1, 50, 1), 'campaign.frequencyBonus': F('pct', 0, 1, 0.01),
+  'campaign.priceCap': F('x', 1, 5, 0.1),
+  'campaign.offers.#.interest': F('pct', 0, 1, 0.01), 'campaign.offers.#.click': F('pct', 0, 1, 0.01), 'campaign.offers.#.hit': F('pct', 0, 1, 0.01), 'campaign.offers.#.cost': F('eur', 0, 1000, 1),
   'capitalRule': { format: 'bool' }
 };
 

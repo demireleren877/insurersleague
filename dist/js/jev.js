@@ -1,6 +1,6 @@
 // Jev strategy adapter. The model only chooses among legal, finite options;
 // the insurance engine remains the sole authority for financial outcomes.
-import { rulesOf, cascoMoney, policiesOf, actuarialCoefficients, actuarialBase, marketCells, DIMENSIONS, snapCoef } from '../engine.js';
+import { rulesOf, cascoMoney, policiesOf, actuarialCoefficients, actuarialBase, marketCells, DIMENSIONS, snapCoef, campaignRules, campaignAudience } from '../engine.js';
 
 export const JEV_MODEL = 'typesafe/jev-1.13';
 
@@ -68,6 +68,13 @@ const ALLOCATIONS = [
   { marketing: 0.3, ops: 0.65, label: 'Service-heavy: most of the budget on claims operations.' },
   { marketing: 0.42, ops: 0.42, label: 'Cautious: keep a reserve and split the rest evenly.' }
 ];
+const CAMPAIGNS = [
+  { campaign: 0, mediaShare: 50, offer: 'concert', label: 'No campaign: all marketing buys channel visibility.' },
+  { campaign: 40, mediaShare: 20, offer: 'coffee', label: 'Cheap coffee cards, broad reach: 40% of marketing, a fifth of it on media.' },
+  { campaign: 40, mediaShare: 25, offer: 'restaurant', label: 'Restaurant cards: 40% of marketing, a quarter of it on media.' },
+  { campaign: 30, mediaShare: 60, offer: 'gym', label: 'Rich gym gift for the most engaged: 30% of marketing, mostly media.' },
+  { campaign: 60, mediaShare: 40, offer: 'concert', label: 'Loud: 60% of marketing into the campaign with concert discounts.' }
+];
 const FOCUS = [
   { value: [55, 20, 10, 15], label: 'Agency-led: follow the largest channel.' },
   { value: [20, 55, 10, 15], label: 'Bank-led: bancassurance customers are loyal and less price sensitive.' },
@@ -102,6 +109,7 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
       starting_capital: money.capital, decision_budget: money.budget,
       claim_model: { base_frequency: rules.model.frequency, base_severity_eur: rules.model.severity, base_loss_ratio: rules.model.lossRatio },
       reinsurance: { quota_share: rules.reinsurance.share, ceding_commission: rules.reinsurance.commission, fee: money.reinsuranceFee },
+      digital_campaign: { cost_per_1000_impressions: campaignRules(rules).cpm, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), frequency_bonus: { above_views: campaignRules(rules).frequency, hit_ratio_up: campaignRules(rules).frequencyBonus }, gifts: campaignRules(rules).offers, note: 'Customers = reach × interest × click × hit, at most gift budget ÷ gift cost. Marketing spent on the campaign no longer buys channel visibility.' },
       scoring_weights: { profit: config.weights[0], market_share: config.weights[1], satisfaction: config.weights[2] }
     },
     segments: Object.fromEntries(DIMENSIONS.map(dim => [dim, rules.dimensions[dim].map(lv => ({ level: lv.id, frequency_coef: lv.freq, severity_coef: lv.sev, market_premium_coef: lv.prem, ...(lv.expense !== undefined ? { channel_expense_ratio: lv.expense } : {}) }))])),
@@ -120,6 +128,7 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
     pricing_view: choice('How should the price coefficients follow the segments?', Object.fromEntries(VIEWS.map((row, i) => [keyOf('v', i), row.label]))),
     loss_ratio: choice('Choose the loss ratio your prices aim for. Lower means dearer prices and fewer, more profitable policies.', Object.fromEntries(LOSS_RATIOS.map((value, i) => [keyOf('l', i), `Target loss ratio ${Math.round(value * 100)}%.`]))),
     allocation: choice('Split the decision budget between marketing and claims operations.', Object.fromEntries(ALLOCATIONS.map((row, i) => [keyOf('a', i), row.label]))),
+    campaign: choice('How much of marketing should run the digital acquisition campaign, and with which gift?', Object.fromEntries(CAMPAIGNS.map((row, i) => [keyOf('c', i), row.label]))),
     channel_focus: choice('Where should marketing concentrate?', Object.fromEntries(FOCUS.map((row, i) => [keyOf('f', i), row.label]))),
     reinsurance: choice('Buy the quota-share treaty? It cedes premium and claims for a commission and costs a fixed fee from the budget.', {
       yes: 'Buy it when capital protection and a softer downside justify giving up part of the upside.',
@@ -203,6 +212,7 @@ export function strategyFromJev(session, profile, answers, context) {
   const lossRatio = pick(answers.loss_ratio, LOSS_RATIOS, 'l', signature.lossRatio);
   const allocation = pick(answers.allocation, ALLOCATIONS, 'a', signature.allocation);
   const focus = pick(answers.channel_focus, FOCUS, 'f', signature.focus);
+  const campaign = pick(answers.campaign, CAMPAIGNS, 'c', signature.campaign);
   const reinsurance = typeof signature.reinsurance === 'boolean' ? signature.reinsurance : picked(answers.reinsurance) === 'yes';
   const coef = coefficientsFor(view.id, rules);
   const fee = reinsurance ? money.reinsuranceFee : 0;
@@ -215,7 +225,7 @@ export function strategyFromJev(session, profile, answers, context) {
     ? `${profileName}: riski doğru fiyatla, sermayeyi koru.`
     : `${profileName}: price the risk right, protect the capital.`;
   return {
-    strategy: { sentence, basePremium: actuarialBase(coef, lossRatio, rules), coef, marketing, channelFocus: [...focus.value], claimsOps, reinsurance },
+    strategy: { sentence, basePremium: actuarialBase(coef, lossRatio, rules), coef, marketing, channelFocus: [...focus.value], claimsOps, reinsurance, campaign: campaign.campaign, mediaShare: campaign.mediaShare, offer: campaign.offer },
     confidence
   };
 }

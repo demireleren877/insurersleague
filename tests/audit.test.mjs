@@ -29,11 +29,11 @@ test('the calculation workbook carries every input and computes the rest with fo
   }
   const files = parts(await buildAuditWorkbook(s, { lang: 'tr' }));
   const workbook = files['xl/workbook.xml'];
-  for (const sheet of ['Oku beni', 'Puan', 'Kararlar', 'Kurallar', 'Olaylar', 'Defter', 'Hesap', 'Pazar', 'Sans', 'Sans takim']) assert.match(workbook, new RegExp(`name="${sheet}"`));
+  for (const sheet of ['Oku beni', 'Puan', 'Kararlar', 'Kurallar', 'Olaylar', 'Kampanya', 'Defter', 'Hesap', 'Pazar', 'Sans', 'Sans takim']) assert.match(workbook, new RegExp(`name="${sheet}"`));
   for (const name of ['BaseFreq', 'BaseSev', 'MarketLR', 'Plans', 'TeamLuck', 'MarketLuck', 'FairSlice', 'ShareFull']) assert.match(workbook, new RegExp(`definedName name="${name}"`));
   const sheets = Object.entries(files).filter(([k]) => k.startsWith('xl/worksheets/')).map(([, v]) => v).join('');
   assert.match(sheets, /NORMSINV\(L\d+\)/, 'claim counts use the spreadsheet’s inverse normal');
   assert.match(sheets, /SUMIFS\(/);
-  const calcRows = (files['xl/worksheets/sheet7.xml'].match(/<row /g) || []).length;
+  const calcRows = (files['xl/worksheets/sheet8.xml'].match(/<row /g) || []).length;
   assert.equal(calcRows, 1 + 12 * CASCO_MARKET.cells.length, 'one calculation row per month and market cell');
 });

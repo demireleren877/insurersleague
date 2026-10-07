@@ -431,9 +431,12 @@ function strategyFrom(source, base, cfg) {
     claimsOps: num(src.claimsOps ?? base.claimsOps),
     reinsurance: src.reinsurance === undefined ? base.reinsurance : src.reinsurance === true,
     channelFocus: Array.isArray(src.channelFocus) ? src.channelFocus.slice(0, R.dimensions.channel.length).map(num) : base.channelFocus,
-    coef: Object.fromEntries(DIMENSIONS.map(dim => [dim, Array.isArray(src.coef?.[dim]) ? src.coef[dim].slice(0, R.dimensions[dim].length).map(num) : base.coef[dim]]))
+    coef: Object.fromEntries(DIMENSIONS.map(dim => [dim, Array.isArray(src.coef?.[dim]) ? src.coef[dim].slice(0, R.dimensions[dim].length).map(num) : base.coef[dim]])),
+    campaign: num(src.campaign ?? base.campaign ?? 0),
+    mediaShare: num(src.mediaShare ?? base.mediaShare ?? 50),
+    offer: String(src.offer ?? base.offer ?? 'concert')
   };
-  const numbers = [out.basePremium, out.marketing, out.claimsOps, ...out.channelFocus, ...DIMENSIONS.flatMap(dim => out.coef[dim])];
+  const numbers = [out.basePremium, out.marketing, out.claimsOps, out.campaign, out.mediaShare, ...out.channelFocus, ...DIMENSIONS.flatMap(dim => out.coef[dim])];
   if (numbers.some(v => !Number.isFinite(v)) || out.channelFocus.length !== R.dimensions.channel.length || DIMENSIONS.some(dim => out.coef[dim].length !== R.dimensions[dim].length))
     return { error: M(cfg, 'a decision is missing or not a number.', 'eksik ya da sayısal olmayan bir karar var.') };
   return out;
@@ -973,6 +976,7 @@ function reduceAction(s, action, ctx) {
     case 'rule': {
       if (s.phase === 'race') return { error: M(cfg, 'Rules can’t change while the race is running.', 'Yarış sürerken kurallar değiştirilemez.') };
       if (!s.config.rules) s.config.rules = defaultRules(cfg?.lang, cfg?.preset);
+      if (!s.config.rules.campaign) s.config.rules.campaign = defaultRules(cfg?.lang, cfg?.preset).campaign; // rooms from before the campaign
       const checked = checkRule(s.config.rules, action.path, action.value, cfg?.lang);
       if (checked.error) return checked;
       setPath(s.config.rules, action.path, checked.value);

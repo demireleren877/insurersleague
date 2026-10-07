@@ -160,10 +160,10 @@ body.on-stage { overflow: hidden; }
 .st-detail header > div { min-width: 0; }
 .st-detail header strong { display: block; overflow-wrap: anywhere; font-size: 36px; line-height: 1.05; }
 .st-detail header .icon-btn { flex: none; margin-left: auto; }
-.detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
 .detail-grid div { display: grid; min-width: 0; padding: 9px 12px; border: 1.5px dashed var(--ink-3); border-radius: var(--sk-c); }
 .detail-grid small { font-size: 12px; font-weight: 600; color: var(--ink-2); }
-.detail-grid b { white-space: nowrap; font-size: 24px; font-weight: 800; }
+.detail-grid b { white-space: nowrap; font-size: 21px; font-weight: 800; }
 .spark { display: block; width: 100%; height: auto; }
 .spark-area { fill: var(--c); opacity: .35; }
 .spark-line { fill: none; stroke: var(--ink); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }

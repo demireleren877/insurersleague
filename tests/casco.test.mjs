@@ -143,3 +143,38 @@ test('coefficients go on a 0.05 grid and every channel keeps at least 10% of the
   assert.match(validateCasco(thin, c).join(' '), /at least 10%/);
   assert.ok(money.budget > 0);
 });
+
+const withCampaign = (id, lr, camp) => { const t = team(id, act, lr); Object.assign(t.strategy, camp); return t; };
+const at = (season, id, m = 0) => season[m].rows.find(r => r.id === id).campaign;
+
+test('the campaign never wins more customers than its gift budget pays for', () => {
+  const c = config(4), money = cascoMoney(c);
+  const season = simulateCasco([withCampaign(0, 0.6, { campaign: 80, mediaShare: 90, offer: 'gym' }), withCampaign(1, 0.6, { campaign: 0, mediaShare: 50, offer: 'concert' })], c);
+  for (const month of season) {
+    const k = month.rows.find(r => r.id === 0).campaign;
+    assert.ok(k.customers * 85 <= k.giftBudget + 1e-6, `gifts ${k.customers * 85} ≤ budget ${k.giftBudget}`);
+    assert.ok(k.wanted > k.customers, 'with 90% on media the gift budget binds');
+    assert.equal(month.rows.find(r => r.id === 1).campaign.customers, 0, 'no campaign, no campaign customers');
+  }
+  assert.ok(money.budget > 0);
+});
+
+test('a cheaper price converts more campaign customers, and heavy media triggers the frequency bonus', () => {
+  const c = config(4);
+  const cheap = simulateCasco([withCampaign(0, 0.75, { campaign: 40, mediaShare: 20, offer: 'restaurant' }), withCampaign(1, 0.6, {})], c);
+  const dear = simulateCasco([withCampaign(0, 0.5, { campaign: 40, mediaShare: 20, offer: 'restaurant' }), withCampaign(1, 0.6, {})], c);
+  assert.ok(at(cheap, 0).wanted > at(dear, 0).wanted, 'lower prices pull more of the reached people');
+  const light = simulateCasco([withCampaign(0, 0.6, { campaign: 20, mediaShare: 10, offer: 'coffee' }), withCampaign(1, 0.6, { campaign: 20, mediaShare: 10, offer: 'coffee' })], c);
+  const heavy = simulateCasco([withCampaign(0, 0.6, { campaign: 100, mediaShare: 100, offer: 'coffee' }), withCampaign(1, 0.6, { campaign: 100, mediaShare: 100, offer: 'coffee' })], c);
+  assert.ok(at(light, 0).frequency <= 5 && at(heavy, 0).frequency > 5);
+});
+
+test('a campaign change at a quarter review applies from the next month', () => {
+  const c = config(4);
+  const t0 = withCampaign(0, 0.6, { campaign: 0, mediaShare: 50, offer: 'concert' });
+  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 3, strategy: { ...structuredClone(t0.strategy), campaign: 50, mediaShare: 25, offer: 'coffee' } }];
+  const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
+  assert.equal(at(season, 0, 2).customers, 0);
+  assert.ok(at(season, 0, 3).customers > 0);
+  assert.equal(at(season, 0, 3).offer, 'coffee');
+});

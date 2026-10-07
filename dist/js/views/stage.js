@@ -675,7 +675,7 @@ export function mountStage(root) {
     const gwps = results().slice(0, m + 1).map(x => x.rows.find(y => y.id === t2.id).gwp);
     $('detail').style.setProperty('--team', t2.color);
     $('detail').innerHTML = `<header>${emblem(t2, 'md')}<div><p class="kicker">${t('Published results', 'Yayınlanan sonuçlar')} · ${monthsOf(getLang())[m]}</p><strong class="display">${esc(t2.name)}</strong></div><button class="icon-btn" data-action="toggle-detail" aria-label="${t('Close detail', 'Detayı kapat')}">${icon('x', 16)}</button></header>
-      <div class="detail-grid">${[[t('Policies', 'Poliçe'), fmt(r.policies)], [t('Gross premium', 'Brüt prim'), money(r.gwp)], [t('Market share', 'Pazar payı'), pct(r.share)], [t('Technical profit', 'Teknik kâr'), money(r.profit)], [t('Loss ratio', 'Hasar/prim'), pct(r.grossLossRatio)], ['NPS', signed(r.nps)]].map(([k, v]) => `<div><small>${k}</small><b class="num">${v}</b></div>`).join('')}</div>
+      <div class="detail-grid">${[[t('Policies', 'Poliçe'), fmt(r.policies)], [t('Gross premium', 'Brüt prim'), money(r.gwp)], [t('Market share', 'Pazar payı'), pct(r.share)], [t('Technical profit', 'Teknik kâr'), money(r.profit)], [t('Loss ratio', 'Hasar/prim'), pct(r.grossLossRatio)], ['NPS', signed(r.nps)], [t('Campaign customers', 'Kampanya müşterisi'), fmt(r.campaign?.total ?? 0)], [t('Ad frequency', 'Reklam frekansı'), fmt(r.campaign?.frequency ?? 1, 1)]].map(([k, v]) => `<div><small>${k}</small><b class="num">${v}</b></div>`).join('')}</div>
       ${spark(gwps, t2.color, { width: 520, height: 120, min: 0, max: gwpMax(), label: t(`${t2.name} cumulative gross premium`, `${t2.name} kümülatif brüt prim`) })}`;
   }
 
