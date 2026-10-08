@@ -4,6 +4,8 @@ import { esc } from '../format.js';
 import { t, getLang, languageControl } from '../i18n.js';
 
 // A filled-in example of what teams hand in (built by scripts/build-samples.mjs).
+// The case data teams analyse: 50,000 customers with corrected claims, a column dictionary and the marketing inputs.
+export const CASE_DATA = 'data/katilimci-verisi.xlsx';
 export const sampleWorkbook = () => (getLang() === 'tr' ? 'samples/kasko-karar-ornegi.xlsx' : 'samples/casco-decision-sample.xlsx');
 
 // Everyone watches the moderator's screen; the home page is where the moderator starts or resumes a game.
@@ -30,6 +32,7 @@ export function home() {
           ${host ? `<button class="btn gold lg" data-action="resume-host">${icon('play', 18)} ${t('Back to your game', 'Oyununa dön')} · PIN ${esc(host.pin)}</button>` : ''}
           <button class="btn ${host ? 'ghost' : 'gold'} lg" data-action="create-room">${icon('plus', 18)} ${t('Start a new game', 'Yeni oyun başlat')}</button>
           <a class="home-history" href="${sampleWorkbook()}" download>${icon('file', 16)} ${t('Example decision workbook (.xlsx)', 'Örnek karar dosyası (.xlsx)')}</a>
+          <a class="home-history" href="${CASE_DATA}" download>${icon('chart', 16)} ${t('Casco data (.xlsx)', 'Kasko verisi (.xlsx)')}</a>
           <a class="home-join" href="#/team"><b>${icon('users', 16)} ${t('Joining as a team?', 'Takım olarak mı katılıyorsun?')}</b><small>${t('Enter the PIN on the moderator’s screen and upload your own workbook.', 'Moderatör ekranındaki PIN’i gir ve kendi dosyanı yükle.')}</small></a>
           <a class="home-history" href="#/history">${icon('history', 16)} ${t('Past sessions', 'Geçmiş oturumlar')} ${icon('arrow', 14)}</a>
         </div>

@@ -6,7 +6,7 @@ import { esc, clock } from '../format.js';
 import { monthsOf, marketingSpent, cascoMoney } from '../../engine.js';
 import { t, getLang, languageControl } from '../i18n.js';
 import { planSummary } from './plan.js';
-import { sampleWorkbook } from './home.js';
+import { sampleWorkbook, CASE_DATA } from './home.js';
 
 const fmtInt = v => Math.round(v).toLocaleString(getLang() === 'tr' ? 'tr-TR' : 'en-US');
 const shell = (body, pin) => `<div class="join-app team-app">
@@ -52,6 +52,7 @@ export function teamPage() {
   // Uploads open with the decision window (and at quarter reviews); before that the team can download and fill in.
   const canUpload = quarter => quarter || s.phase === 'decisions';
   const upload = (quarter, done) => `<div class="team-steps">
+      <a class="btn lg" href="${CASE_DATA}" download>${icon('chart', 18)} ${t('Download the casco data', 'Kasko verisini indir')}</a>
       <button class="btn lg" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', 18)} ${quarter ? t('Download your current plan', 'Güncel planını indir') : t('Download your template', 'Şablonunu indir')}</button>
       ${canUpload(quarter) ? `<button class="btn ${done ? 'ghost' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your file', 'Dosyanı değiştir') : t('Upload your workbook', 'Dosyanı yükle')}</button>
       <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>`

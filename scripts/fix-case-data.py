@@ -187,6 +187,7 @@ for letter, w in zip('ABCDEF', (40, 16, 90, 12, 12, 30)):
     ws.column_dimensions[letter].width = w
 ws.freeze_panes = 'A2'
 part.save('veri/katilimci_verisi.xlsx')
+part.save('dist/data/katilimci-verisi.xlsx')  # served from the site (kept out of git like veri/)
 
 paid = sum(r[col['claims_paid_12m']] for r in body)
 prem = sum(r[col['final_premium_gross']] for r in body)
