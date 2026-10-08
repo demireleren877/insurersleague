@@ -105,7 +105,8 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
   return {
     policies: A(policies, 1000, 5000000, 'policies', 'Annual market size', 'Yıllık pazar büyüklüğü',
       'Policies the whole market buys in a year. Its profile matches the sample exactly.', 'Tüm pazarın bir yılda aldığı poliçe. Profili örneklemle birebir aynı.'),
-    budget: A(k(0.08), 1000, 1e9, 'EUR', 'Marketing budget', 'Pazarlama bütçesi',
+    // €500k per team at the default market size; it scales with the policy count like the other money.
+    budget: A(Math.round(500000 * policies / DEFAULT_POLICIES / 1000) * 1000, 1000, 1e9, 'EUR', 'Marketing budget', 'Pazarlama bütçesi',
       'The most a team can spend on its digital campaign in the year.', 'Bir takımın yıl içinde dijital kampanyasına harcayabileceği en fazla tutar.'),
     fixedCost: A(k(0.052), 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
       'Yearly overhead every company carries, claims handling included.', 'Her şirketin taşıdığı yıllık genel gider; hasar yönetimi dahil.'),
