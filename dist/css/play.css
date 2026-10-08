@@ -545,3 +545,6 @@
 .team-brochure > div { display: grid; gap: 3px; }
 .team-brochure small { color: var(--ink-2); font-size: 13.5px; }
 .team-brochure img { display: block; max-width: 100%; max-height: 320px; justify-self: center; border: 1.5px solid var(--ink); border-radius: 6px; background: #fff; }
+
+.team-wait { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 12px 14px; border: 1.5px dashed var(--ink-3); border-radius: var(--sk-c); font-size: 14.5px; color: var(--ink-2); }
+.team-wait svg { flex: none; margin-top: 2px; }

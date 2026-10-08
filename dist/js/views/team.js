@@ -49,10 +49,13 @@ export function teamPage() {
 
   const review = currentStrategyReview(), status = teamStatus(team);
   const head = `<div class="team-preview" style="--team:${team.color};--team-soft:color-mix(in oklab, ${team.color} 22%, var(--canvas))">${emblem(team, 'lg')}<div><strong class="display">${esc(team.name)}</strong><span class="chip ${status.id === 'locked' ? 'ok' : 'warn'}">${status.id === 'locked' ? icon('check', 13) : '<span class="dot"></span>'} ${esc(status.label)}</span></div></div>`;
+  // Uploads open with the decision window (and at quarter reviews); before that the team can download and fill in.
+  const canUpload = quarter => quarter || s.phase === 'decisions';
   const upload = (quarter, done) => `<div class="team-steps">
       <button class="btn lg" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', 18)} ${quarter ? t('Download your current plan', 'Güncel planını indir') : t('Download your template', 'Şablonunu indir')}</button>
-      <button class="btn ${done ? 'ghost' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your file', 'Dosyanı değiştir') : t('Upload your workbook', 'Dosyanı yükle')}</button>
-      <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      ${canUpload(quarter) ? `<button class="btn ${done ? 'ghost' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your file', 'Dosyanı değiştir') : t('Upload your workbook', 'Dosyanı yükle')}</button>
+      <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>`
+        : `<p class="team-wait">${icon('clock', 16)} ${t('Uploading opens when the moderator starts the decision window. Download your template and start filling it in.', 'Yükleme, moderatör karar aşamasını başlatınca açılır. Şablonunu indirip doldurmaya başlayabilirsin.')}</p>`}
     </div>`;
   const brochure = `<section class="team-brochure" data-brochure-box>
       <div><b>${t('Product brochure', 'Ürün broşürü')}</b><small>${t('PNG, JPG or PDF (first page). It shows on the stage at the strategy reviews.', 'PNG, JPG ya da PDF (ilk sayfa). Strateji molalarında sahnede görünür.')}</small></div>
@@ -92,7 +95,7 @@ export function teamPage() {
     ${timer}
     <p class="kicker amber">${t('Step 2 of 2', 'Adım 2 / 2')}</p>
     <h1 class="display">${team.locked ? t('Plan received', 'Planın alındı') : t('Hand in your plan', 'Planını teslim et')}</h1>
-    <p class="muted">${t('Download your template, fill in the base premium, the segment coefficients and the budget split, then upload it here. You can replace it until the race starts.', 'Şablonunu indir; baz primi, segment katsayılarını ve bütçe dağılımını doldur, sonra buraya yükle. Yarış başlayana kadar değiştirebilirsin.')}</p>
+    <p class="muted">${t('Download your template, fill in the base premium, the segment coefficients and the marketing, then upload it here during the decision window. You can replace it until the race starts.', 'Şablonunu indir; baz primi, segment katsayılarını ve pazarlamayı doldur, sonra karar aşamasında buraya yükle. Yarış başlayana kadar değiştirebilirsin.')}</p>
     ${upload(false, team.locked)}
     ${plan}
     ${brochure}

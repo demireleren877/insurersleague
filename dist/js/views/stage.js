@@ -61,8 +61,8 @@ function excelTeamCard(team, { quarter = false, canManage = true, submitted = fa
     <p class="xl-team-plan">${team.locked || team.ai ? esc(excelSummary(team, s.config)) : t('No plan yet. Hand the team its template.', 'Henüz plan yok. Takıma kendi şablonunu ver.')}</p>
     ${manage ? `<div class="xl-team-actions">
       <button class="btn ghost sm" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', 14)} ${quarter ? t('Its current plan', 'Güncel planı') : t('Its template', 'Şablonu')}</button>
-      <button class="btn ${done ? 'ghost' : 'gold'} sm" data-action="excel-team-upload" data-team="${team.id}">${icon('upload', 14)} ${done ? t('Replace file', 'Dosyayı değiştir') : t('Upload file', 'Dosya yükle')}</button>
-      <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      ${quarter || s.phase === 'decisions' ? `<button class="btn ${done ? 'ghost' : 'gold'} sm" data-action="excel-team-upload" data-team="${team.id}">${icon('upload', 14)} ${done ? t('Replace file', 'Dosyayı değiştir') : t('Upload file', 'Dosya yükle')}</button>
+      <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>` : ''}
       <button class="btn ghost sm" data-action="brochure-upload" data-team="${team.id}">${icon('eye', 14)} ${team.brochure ? t('Replace brochure', 'Broşürü değiştir') : t('Brochure', 'Broşür')}</button>
       <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
     </div>` : ''}
@@ -314,7 +314,7 @@ export function mountStage(root) {
         ${s.inputMode === 'excel' ? '' : `<div class="pre-teams-head"><h2 class="display">${n ? t('Teams are joining the league', 'Takımlar lige katılıyor') : t('Waiting for the first team', 'İlk takım bekleniyor')}</h2><span class="num"><b>${n}</b> / ${MAX_TEAMS}</span></div>
         <div class="pre-teams">${n ? s.teams.map((t2, i) => teamTile(t2, i, false)).join('') : `<div class="pre-empty">${icon('users', 40)}<p>${t('Scan the QR code or enter the PIN. Each device sets up its own team: a name and a logo.', 'QR kodu okut ya da PIN’i gir. Her cihaz bir takım kurar: ad ve logo seçer.')}</p></div>`}</div>`}
         <footer class="pre-foot">
-          <p>${n < MIN_TEAMS ? t(`At least ${MIN_TEAMS} teams are needed to start.`, `Başlamak için en az ${MIN_TEAMS} takım gerekli.`) : s.inputMode === 'excel' ? t(`${s.teams.filter(t2 => t2.locked).length} of ${n} plans received. Files can still arrive until the race starts.`, `${n} takımdan ${s.teams.filter(t2 => t2.locked).length} tanesinin planı alındı. Dosyalar yarış başlayana kadar gelebilir.`) : t('Move to the briefing once teams are ready. Latecomers can still join until the decision window closes.', 'Takımlar hazır olduğunda brifinge geç. Geç kalanlar karar süresi bitene kadar katılabilir.')}</p>
+          <p>${n < MIN_TEAMS ? t(`At least ${MIN_TEAMS} teams are needed to start.`, `Başlamak için en az ${MIN_TEAMS} takım gerekli.`) : s.inputMode === 'excel' ? t(`${n} teams in. Teams download their template now and upload it once the decision window opens.`, `${n} takım katıldı. Takımlar şablonunu şimdi indirir, karar aşaması başlayınca yükler.`) : t('Move to the briefing once teams are ready. Latecomers can still join until the decision window closes.', 'Takımlar hazır olduğunda brifinge geç. Geç kalanlar karar süresi bitene kadar katılabilir.')}</p>
           ${isHost ? `<button class="btn go xl" data-action="phase" data-to="briefing" ${n < MIN_TEAMS ? 'disabled' : ''}>${t('Start the briefing', 'Brifingi başlat')} ${icon('arrow', 22)}</button>` : ''}
         </footer>`;
     } else if (s.phase === 'briefing') {

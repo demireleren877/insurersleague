@@ -218,6 +218,11 @@ test('lobby teams are added by name and each takes its own plan', () => {
   assert.notEqual(s.teams[0].emblem, s.teams[1].emblem);
 
   const plan = { ...structuredClone(s.teams[0].strategy), basePremium: 27, sentence: 'Plan.' };
+  // Workbooks come in during the decision window only, from the moderator too.
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: s.teams[0].id, strategy: plan }, host(1_004)).error, /karar aşaması/);
+  reduce(s, { type: 'phase', to: 'briefing' }, host(1_004));
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: s.teams[0].id, strategy: plan }, host(1_004)).error, /karar aşaması/);
+  reduce(s, { type: 'phase', to: 'decisions' }, host(1_004));
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: s.teams[0].id, strategy: plan }, host(1_004)).changed);
   assert.equal(s.teams[0].strategy.basePremium, 27);
   assert.equal(s.teams[0].locked, true);
@@ -260,6 +265,8 @@ test('a team joins from its own device and hands in only its own workbook', () =
   assert.ok(nova.excel && nova.owner === 'bbb' && !nova.locked);
 
   const plan = { ...defaultStrategy('Nova', s.config), sentence: 'Nova plan.' };
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('bbb', 1_005)).error, /decision window opens/);
+  reduce(s, { type: 'phase', to: 'briefing' }, host(1_005)); reduce(s, { type: 'phase', to: 'decisions' }, host(1_005));
   assert.match(reduce(s, { type: 'excel-team-plan', teamId: falcon.id, strategy: plan }, player('bbb', 1_005)).error, /own workbook/);
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('bbb', 1_006)).changed);
   assert.ok(nova.locked, 'the plan is received');

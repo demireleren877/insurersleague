@@ -585,6 +585,8 @@ function reduceAction(s, action, ctx) {
       if (role !== 'host' && (role !== 'player' || team !== mine)) return { error: M(cfg, 'A team can only hand in its own workbook.', 'Takım yalnızca kendi dosyasını teslim edebilir.') };
       const review = currentStrategyReview(s);
       if (s.phase === 'race' && !review) return { error: M(cfg, 'Plans can change only before the race or at a quarter review.', 'Planlar yalnızca yarıştan önce ya da çeyrek molasında değişebilir.') };
+      // Before the race, workbooks are handed in during the decision window only (lobby and briefing just prepare).
+      if (s.phase !== 'race' && s.phase !== 'decisions') return { error: M(cfg, 'Workbooks are handed in once the decision window opens.', 'Dosyalar karar aşaması başlayınca yüklenir.') };
       // Once the decision window runs out, teams can't hand in from their own devices; the moderator still can (or adds time).
       if (role === 'player' && s.phase === 'decisions' && s.deadline && now > s.deadline) return { error: M(cfg, 'Time’s up for the decisions. Ask the moderator to add time.', 'Karar süresi doldu. Moderatörden süre eklemesini iste.') };
       if (role === 'player' && review && now > review.closesAt) return { error: M(cfg, 'The quarterly strategy review is closed.', 'Çeyrek strateji değerlendirmesi kapandı.') };
