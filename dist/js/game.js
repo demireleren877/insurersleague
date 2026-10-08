@@ -16,7 +16,7 @@ export const REVEAL_MS = 10000;
 export const FINAL_DELAY_MS = 2500;
 export const STRATEGY_REVIEW_MONTHS = [2, 5, 8];
 export const STRATEGY_REVIEW_MS = 120000;
-export const EXCEL_REVIEW_MS = 600000;
+export const EXCEL_REVIEW_MS = 300000; // quarter review: 5 minutes
 export const TEAM_COLORS = ['#43C6FF', '#FFBE55', '#AB98F8', '#57D8B3', '#FF887C', '#6D9CFF', '#F58BD3', '#B8E06A', '#FF9F43', '#4FD1C5', '#E8D36B', '#C9A7FF'];
 export const EMBLEM_COUNT = 12;
 export const QUIZ_MODES = {
@@ -573,6 +573,9 @@ function reduceAction(s, action, ctx) {
       if (role !== 'host' && (role !== 'player' || team !== mine)) return { error: M(cfg, 'A team can only hand in its own workbook.', 'Takım yalnızca kendi dosyasını teslim edebilir.') };
       const review = currentStrategyReview(s);
       if (s.phase === 'race' && !review) return { error: M(cfg, 'Plans can change only before the race or at a quarter review.', 'Planlar yalnızca yarıştan önce ya da çeyrek molasında değişebilir.') };
+      // Once the decision window runs out, teams can't hand in from their own devices; the moderator still can (or adds time).
+      if (role === 'player' && s.phase === 'decisions' && s.deadline && now > s.deadline) return { error: M(cfg, 'Time’s up for the decisions. Ask the moderator to add time.', 'Karar süresi doldu. Moderatörden süre eklemesini iste.') };
+      if (role === 'player' && review && now > review.closesAt) return { error: M(cfg, 'The quarterly strategy review is closed.', 'Çeyrek strateji değerlendirmesi kapandı.') };
       const incoming = strategyFrom(action.strategy, team.strategy, cfg);
       if (incoming.error) return { error: M(cfg, `“${team.name}”: ${incoming.error}`, `“${team.name}”: ${incoming.error}`) };
       const strategy = review ? { ...structuredClone(team.strategy), ...Object.fromEntries(QUARTER_KEYS.map(key => [key, structuredClone(incoming[key])])) } : incoming;
@@ -740,7 +743,7 @@ function reduceAction(s, action, ctx) {
       if (!order.includes(action.to) || s.phase === 'race') return { error: M(cfg, 'Can’t move to that phase.', 'Bu aşamaya geçilemez.') };
       if (action.to !== 'lobby' && s.teams.length < MIN_TEAMS) return { error: M(cfg, `At least ${MIN_TEAMS} teams are needed to start.`, `Başlamak için en az ${MIN_TEAMS} takım gerekli.`) };
       s.phase = action.to;
-      s.deadline = action.to === 'decisions' && s.inputMode !== 'excel' ? now + s.config.minutes * 60000 : null;
+      s.deadline = action.to === 'decisions' ? now + s.config.minutes * 60000 : null; // decision window: config.minutes (25 by default)
       return done;
     }
     case 'extend':

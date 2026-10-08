@@ -396,3 +396,13 @@ details.advanced .toggle-row { padding: 4px 16px 16px; }
   /* The hold bar is a progress indicator, not decoration: it keeps its real duration. */
   .hold-lock.holding .hold-fill { transition-duration: .9s !important; }
 }
+
+/* Results page: the three podiums arrive one after another, each third → second → first. */
+.final-hero .award { --at: calc(.3s + var(--k) * 1.5s); }
+.final-hero .award > header { animation: fade-up .5s var(--ease-expo) both; animation-delay: var(--at); }
+.final-hero .podium-slot { animation: podium-rise .7s var(--ease-expo) both; }
+.final-hero .p3 { animation-delay: calc(var(--at) + .25s); }
+.final-hero .p2 { animation-delay: calc(var(--at) + .6s); }
+.final-hero .p1 { animation-delay: calc(var(--at) + 1.05s); }
+@keyframes podium-rise { from { opacity: 0; transform: translateY(60px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { @keyframes podium-rise { from { opacity: 0; } to { opacity: 1; } } }

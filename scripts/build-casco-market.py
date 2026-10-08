@@ -17,7 +17,7 @@ Usage:  python3 scripts/build-casco-market.py <data.xlsx> <model_config.xlsx>
 import io, json, sys, zipfile, collections
 import openpyxl
 
-args = sys.argv[1:] or ["veri/pricing_case_data.xlsx", "veri/insurers_league_model_config.xlsx"]
+args = sys.argv[1:] or ["veri/pricing_case_data_duzeltilmis.xlsx", "veri/insurers_league_model_config.xlsx"]
 if args[0].endswith('.zip'):
     with zipfile.ZipFile(args[0]) as z:
         names = z.namelist()

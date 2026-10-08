@@ -11,7 +11,7 @@ import { esc, fmt, money, pct, pad, clamp, lerp, easeInOut, upper, lower, clock 
 import { monthsOf, rank, scaledMarket, rulesOf, localizedBranch, localizedTeamProduct, DIMENSIONS, dimensionName, levelName, marketCells, policiesOf } from '../../engine.js';
 import { monthDigest } from '../narrative.js';
 import { sfx } from '../audio.js';
-import { awardPodiums, AWARDS } from './results.js';
+import { podium, AWARDS } from './results.js';
 import { spark } from './charts.js';
 import { planSummary } from './plan.js';
 import { sampleWorkbook } from './home.js';
@@ -298,7 +298,7 @@ export function mountStage(root) {
   function renderPre() {
     const s = getState(), isHost = host();
     const review = currentStrategyReview();
-    const key = JSON.stringify([s.phase, s.inputMode, s.deadline, s.code, isHost, getLang(), s.config.lang, s.config.minutes, s.quiz.mode, s.quiz.bonus, review?.submitted, s.teams.map(t2 => [t2.id, t2.name, t2.emblem, t2.locked, t2.connected, t2.owner, t2.strategy])]);
+    const key = JSON.stringify([s.phase, s.inputMode, s.deadline, timeLeft() === 0, s.code, isHost, getLang(), s.config.lang, s.config.minutes, s.quiz.mode, s.quiz.bonus, review?.submitted, s.teams.map(t2 => [t2.id, t2.name, t2.emblem, t2.locked, t2.connected, t2.owner, t2.strategy])]);
     if (key === preKey) return;
     if (s.teams.length > seenTeams.size && preKey && s.sound) sfx.tick();
     preKey = key;
@@ -340,13 +340,13 @@ export function mountStage(root) {
       el.innerHTML = `${steps('decisions')}
         ${s.inputMode === 'excel' ? '' : `<span class="pre-pin chip">${t('Join at', 'Katılım')}: ${esc(location.host)} · PIN <b class="num">${pinText}</b></span>`}
         <div class="decide-head">
-          <div><p class="kicker amber">${s.inputMode === 'excel' ? t('Excel submissions', 'Excel başvuruları') : t('Decision window', 'Karar süresi')}</p><strong class="display num decide-clock ${s.inputMode === 'excel' ? 'excel-ready' : left !== null && left < 60 ? 'hot' : ''}" data-clock>${s.inputMode === 'excel' ? t('READY', 'HAZIR') : left === null ? '--:--' : clock(left)}</strong></div>
+          <div><p class="kicker amber">${t('Decision window', 'Karar süresi')}</p><strong class="display num decide-clock ${left !== null && left < 60 ? 'hot' : ''}" data-clock>${left === null ? '--:--' : clock(left)}</strong></div>
           <div class="decide-count"><b class="num">${locked}</b><span>${s.inputMode === 'excel' ? t(`/ ${n} teams<br>handed in a plan`, `/ ${n} takım<br>planını teslim etti`) : t(`/ ${n} teams<br>locked in their strategy`, `/ ${n} takım<br>stratejisini kilitledi`)}</span></div>
         </div>
         ${s.inputMode === 'excel' ? excelRoster(s, { isHost }) : `<div class="pre-teams">${s.teams.map((t2, i) => teamTile(t2, i, true)).join('')}</div>`}
         <footer class="pre-foot">
-          <p>${s.inputMode === 'excel' ? (open ? t(`${open} team${open === 1 ? '' : 's'} without a file will race with the default plan.`, `Dosyası gelmeyen ${open} takım varsayılan planla yarışır.`) : t('Every plan is in. The grid is ready.', 'Bütün planlar geldi. Pist hazır.')) : left === 0 ? t('Time’s up. You can start the race.', 'Süre doldu. Yarışı başlatabilirsin.') : open ? t(`${open} team${open === 1 ? '' : 's'} still deciding. They’ll enter the race with their current decisions once you start.`, `${open} takım hâlâ karar veriyor. Başlattığında mevcut kararlarıyla yarışa girerler.`) : t('Every strategy is locked in. The grid is ready.', 'Bütün stratejiler kilitli. Pist hazır.')}</p>
-          ${isHost ? `<div class="pre-actions">${s.inputMode === 'excel' ? '' : `<button class="btn lg" data-action="extend">${icon('plus', 18)} ${t('Add 5 minutes', '5 dakika ekle')}</button>`}<button class="btn go xl" data-action="start-race">${icon('flag', 22)} ${t('Start the race', 'Yarışı başlat')}</button></div>` : ''}
+          <p>${s.inputMode === 'excel' ? (left === 0 ? t('Time’s up: teams can no longer upload from their devices. Start the race or add 5 minutes.', 'Süre doldu: takımlar artık kendi cihazından yükleyemez. Yarışı başlat ya da 5 dakika ekle.') : open ? t(`${open} team${open === 1 ? '' : 's'} without a file will race with the default plan.`, `Dosyası gelmeyen ${open} takım varsayılan planla yarışır.`) : t('Every plan is in. The grid is ready.', 'Bütün planlar geldi. Pist hazır.')) : left === 0 ? t('Time’s up. You can start the race.', 'Süre doldu. Yarışı başlatabilirsin.') : open ? t(`${open} team${open === 1 ? '' : 's'} still deciding. They’ll enter the race with their current decisions once you start.`, `${open} takım hâlâ karar veriyor. Başlattığında mevcut kararlarıyla yarışa girerler.`) : t('Every strategy is locked in. The grid is ready.', 'Bütün stratejiler kilitli. Pist hazır.')}</p>
+          ${isHost ? `<div class="pre-actions"><button class="btn lg" data-action="extend">${icon('plus', 18)} ${t('Add 5 minutes', '5 dakika ekle')}</button><button class="btn go xl" data-action="start-race">${icon('flag', 22)} ${t('Start the race', 'Yarışı başlat')}</button></div>` : ''}
         </footer>`;
     }
   }
@@ -411,21 +411,79 @@ export function mountStage(root) {
   }
 
   // ——— Final ———
+  // The finale is a ceremony with one trophy on screen at a time: its title, then third → second →
+  // (a beat) → first, with an announcer line; then the next trophy takes the stage. Once all three
+  // are given, the screen keeps rotating through them; the host can pin one with the tabs.
+  let ceremony = [], finalAward = 0;
+  const clearCeremony = () => { ceremony.forEach(clearTimeout); ceremony = []; };
+  function finalAwardMarkup(k, rows, teams) {
+    const a = AWARDS[k], order = rows.filter(r => r.eligible).sort(a.sort);
+    const rest = order.slice(3);
+    return `<header class="final-one-head"><span class="award-icon">${icon(a.icon, 26)}</span><div><small>${t('Trophy', 'Kupa')} ${k + 1} / ${AWARDS.length}</small><h2 class="display">${a.label}</h2><p>${a.basis}</p></div></header>
+      ${podium(rows, teams, 'final-podium', a)}
+      ${rest.length ? `<ol class="final-rest" start="4">${rest.map((r, i) => { const t2 = byId(teams, r.id); return `<li style="--team:${t2.color}"><b class="num">${i + 4}.</b>${emblem(t2, 'sm')}<span>${esc(t2.name)}</span><em class="num">${a.value(r)}</em></li>`; }).join('')}</ol>` : ''}`;
+  }
   function renderFinal() {
     const s = getState();
     const rows = rank(results()[11].rows, 'gwp');
     const el = $('final');
-    el.classList.remove('skip');
+    clearCeremony();
+    el.classList.remove('skip', 'done');
     el.innerHTML = `<canvas class="confetti" aria-hidden="true"></canvas>
       <div class="final-intro"><p class="kicker amber">${t('Season finale', 'Sezon finali')} · ${s.config.year}</p><h1 class="display">${t(`12 months. ${rows.length} strategies.<br><em>Three trophies.</em>`, `12 ay. ${rows.length} strateji.<br><em>Üç kupa.</em>`)}</h1></div>
-      <div class="final-stage">${awardPodiums(rows, s.teams, 'stage-awards')}</div>
-      ${host() ? `<div class="final-host"><button class="btn ghost" data-action="skip-final">${t('Skip the intro', 'Açılışı atla')}</button><a class="btn" href="#/results">${icon('chart', 16)} ${t('Detailed results', 'Detaylı sonuçlar')}</a><button class="btn gold" data-action="new-game">${icon('reset', 16)} ${t('New game, same teams', 'Aynı takımlarla yeni oyun')}</button></div>` : ''}`;
-    if (reduced()) el.classList.add('skip');
-    else {
-      if (getState().sound) setTimeout(() => sfx.fanfare(), 9400);
-      confetti(el.querySelector('.confetti'), s.teams.map(t2 => t2.color), 9400);
-    }
+      <p class="final-call" aria-live="polite"></p>
+      <nav class="final-tabs" aria-label="${t('Trophies', 'Kupalar')}">${AWARDS.map((a, k) => `<button data-action="final-award" data-award="${k}" ${host() ? '' : 'tabindex="-1"'}>${icon(a.icon, 15)} ${a.label}</button>`).join('')}</nav>
+      <div class="final-one" data-st="final-one"></div>
+      ${host() ? `<div class="final-host"><button class="btn ghost" data-action="skip-final">${t('Skip the ceremony', 'Töreni atla')}</button><a class="btn" href="#/results">${icon('chart', 16)} ${t('Detailed results', 'Detaylı sonuçlar')}</a><button class="btn gold" data-action="new-game">${icon('reset', 16)} ${t('New game, same teams', 'Aynı takımlarla yeni oyun')}</button></div>` : ''}`;
+    const calm = reduced(), sound = () => getState().sound;
+    const call = el.querySelector('.final-call'), canvas = el.querySelector('.confetti'), stageEl = el.querySelector('.final-one');
+    const say = (html, cls = '') => { call.className = `final-call show ${cls}`; call.innerHTML = html; };
+    const at = (ms, fn) => ceremony.push(setTimeout(fn, ms));
+    // Puts trophy k on stage; `reveal` leaves its places hidden for the ceremony to raise.
+    const show = (k, { reveal = false } = {}) => {
+      finalAward = k;
+      el.querySelectorAll('.final-tabs button').forEach((b2, i) => { b2.classList.toggle('on', i === k); b2.setAttribute('aria-pressed', i === k); });
+      stageEl.classList.add('leaving');
+      const swap = () => {
+        stageEl.innerHTML = finalAwardMarkup(k, rows, s.teams);
+        stageEl.classList.toggle('revealing', reveal);
+        if (!reveal) stageEl.querySelectorAll('.podium-slot').forEach(x => x.classList.add('shown'));
+        stageEl.classList.remove('leaving');
+      };
+      if (calm || !stageEl.innerHTML) swap(); else setTimeout(swap, 380);
+    };
+    this_.show = show;
+    const nameIn = place => stageEl.querySelector(`.p${place} .podium-who strong`)?.textContent ?? '';
+    const valueIn = place => stageEl.querySelector(`.p${place} .podium-who span.num`)?.textContent ?? '';
+    const rotate = from => { let k = from; const next = () => { k = (k + 1) % AWARDS.length; show(k); call.className = 'final-call'; at(9000, next); }; at(9000, next); };
+    this_.rotate = rotate;
+    const STEP = calm ? [0, 700, 1300, 1900, 2500, 4200] : [0, 1100, 2100, 3100, 4100, 6800];
+    let time = calm ? 300 : 2100;
+    AWARDS.forEach((a, k) => {
+      const base = time;
+      at(base + STEP[0], () => { show(k, { reveal: true }); say(`<small>${t('Trophy', 'Kupa')} ${k + 1} / ${AWARDS.length}</small>${esc(a.label)}`); });
+      [3, 2].forEach((place, i) => at(base + STEP[1 + i], () => {
+        const slot = stageEl.querySelector(`.p${place}`);
+        if (!slot) return;
+        slot.classList.add('shown');
+        say(`<small>${esc(a.label)} · ${place}.</small>${esc(nameIn(place))} <em>${esc(valueIn(place))}</em>`);
+        if (sound()) sfx.tick();
+      }));
+      at(base + STEP[3], () => say(`<small>${esc(a.label)}</small>${t('And the trophy goes to…', 'Ve kupa…')}`, 'suspense'));
+      at(base + STEP[4], () => {
+        const slot = stageEl.querySelector('.p1');
+        if (!slot) return;
+        slot.classList.add('shown');
+        stageEl.querySelector('.final-rest')?.classList.add('shown');
+        say(`<small>${esc(a.label)} · ${t('winner', 'kazanan')}</small>${esc(nameIn(1))} <em>${esc(valueIn(1))}</em>`, 'winner');
+        if (sound()) (k === AWARDS.length - 1 ? sfx.fanfare : sfx.leader)();
+        if (!calm) confetti(canvas, [slot.style.getPropertyValue('--team') || '#FFBE55', '#FFBE55'], 0, 0.5, 140);
+      });
+      time = base + STEP[5];
+    });
+    at(time, () => { el.classList.add('done'); say(t('Congratulations to every team.', 'Tüm takımları tebrik ederiz.'), 'end'); rotate(AWARDS.length - 1); });
   }
+  const this_ = {};
 
   // Portrait tablets and phones use a real moderator workspace rather than a shrunken 16:9 broadcast.
   // The broadcast remains the landscape projection view; both surfaces drive the same reducer actions.
@@ -474,9 +532,9 @@ export function mountStage(root) {
     if (s.phase === 'decisions') {
       const locked = s.teams.filter(team => team.locked).length;
       body.innerHTML = `${progress}
-        <section class="mobile-stage-hero decision"><p class="kicker amber">${s.inputMode === 'excel' ? t('Excel strategies', 'Excel stratejileri') : t('Decision window', 'Karar süresi')}</p><b class="display num ${s.inputMode === 'excel' ? 'excel-ready' : ''}" data-clock>${s.inputMode === 'excel' ? t('READY', 'HAZIR') : left === null ? '--:--' : clock(left)}</b><p>${locked}/${s.teams.length} ${s.inputMode === 'excel' ? t('plans received', 'plan alındı') : t('teams locked in their plan', 'takım planını kilitledi')}</p></section>
+        <section class="mobile-stage-hero decision"><p class="kicker amber">${s.inputMode === 'excel' ? t('Excel strategies', 'Excel stratejileri') : t('Decision window', 'Karar süresi')}</p><b class="display num" data-clock>${left === null ? '--:--' : clock(left)}</b><p>${locked}/${s.teams.length} ${s.inputMode === 'excel' ? t('plans received', 'plan alındı') : t('teams locked in their plan', 'takım planını kilitledi')}</p></section>
         ${s.inputMode === 'excel' ? `<section class="mobile-stage-card">${excelRoster(s, { isHost })}</section>` : `<section class="mobile-stage-card"><header><div><p class="kicker">${t('Live status', 'Canlı durum')}</p><h2 class="display">${t('Teams', 'Takımlar')}</h2></div><span class="chip ${locked === s.teams.length ? 'ok' : 'warn'}">${locked}/${s.teams.length}</span></header>${teamList()}</section>`}
-        ${isHost ? (s.inputMode === 'excel' ? `<button class="btn go lg mobile-primary" data-action="start-race">${t('Start race', 'Yarışı başlat')} ${icon('arrow', 18)}</button>` : `<div class="mobile-action-row"><button class="btn ghost" data-action="extend">${icon('plus', 15)} ${t('Add 5 min', '5 dk ekle')}</button><button class="btn go lg" data-action="start-race">${t('Start race', 'Yarışı başlat')} ${icon('arrow', 18)}</button></div>`) : ''}`;
+        ${isHost ? (false ? '' : `<div class="mobile-action-row"><button class="btn ghost" data-action="extend">${icon('plus', 15)} ${t('Add 5 min', '5 dk ekle')}</button><button class="btn go lg" data-action="start-race">${t('Start race', 'Yarışı başlat')} ${icon('arrow', 18)}</button></div>`) : ''}`;
       return;
     }
 
@@ -684,18 +742,20 @@ export function mountStage(root) {
   return {
     toggleDetail() { detail = !detail; detailKey = ''; },
     openDetail() { detail = true; detailKey = ''; },
-    skipFinal() { $('final').classList.add('skip'); },
-    destroy() { alive = false; cancelAnimationFrame(raf); window.removeEventListener('resize', handleResize); clearTimeout(bannerTimer); }
+    skipFinal() { clearCeremony(); const el = $('final'); el.classList.add('skip', 'done'); const c = el.querySelector('.final-call'); if (c) c.className = 'final-call'; this_.show?.(finalAward); this_.rotate?.(finalAward); },
+    // The host pins one trophy: the rotation stops on it.
+    showFinalAward(k) { clearCeremony(); const el = $('final'); el.classList.add('skip', 'done'); const c = el.querySelector('.final-call'); if (c) c.className = 'final-call'; this_.show?.(k); },
+    destroy() { clearCeremony(); alive = false; cancelAnimationFrame(raf); window.removeEventListener('resize', handleResize); clearTimeout(bannerTimer); }
   };
 }
 
-function confetti(canvas, colors, delay = 4200) {
+function confetti(canvas, colors, delay = 4200, originX = 0.5, count = 160) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   const width = Math.max(1, canvas.clientWidth || 1920), height = Math.max(1, canvas.clientHeight || 1080);
   canvas.width = width; canvas.height = height;
-  const parts = Array.from({ length: 160 }, (_, i) => ({
-    x: width / 2 + (Math.random() - 0.5) * Math.min(500, width * .4), y: height * .58, vx: (Math.random() - 0.5) * 22, vy: -12 - Math.random() * 16,
+  const parts = Array.from({ length: count }, (_, i) => ({
+    x: width * originX + (Math.random() - 0.5) * Math.min(260, width * .2), y: height * .58, vx: (Math.random() - 0.5) * 22, vy: -12 - Math.random() * 16,
     r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3, w: 8 + Math.random() * 10, h: 4 + Math.random() * 6,
     c: i % 3 === 0 ? '#FFBE55' : colors[i % colors.length]
   }));

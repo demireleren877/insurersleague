@@ -538,3 +538,6 @@
 .home-join b { font: 700 16px/1.2 var(--font); font-variation-settings: var(--hand-display); }
 .home-join small { flex-basis: 100%; font-size: 13px; color: var(--ink-2); }
 .team-app .team-preview .chip { max-width: 100%; height: auto; min-height: 26px; padding-block: 4px; white-space: normal; line-height: 1.2; }
+
+.team-timer { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid var(--ink); border-radius: var(--sk-c); background: var(--hl-soft); font-weight: 700; }
+.team-timer b { font-size: 20px; }

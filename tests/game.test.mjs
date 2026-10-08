@@ -36,7 +36,7 @@ test('the game runs from the moderator screen: teams arrive by Excel, devices ca
 
   assert.ok(reduce(s, { type: 'phase', to: 'briefing' }, host(1_004)).changed);
   assert.ok(reduce(s, { type: 'phase', to: 'decisions' }, host(1_005)).changed);
-  assert.equal(s.deadline, null, 'no device timer in a moderator-only game');
+  assert.equal(s.deadline, 1_005 + 25 * 60_000, 'the decision window runs 25 minutes');
   assert.ok(reduce(s, { type: 'start-race' }, host(1_006)).changed);
   assert.equal(s.results.length, 12);
 });
@@ -258,4 +258,20 @@ test('a team joins from its own device and hands in only its own workbook', () =
 
   toRace(s, 2_000);
   assert.match(reduce(s, { type: 'excel-join', name: 'Late' }, player('ccc', 2_001)).error, /started/);
+});
+
+test('the decision window closes team uploads after 25 minutes; quarter reviews last 5 minutes', async () => {
+  const { EXCEL_REVIEW_MS } = await import('../dist/js/game.js');
+  assert.equal(EXCEL_REVIEW_MS, 5 * 60_000);
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  reduce(s, { type: 'excel-join', name: 'Nova' }, player('p1', 1_001));
+  reduce(s, { type: 'excel-add-team', name: 'Atlas' }, host(1_002));
+  reduce(s, { type: 'phase', to: 'briefing' }, host(1_003));
+  reduce(s, { type: 'phase', to: 'decisions' }, host(1_004));
+  const nova = s.teams.find(t => t.name === 'Nova'), plan = { ...defaultStrategy('Nova', s.config), sentence: 'Plan.' };
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 24 * 60_000)).changed, 'in time');
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 26 * 60_000)).error, /Time’s up/);
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 26 * 60_000)).changed, 'the moderator can still upload');
+  reduce(s, { type: 'extend' }, host(1_004 + 26 * 60_000));
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 28 * 60_000)).changed, 'added time reopens uploads');
 });

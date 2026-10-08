@@ -10,12 +10,12 @@ import { resultsPage } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=42';
+import { stageMarkup, mountStage } from './views/stage.js?v=47';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=42';
-import { buildAuditWorkbook } from './audit.js?v=42';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=47';
+import { buildAuditWorkbook } from './audit.js?v=47';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -275,6 +275,7 @@ document.addEventListener('click', async e => {
     case 'quiz-continue': act({ type: 'quiz-continue' }, { quietly: true }); break;
     case 'quarter-close': act({ type: 'quarter-close' }, { quietly: true }); break;
     case 'skip-final': stage?.skipFinal(); break;
+    case 'final-award': stage?.showFinalAward(Number(d.award)); break;
     case 'toggle-detail': stage?.toggleDetail(); break;
     case 'toggle-sound': act({ type: 'setting', key: 'sound', value: !s.sound }, { quietly: true }); break;
 

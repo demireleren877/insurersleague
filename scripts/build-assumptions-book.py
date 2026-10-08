@@ -28,7 +28,7 @@ console.log(JSON.stringify({
   cells, nominal: c.NOMINAL_TEAMS, quarterKeys: c.QUARTER_KEYS,
   audienceYear: e.campaignAudience(R, money), offerNames: Object.fromEntries(e.campaignRules(R).offers.map(o => [o.id, e.offerName(o.id, 'tr')])),
   digitalPolicies: CASCO_MARKET.cells.filter(x => x[1] === e.campaignRules(R).channel).reduce((a, x) => a + x[5], 0) / CASCO_MARKET.customers * policies,
-  session: { minTeams: g.MIN_TEAMS, maxTeams: g.MAX_TEAMS, reviewMonths: g.STRATEGY_REVIEW_MONTHS, reviewSeconds: g.EXCEL_REVIEW_MS / 1000, finalDelay: g.FINAL_DELAY_MS / 1000 }
+  session: { minTeams: g.MIN_TEAMS, maxTeams: g.MAX_TEAMS, reviewMonths: g.STRATEGY_REVIEW_MONTHS, reviewSeconds: g.EXCEL_REVIEW_MS / 1000, finalDelay: g.FINAL_DELAY_MS / 1000, minutes: cfg.minutes }
 }));
 """
 D = json.loads(subprocess.run(['node', '--input-type=module', '-e', DUMP], capture_output=True, text=True, check=True).stdout)
@@ -285,6 +285,7 @@ ws = sheet('Oturum ayarları', ['Ayar', 'Değer', 'Açıklama'], [32, 18, 90])
 s = D['session']
 row(ws, ['Sezon yılı', D['year'], 'Ekranda görünen yıl.'])
 row(ws, ['Takım sayısı', f"{s['minTeams']}–{s['maxTeams']}", 'Yarış en az bu kadar takımla başlar.'])
+row(ws, ['Karar süresi', f"{s['minutes']} dakika", 'Kararlar aşamasında geri sayım. Süre dolunca takımlar kendi cihazından yükleyemez; moderatör yükleyebilir ya da 5 dakika ekleyebilir.'])
 row(ws, ['Çeyrek molaları', ', '.join(f"{x + 1}. ay sonu" for x in s['reviewMonths']), 'Mola sırasında takımlar güncel planını indirip yeni dosya yükleyebilir.'])
 row(ws, ['Mola süresi', f"{s['reviewSeconds'] // 60} dakika", 'Süre dolunca ya da moderatör kapatınca yarış devam eder; dosya gelmeyen takımın planı aynen sürer.'])
 row(ws, ['Ay başına süre', f"{D['speed']} sn", 'Moderatör 3–12 sn arasında değiştirebilir.'])
@@ -370,8 +371,8 @@ ws = sheet('Denetim bulguları', ['#', 'Konu', 'Bulgu', 'Etki', 'Durum', 'Öneri
            'Veri, model konfigürasyonu, girdi dosyaları ve oyun mantığı karşılaştırıldı. “Düzeltildi” oyunda çözüldü; “Sizin dosyanız” veri/girdi dosyasında düzeltilmeli; “Karar” sizin tasarım kararınız.')
 findings = [
     ('Hasar tutarı', 'Model konfigürasyonunda temel şiddet €133; verideki primler €295 olduğundan gerçekleşen hasar/prim %4,5 çıkıyor.', 'Yüksek', 'Oyunda düzeltildi', 'Konfigürasyonda Base Severity = 1753,90 yapın ve verideki hasar sütunlarını yeniden üretin.'),
-    ('Verideki hasar sütunları', 'claims_count_12m / claims_paid_12m eski şiddetle üretilmiş; takımlar analizde %4,5 hasar/prim görür, oyun %60 oynar.', 'Yüksek', 'Sizin dosyanız', 'Hasarları yeni şiddetle yeniden çekin (isterseniz ben üretebilirim).'),
-    ('Cevabı veren sütunlar', 'P–Z sütunları (katsayı çarpımları, beklenen hasar/prim) fiyatlamayı doğrudan çözer.', 'Yüksek', 'Sizin dosyanız', 'Katılımcı sürümünden silin.'),
+    ('Verideki hasar sütunları', 'claims_count_12m / claims_paid_12m eski şiddetle üretilmiş; takımlar analizde %4,5 hasar/prim görür, oyun %60 oynar.', 'Bilgi', 'Düzeltildi', 'veri/pricing_case_data_duzeltilmis.xlsx (hasar tutarları ×13,16; gerçekleşen hasar/prim %59,4). Katılımcıya veri/katilimci_verisi.xlsx verilir.'),
+    ('Cevabı veren sütunlar', 'P–Z sütunları (katsayı çarpımları, beklenen hasar/prim) fiyatlamayı doğrudan çözer.', 'Bilgi', 'Düzeltildi', 'Katılımcı dosyasında yalnızca A–O sütunları ve bir sözlük sayfası var.'),
     ('İl prim katsayıları', 'Konfigürasyondaki CITY prim katsayıları verideki COEFFICIENTS ile farklı (ör. Ankara 0,945 / 1,018).', 'Orta', 'Oyunda düzeltildi', 'Konfigürasyonu verideki değerlerle eşitleyin.'),
     ('Yenileme verisi, yeni iş oyunu', 'Veri bir yenileme portföyü (önceki prim, fiyat değişimi, indirim); oyun herkesin sıfırdan yarıştığı yeni iş pazarı. İndirim/yenileme kaldıracı yok.', 'Orta', 'Karar', 'Brifingde açıkça söyleyin: indirim ve fiyat değişimi sütunları bağlam içindir.'),
     ('Banka müşterisi personası', 'Banka müşterilerinin yalnızca %20’si banka kanalından, %61’i acenteden geliyor; persona en yüksek kanal sadakatine (1,4) sahip.', 'Düşük', 'Karar', 'Sadakat “her kanalda görünürlüğe hassas” anlamında çalışıyor; isim yanıltıcıysa davranışı ya da adı gözden geçirin.'),

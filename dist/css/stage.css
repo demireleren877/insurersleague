@@ -362,7 +362,7 @@ body.on-stage { overflow: hidden; }
 .final-host { position: absolute; right: var(--stage-pad); top: 24px; z-index: 6; display: flex; gap: 10px; opacity: 0; animation: fade-up .6s var(--ease-expo) both; animation-delay: 2s; }
 .final-host .btn { min-height: 46px; font-size: 14.5px; }
 .st-final.skip .final-intro, .st-final.skip .confetti { display: none; }
-.st-final.skip .podium-slot, .st-final.skip .award > header, .st-final.skip .final-host { animation: none; opacity: 1; }
+.st-final.skip .podium-slot, .st-final.skip .award, .st-final.skip .award > header, .st-final.skip .final-host { animation: none; transition: none; opacity: 1; transform: none; filter: none; }
 
 /* ——— Viewer and phase states ——— */
 .viewer .stage-role { display: none; }
@@ -670,13 +670,32 @@ body.on-stage { overflow: hidden; }
 
 /* ——— Finale: one podium per trophy ——— */
 .stage-awards { width: 100%; gap: clamp(18px, 2.4vw, 44px); }
-.stage-awards .award { --at: calc(1.6s + var(--k) * 3s); }
-.stage-awards .award > header { opacity: 0; animation: fade-up .7s var(--ease-expo) both; animation-delay: var(--at); }
+/* The ceremony (driven from stage.js): a trophy waits dimmed, lights up when its turn comes, its
+   places rise third → second → first, then it stays lit while the next one plays. */
+.stage-awards .award { opacity: .22; filter: saturate(.3); transition: opacity .6s var(--ease-expo), filter .6s var(--ease-expo), transform .6s var(--ease-expo); }
+.stage-awards .award.active { opacity: 1; filter: none; transform: translateY(-6px); }
+.stage-awards .award.done { opacity: 1; filter: none; }
+.stage-awards .award > header { transition: transform .5s var(--ease-expo); }
+.stage-awards .award.active > header { transform: scale(1.06); }
 .stage-awards h2 { font-size: clamp(24px, 2.1vw, 40px); }
-.stage-awards .podium-slot { opacity: 0; animation: rise .9s var(--ease-expo) both; }
-.stage-awards .p3 { animation-delay: calc(var(--at) + .5s); }
-.stage-awards .p2 { animation-delay: calc(var(--at) + 1.1s); }
-.stage-awards .p1 { animation-delay: calc(var(--at) + 1.8s); }
+.stage-awards .podium { border-bottom-color: var(--ink); }
+.stage-awards .podium-slot { opacity: 0; transform: translateY(140px); transition: opacity .45s ease, transform .9s var(--ease-expo); }
+.stage-awards .podium-slot.shown { opacity: 1; transform: none; }
+.stage-awards .p1.shown .podium-who { animation: crown .9s var(--ease-expo) both; }
+@keyframes crown { 0% { transform: scale(.6); } 55% { transform: scale(1.12) rotate(-2deg); } 100% { transform: none; } }
+.final-call { position: absolute; left: var(--stage-pad); right: min(52vw, 760px); top: 18px; z-index: 5; margin: 0; display: block; opacity: 0; transform: translateY(-8px); transition: opacity .35s ease, transform .35s var(--ease-expo);
+  font: 800 clamp(22px, 2.2vw, 38px)/1.15 var(--font); font-variation-settings: var(--hand-display); color: var(--ink); overflow-wrap: anywhere; }
+.final-call.show { opacity: 1; transform: none; }
+.final-call small { display: block; margin-bottom: 4px; font: 700 clamp(12px, 1vw, 15px)/1.2 var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.final-call em { font-style: normal; padding: 0 .15em; background: linear-gradient(transparent 55%, var(--hl) 55% 92%, transparent 92%); }
+.final-call.suspense { animation: hush 1s ease-in-out infinite alternate; }
+@keyframes hush { from { opacity: .55; } to { opacity: 1; } }
+.final-call.winner { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) {
+  .stage-awards .podium-slot { transform: none; transition: opacity .5s ease; }
+  .stage-awards .award, .stage-awards .award > header { transform: none; }
+  .stage-awards .p1.shown .podium-who, .final-call.suspense { animation: none; }
+}
 .stage-awards .podium-who strong { font-size: clamp(18px, 1.5vw, 28px); }
 .stage-awards .p1 .podium-who strong { font-size: clamp(21px, 1.85vw, 34px); }
 .stage-awards .podium-who span { font-size: clamp(16px, 1.35vw, 25px); }
@@ -718,3 +737,54 @@ body.on-stage { overflow: hidden; }
 .xl-join.compact b { font-size: 30px; }
 .xl-team-device { display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; font-size: 12px; font-weight: 700; color: var(--ink-3); }
 .xl-team-device.on { color: var(--sky, var(--ink-2)); }
+
+/* ——— Finale: one trophy on stage at a time ——— */
+.final-tabs { position: absolute; left: 0; right: 0; top: 92px; z-index: 5; display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; pointer-events: none; opacity: 0; animation: fade-up .6s var(--ease-expo) both; animation-delay: 2s; }
+.final-tabs button { pointer-events: auto; display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 14px; border: 1.5px solid var(--ink); border-radius: var(--sk-c); background: var(--canvas); color: var(--ink-2); font: 700 14px/1 var(--font); font-variation-settings: var(--hand-ui); cursor: pointer; transition: background .2s, color .2s; }
+.final-tabs button.on { background: var(--ink); color: var(--paper); }
+.viewer .final-tabs { pointer-events: none; }
+.final-one { position: absolute; left: 0; right: 0; top: 146px; bottom: 26px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 18px; padding: 0 var(--stage-pad); transition: opacity .38s ease, transform .38s var(--ease-expo); }
+.final-one.leaving { opacity: 0; transform: translateY(14px); }
+.final-one-head { display: flex; align-items: center; gap: 16px; margin-bottom: auto; padding-top: 8px; }
+.final-one-head .award-icon { width: 58px; height: 58px; }
+.final-one-head small { font: 700 13px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.final-one-head h2 { margin: 4px 0 2px; font-size: clamp(36px, 3.6vw, 64px); line-height: 1; }
+.final-one-head p { margin: 0; font-size: 16px; color: var(--ink-2); }
+.final-podium { width: min(1100px, 100%); gap: 26px; border-bottom: var(--stroke) solid var(--ink); }
+.final-podium .podium-slot { opacity: 1; transform: none; }
+.final-one.revealing .podium-slot { opacity: 0; transform: translateY(150px); transition: opacity .45s ease, transform .9s var(--ease-expo); }
+.final-one.revealing .podium-slot.shown { opacity: 1; transform: none; }
+.final-one.revealing .p1.shown .podium-who { animation: crown .9s var(--ease-expo) both; }
+.final-podium .podium-who strong { font-size: clamp(28px, 2.6vw, 46px); line-height: 1.05; }
+.final-podium .p1 .podium-who strong { font-size: clamp(36px, 3.4vw, 62px); }
+.final-podium .podium-who span { font-size: clamp(22px, 2vw, 36px); }
+.final-podium .emblem-xl { --size: clamp(84px, 7.6vw, 132px); }
+.final-podium .emblem-lg { --size: clamp(60px, 5.4vw, 100px); }
+.final-podium .p1 .podium-who .emblem { transform: rotate(-4deg); }
+.final-podium .podium-step b { font-size: clamp(48px, 4.4vw, 86px); }
+.final-podium .podium-step span { font-size: 16px; }
+.final-podium .p1 .podium-step { height: min(260px, 25vh); }
+.final-podium .p2 .podium-step { height: min(190px, 18vh); }
+.final-podium .p3 .podium-step { height: min(136px, 13vh); }
+.final-rest { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 12px; margin: 0; padding: 0; list-style: none; max-width: 1100px; }
+.final-rest li { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1.5px solid var(--ink); border-radius: var(--sk-c); background: var(--canvas); font-size: 17px; }
+.final-rest li b { font-weight: 800; }
+.final-rest li em { font-style: normal; font-weight: 700; color: var(--ink-2); }
+.final-one.revealing .final-rest { opacity: 0; transition: opacity .6s ease .4s; }
+.final-one.revealing .final-rest.shown { opacity: 1; }
+.st-final.skip .final-tabs { animation: none; opacity: 1; }
+@media (max-height: 800px) {
+  .final-tabs { top: 78px; }
+  .final-one { top: 124px; bottom: 16px; gap: 12px; }
+  .final-one-head h2 { font-size: 34px; }
+  .final-one-head .award-icon { width: 46px; height: 46px; }
+  .final-podium .emblem-xl { --size: 74px; } .final-podium .emblem-lg { --size: 54px; }
+  .final-podium .podium-who strong { font-size: 26px; } .final-podium .p1 .podium-who strong { font-size: 32px; }
+  .final-podium .podium-who span { font-size: 20px; }
+  .final-podium .p1 .podium-step { height: min(170px, 22vh); } .final-podium .p2 .podium-step { height: min(124px, 16vh); } .final-podium .p3 .podium-step { height: min(90px, 11vh); }
+  .final-rest li { font-size: 14px; padding: 4px 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .final-one, .final-one.revealing .podium-slot { transform: none !important; }
+  .final-one.revealing .p1.shown .podium-who { animation: none; }
+}

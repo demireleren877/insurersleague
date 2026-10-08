@@ -1,6 +1,6 @@
 // A team's own device: it joins with the game PIN, names itself, downloads its template and hands in
 // its own workbook — before the race and again at every quarter review. The race itself plays on stage.
-import { getState, getSession, myTeam, raceStarted, seasonDone, playhead, currentStrategyReview, teamStatus, now } from '../store.js';
+import { getState, getSession, myTeam, raceStarted, seasonDone, playhead, currentStrategyReview, teamStatus, now, timeLeft } from '../store.js';
 import { icon, emblem } from '../ui.js';
 import { esc, clock } from '../format.js';
 import { monthsOf } from '../../engine.js';
@@ -75,7 +75,11 @@ export function teamPage() {
       ${plan}`, pin);
   }
 
+  const left = timeLeft(), timer = s.phase === 'decisions' && left !== null
+    ? (left > 0 ? `<p class="team-timer">${icon('clock', 16)} ${t('Time left to hand in', 'Teslim için kalan süre')}: <b class="num" data-clock>${clock(left)}</b></p>`
+      : `<p class="form-error">${t('Time’s up. Ask the moderator to add time if you still need to upload.', 'Süre doldu. Hâlâ yüklemen gerekiyorsa moderatörden süre eklemesini iste.')}</p>`) : '';
   return shell(`${head}
+    ${timer}
     <p class="kicker amber">${t('Step 2 of 2', 'Adım 2 / 2')}</p>
     <h1 class="display">${team.locked ? t('Plan received', 'Planın alındı') : t('Hand in your plan', 'Planını teslim et')}</h1>
     <p class="muted">${t('Download your template, fill in the base premium, the segment coefficients and the budget split, then upload it here. You can replace it until the race starts.', 'Şablonunu indir; baz primi, segment katsayılarını ve bütçe dağılımını doldur, sonra buraya yükle. Yarış başlayana kadar değiştirebilirsin.')}</p>
