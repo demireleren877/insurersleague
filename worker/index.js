@@ -33,6 +33,10 @@ export default {
       return json({ error: 'Couldn\u2019t create a room. Try again.' }, 503);
     }
 
+    // A team's product brochure: an image kept in the room's storage, outside the broadcast state.
+    const brochure = url.pathname.match(/^\/api\/rooms\/(\d{6})\/brochure\/(\d{1,4})$/);
+    if (brochure) return env.ROOMS.get(env.ROOMS.idFromName(brochure[1])).fetch(new Request(`https://room/brochure/${brochure[2]}${url.search}`, request));
+
     const info = url.pathname.match(/^\/api\/rooms\/(\d{6})$/);
     if (info) return env.ROOMS.get(env.ROOMS.idFromName(info[1])).fetch('https://room/info');
 
@@ -80,6 +84,9 @@ export class Room extends DurableObject {
       const s = this.state;
       return json({ pin: s.code, phase: s.phase, teams: s.teams.length, inputMode: 'excel' });
     }
+
+    const brochure = url.pathname.match(/^\/brochure\/(\d+)$/);
+    if (brochure) return this.brochure(request, Number(brochure[1]), url);
 
     const refuse = message => {
       const pair = new WebSocketPair();
@@ -272,6 +279,38 @@ export class Room extends DurableObject {
       if (error?.name === 'AbortError') throw Error(this.m('Jev took too long to answer. Try again.', 'Jev yanıt vermeyi geciktirdi. Tekrar deneyin.'));
       throw error;
     } finally { this.aiBusy = false; }
+  }
+
+  // GET serves the image; POST (image body) and DELETE need the moderator key or the team's own device.
+  async brochure(request, teamId, url) {
+    if (!this.live()) return json({ error: 'No open game with this PIN.' }, 404);
+    const key = `brochure:${teamId}`;
+    if (request.method === 'GET') {
+      const data = await this.ctx.storage.get(key);
+      if (!data) return new Response('Not found', { status: 404 });
+      return new Response(data.bytes, { headers: { 'content-type': data.type, 'cache-control': 'private, max-age=86400' } });
+    }
+    const team = this.state.teams.find(t => t.id === teamId);
+    if (!team || team.ai) return json({ error: this.m('That team is not in this game.', 'Bu takım oyunda yok.') }, 404);
+    const player = request.headers.get('x-player') || '';
+    const allowed = request.headers.get('x-host-key') === this.hostKey || (player && team.owner === player);
+    if (!allowed) return json({ error: this.m('Only the moderator or the team itself can change its brochure.', 'Broşürü yalnızca moderatör ya da takımın kendisi değiştirebilir.') }, 403);
+    if (request.method === 'DELETE') {
+      await this.ctx.storage.delete(key);
+      reduce(this.state, { type: 'brochure-set', teamId, brochure: null }, { role: 'system', now: Date.now() });
+      await this.commit();
+      return json({ ok: true });
+    }
+    if (request.method !== 'POST') return json({ error: 'Method not allowed' }, 405);
+    const type = (request.headers.get('content-type') || '').split(';')[0];
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(type)) return json({ error: this.m('Upload an image (JPG, PNG or WebP).', 'Bir resim yükle (JPG, PNG ya da WebP).') }, 415);
+    const bytes = await request.arrayBuffer();
+    if (!bytes.byteLength || bytes.byteLength > 1_500_000) return json({ error: this.m('The brochure must be under 1.5 MB.', 'Broşür 1,5 MB’tan küçük olmalı.') }, 413);
+    const w = Math.max(1, Math.min(10000, Number(url.searchParams.get('w')) || 1)), h = Math.max(1, Math.min(10000, Number(url.searchParams.get('h')) || 1));
+    await this.ctx.storage.put(key, { bytes, type });
+    reduce(this.state, { type: 'brochure-set', teamId, brochure: { v: Date.now(), w, h } }, { role: 'system', now: Date.now() });
+    await this.commit();
+    return json({ ok: true });
   }
 
   async persist() {

@@ -5,17 +5,18 @@ import { getLang, setLang, onLangChange, t } from './i18n.js';
 import { defaultRules, assumptionsFor } from '../engine.js';
 import { home } from './views/home.js';
 import { teamPage } from './views/team.js';
+import { prepareBrochure } from './brochure.js';
 import { briefingContent } from './views/briefing.js';
-import { resultsPage } from './views/results.js';
+import { resultsPage, setResultsCategory } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=47';
+import { stageMarkup, mountStage } from './views/stage.js?v=52';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=47';
-import { buildAuditWorkbook } from './audit.js?v=47';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=52';
+import { buildAuditWorkbook } from './audit.js?v=52';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -196,7 +197,7 @@ async function startRoomFlow(btn) {
 document.addEventListener('click', async e => {
   const language = e.target.closest('[data-language]');
   if (language) { setLang(language.dataset.language); return; }
-  const el = e.target.closest('button, a[data-action], [data-metric], [data-focus]');
+  const el = e.target.closest('button, a[data-action], [data-metric], [data-focus], .st-lightbox');
   if (!el || el.disabled) return;
   const s = getState(), d = el.dataset, teamId = d.team !== undefined ? Number(d.team) : null;
 
@@ -224,8 +225,11 @@ document.addEventListener('click', async e => {
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       break;
     }
-    case 'excel-team-upload': el.closest('.xl-team')?.querySelector('[data-team-upload]')?.click(); break;
+    case 'excel-team-upload': el.closest('.xl-team, .xl-chip')?.querySelector('[data-team-upload]')?.click(); break;
     case 'team-upload': el.closest('.team-steps')?.querySelector('[data-team-upload]')?.click(); break;
+    case 'brochure-upload': el.closest('[data-brochure-box], .xl-team, .xl-chip')?.querySelector('[data-brochure-upload]')?.click(); break;
+    case 'brochure-view': stage?.showBrochure(Number(d.team)); break;
+    case 'brochure-close': stage?.closeBrochure(); break;
     case 'team-fill': { const input = document.getElementById('team-name'); if (input) { input.value = d.name; input.focus(); } break; }
     case 'team-leave': act({ type: 'leave-team' }); break;
     case 'excel-select-file': el.closest('.excel-intake')?.querySelector(`[data-sheet-import="${d.sheetTarget}"]`)?.click(); break;
@@ -276,6 +280,7 @@ document.addEventListener('click', async e => {
     case 'quarter-close': act({ type: 'quarter-close' }, { quietly: true }); break;
     case 'skip-final': stage?.skipFinal(); break;
     case 'final-award': stage?.showFinalAward(Number(d.award)); break;
+    case 'results-category': setResultsCategory(d.category); render(); break;
     case 'toggle-detail': stage?.toggleDetail(); break;
     case 'toggle-sound': act({ type: 'setting', key: 'sound', value: !s.sound }, { quietly: true }); break;
 
@@ -383,6 +388,16 @@ document.addEventListener('input', e => {
 
 document.addEventListener('change', async e => {
   const el = e.target, d = el.dataset;
+  if (d.brochureUpload !== undefined && el.files?.length) {
+    try {
+      toast(t('Preparing the brochure…', 'Broşür hazırlanıyor…'));
+      const { blob, w, h } = await prepareBrochure(el.files[0]);
+      await store.sendBrochure(Number(d.brochureUpload), blob, w, h);
+      toast(t('Brochure uploaded.', 'Broşür yüklendi.'));
+    } catch (err) { toast(t(`Brochure not uploaded: ${err.message}`, `Broşür yüklenmedi: ${err.message}`)); }
+    finally { el.value = ''; }
+    return;
+  }
   if (d.rule) {
     const spec = fieldSpec(d.rule);
     if (!spec) return;

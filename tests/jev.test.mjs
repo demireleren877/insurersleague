@@ -22,20 +22,20 @@ test('Jev request exposes only typed, finite strategy decisions and requests pri
   assert.ok(Object.values(body.questions).every(question => question.type === 'choice'));
 });
 
-const ANSWERS = { pricing_view: answer('v0'), loss_ratio: answer('l2'), allocation: answer('a0'), channel_focus: answer('f4'), reinsurance: answer('no') };
+const ANSWERS = { pricing_view: answer('v0'), loss_ratio: answer('l2'), budget: answer('b1'), campaign: answer('c4') };
 
 test('Jev choices become a legal strategy and an AI team can complete a season', () => {
   const session = freshSession(1_000, { code: '123456', lang: 'en' });
   reduce(session, { type: 'excel-import-teams', teams: [{ name: 'Human', strategy: { ...defaultStrategy('Human', session.config), sentence: 'Plan.' } }] }, host(1_000));
   const identity = nextAiIdentity(session);
   const { context } = buildJevRequest(session, identity.profile);
-  const decision = strategyFromJev(session, identity.profile, { ...ANSWERS, reinsurance: answer('yes') }, context);
+  const decision = strategyFromJev(session, identity.profile, ANSWERS, context);
 
   assert.deepEqual(validate({ name: 'Jev', strategy: decision.strategy }, session.config), []);
-  assert.equal(decision.strategy.channelFocus.reduce((sum, value) => sum + value, 0), 100);
-  assert.ok(decision.strategy.marketing + decision.strategy.claimsOps <= cascoMoney(session.config).budget);
+  assert.equal(decision.strategy.offers.reduce((sum, value) => sum + value, 0), 100);
+  assert.ok(decision.strategy.marketing <= cascoMoney(session.config).budget);
   assert.ok(decision.confidence > .9);
-  assert.deepEqual(decision.strategy.channelFocus, [55, 20, 10, 15], 'the challenger keeps its agency-led identity');
+  assert.ok(decision.strategy.marketing >= cascoMoney(session.config).budget * 0.85, 'the challenger keeps its big-spending identity');
 
   const created = reduce(session, {
     type: 'ai-team-create', name: identity.name, emblem: identity.emblem, strategy: decision.strategy,
@@ -63,7 +63,7 @@ test('AI profiles keep distinct strategic signatures even when Jev returns ident
     strategies.push(decision.strategy);
     reduce(session, { type: 'ai-team-create', name: identity.name, emblem: identity.emblem, strategy: decision.strategy, profile: identity.profile.id }, { role: 'system', now: 1_001 + i });
   }
-  const signatures = strategies.map(strategy => JSON.stringify([strategy.basePremium, strategy.coef, strategy.marketing, strategy.claimsOps, strategy.channelFocus, strategy.reinsurance]));
+  const signatures = strategies.map(strategy => JSON.stringify([strategy.basePremium, strategy.coef, strategy.marketing, strategy.mediaShare, strategy.offers]));
   assert.equal(new Set(signatures).size, 6, 'all six bot archetypes remain strategically distinct');
 });
 

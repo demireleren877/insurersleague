@@ -3,7 +3,7 @@
 // market's luck. If one approach wins far more than its fair share, the rules reward it.
 import { simulate, rank, rulesOf, TEAM_META, cascoMoney, actuarialCoefficients, actuarialBase, DIMENSIONS, snapCoef } from '../engine.js';
 
-export const APPROACHES = ['actuary', 'flat', 'volume', 'margin', 'digital', 'service'];
+export const APPROACHES = ['actuary', 'flat', 'volume', 'margin', 'digital', 'gifts'];
 export const FAIR_SHARE = 1 / APPROACHES.length;
 export const DOMINANT = 0.5; // wins at least half of all seasons
 export const STRONG = 0.34;  // roughly twice its fair share
@@ -20,15 +20,15 @@ function random(seed) {
 }
 const between = (rnd, lo, hi) => lo + (hi - lo) * rnd();
 
-// How each approach plays: target loss ratio, budget split (shares of the decision budget),
-// marketing focus by channel (agency, bank, digital, broker) and how it reads the data.
+// How each approach plays: target loss ratio, marketing as a share of the marketing budget, the media
+// share of it, gift weights (concert, restaurant, coffee, gym) and how it reads the data.
 const PLAYBOOK = {
-  actuary: { lr: [0.55, 0.66], marketing: [0.45, 0.55], ops: [0.35, 0.45], focus: [45, 25, 15, 15], coef: 'actuarial', camp: [[20, 40], [20, 30], 'restaurant'] },
-  flat:    { lr: [0.55, 0.68], marketing: [0.45, 0.55], ops: [0.35, 0.45], focus: [45, 25, 15, 15], coef: 'flat', camp: [[0, 20], [40, 60], 'concert'] },
-  volume:  { lr: [0.72, 0.85], marketing: [0.6, 0.7], ops: [0.25, 0.32], focus: [50, 25, 15, 10], coef: 'actuarial', camp: [[50, 70], [30, 50], 'concert'] },
-  margin:  { lr: [0.45, 0.55], marketing: [0.35, 0.45], ops: [0.35, 0.45], focus: [40, 30, 15, 15], coef: 'actuarial', reinsurance: true, camp: [[0, 10], [40, 60], 'gym'] },
-  digital: { lr: [0.58, 0.68], marketing: [0.5, 0.6], ops: [0.3, 0.4], focus: [10, 10, 70, 10], coef: 'digital', camp: [[40, 60], [15, 25], 'coffee'] },
-  service: { lr: [0.56, 0.64], marketing: [0.25, 0.35], ops: [0.55, 0.65], focus: [45, 25, 15, 15], coef: 'actuarial', camp: [[10, 30], [30, 50], 'gym'] }
+  actuary: { lr: [0.55, 0.66], marketing: [0.45, 0.55], media: [40, 60], offers: [40, 30, 20, 10], coef: 'actuarial' },
+  flat:    { lr: [0.55, 0.68], marketing: [0.45, 0.55], media: [40, 60], offers: [100, 0, 0, 0], coef: 'flat' },
+  volume:  { lr: [0.72, 0.85], marketing: [0.8, 0.95], media: [30, 50], offers: [25, 25, 25, 25], coef: 'actuarial' },
+  margin:  { lr: [0.45, 0.55], marketing: [0.15, 0.3], media: [40, 60], offers: [0, 0, 0, 100], coef: 'actuarial' },
+  digital: { lr: [0.58, 0.68], marketing: [0.7, 0.85], media: [15, 30], offers: [0, 20, 60, 20], coef: 'digital' },
+  gifts:   { lr: [0.56, 0.64], marketing: [0.6, 0.75], media: [25, 40], offers: [10, 10, 0, 80], coef: 'actuarial' }
 };
 
 export function botStrategy(approach, config, rnd) {
@@ -37,21 +37,10 @@ export function botStrategy(approach, config, rnd) {
   const jitter = v => snapCoef(v * between(rnd, 0.95, 1.05), R);
   const coef = Object.fromEntries(DIMENSIONS.map(dim => [dim, act[dim].map(v => (p.coef === 'flat' ? jitter(1) : jitter(v)))]));
   if (p.coef === 'digital') coef.channel = coef.channel.map((v, i) => (i === 2 ? snapCoef(v * 0.9, R) : v));
-  const fee = p.reinsurance ? money.reinsuranceFee : 0;
-  let marketing = Math.floor(money.budget * between(rnd, ...p.marketing) / 100) * 100;
-  let claimsOps = Math.floor(money.budget * between(rnd, ...p.ops) / 100) * 100;
-  const over = marketing + claimsOps + fee - money.budget;
-  if (over > 0) marketing = Math.max(0, marketing - Math.ceil(over / 100) * 100);
-  const raw = p.focus.map(v => Math.max(0, v + between(rnd, -5, 5)));
-  const sum = raw.reduce((a, b) => a + b, 0);
-  const focus = raw.map(v => Math.floor(v / sum * 100));
-  const minFocus = R.marketing.minFocus ?? 0;
-  for (let i = 0; i < focus.length; i++) focus[i] = Math.max(minFocus, focus[i]);
-  focus[focus.indexOf(Math.max(...focus))] += 100 - focus.reduce((a, b) => a + b, 0);
+  const marketing = Math.min(money.budget, Math.floor(money.budget * between(rnd, ...p.marketing) / 100) * 100);
   return {
     product: approach, sentence: approach, basePremium: actuarialBase(coef, between(rnd, ...p.lr), R),
-    coef, marketing, channelFocus: focus, claimsOps, reinsurance: !!p.reinsurance,
-    campaign: Math.round(between(rnd, ...p.camp[0]) / 5) * 5, mediaShare: Math.round(between(rnd, ...p.camp[1]) / 5) * 5, offer: p.camp[2]
+    coef, marketing, mediaShare: Math.round(between(rnd, ...p.media) / 5) * 5, offers: [...p.offers]
   };
 }
 

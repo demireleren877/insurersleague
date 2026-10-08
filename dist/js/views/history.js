@@ -3,8 +3,9 @@
 import { savedHost } from '../store.js';
 import { icon, emblem } from '../ui.js';
 import { esc, fmt, money, pct } from '../format.js';
-import { presetName, PRESET_IDS, levelName } from '../../engine.js';
+import { presetName, PRESET_IDS, campaignOf } from '../../engine.js';
 import { ARCHETYPES } from '../narrative.js';
+import { giftMix } from './plan.js';
 import { historyCode, cachedSessions, fetchSessions } from '../history.js';
 import { hostPage } from './host.js';
 import { t, getLang, locale } from '../i18n.js';
@@ -25,7 +26,6 @@ const styleName = key => ARCHETYPES[key]?.name ?? '—';
 const dateOf = at => new Date(at).toLocaleDateString(locale(), { day: 'numeric', month: 'short', year: 'numeric' });
 const winnerOf = x => x.teams.find(r => r.rank === 1 && r.eligible) || null;
 const groupName = x => x.label || t(`Game ${x.code}`, `Oyun ${x.code}`);
-const mainFocus = st => { const i = st.channelFocus.indexOf(Math.max(...st.channelFocus)); return `${levelName('channel', i, getLang())} ${st.channelFocus[i]}%`; };
 const pricedFor = r => (Number.isFinite(r.priced) ? pct(r.priced, 0) : '—');
 
 // Winning approaches per line of business, with the average finishing rank of each approach.
@@ -74,7 +74,7 @@ function compareTable(list) {
     [t('Champion’s score', 'Şampiyonun puanı'), x => (w(x) ? `<span class="num">${fmt(w(x).score, 1)}</span>` : '—')],
     [t('Lead over 2nd', '2.’ye fark'), x => { const [a, b] = x.teams; return a && b ? `<span class="num">${fmt(a.score - b.score, 1)}</span>` : '—'; }],
     [t('Champion’s base premium · priced for', 'Şampiyonun baz primi · hedef HO'), x => { const r = w(x); return r ? `<span class="num">€${fmt(r.strategy.basePremium, 2)} · ${pricedFor(r)}</span>` : '—'; }],
-    [t('Champion’s marketing / claims ops', 'Şampiyonun pazarlama / hasar op.'), x => (w(x) ? `<span class="num">${money(w(x).strategy.marketing)} / ${money(w(x).strategy.claimsOps)}</span>` : '—')],
+    [t('Champion’s marketing · media share', 'Şampiyonun pazarlaması · medya payı'), x => (w(x) ? `<span class="num">${money(w(x).strategy.marketing)} · ${campaignOf(w(x).strategy).media}%</span>` : '—')],
     [t('Field’s average loss ratio', 'Sahanın ortalama hasar oranı'), x => (x.teams.every(r => Number.isFinite(r.lossRatio)) ? `<span class="num">${pct(avg(x, r => r.lossRatio), 0)}</span>` : '—')],
     [t('Most common approach', 'En yaygın yaklaşım'), common],
     ...(list.some(x => x.teams.some(r => !r.eligible)) ? [[t('Capital breaches', 'Sermaye ihlali'), x => { const n = x.teams.filter(r => !r.eligible).length; return `<span class="num ${n ? 'down' : ''}">${n}</span>`; }]] : [])
@@ -90,7 +90,7 @@ function compareTable(list) {
 
 function standings(x) {
   return `<div class="table-wrap"><table class="hs-table">
-    <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Score', 'Puan')}</th><th>${t('Approach', 'Yaklaşım')}</th><th>${t('Base premium', 'Baz prim')}</th><th>${t('Priced for LR', 'Hedef HO')}</th><th>${t('LR it got', 'Gerçekleşen HO')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Main focus', 'Ana odak')}</th><th>${t('Claims ops', 'Hasar op.')}</th><th>${t('Reinsurance', 'Reasürans')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Share', 'Pay')}</th></tr></thead>
+    <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Score', 'Puan')}</th><th>${t('Approach', 'Yaklaşım')}</th><th>${t('Base premium', 'Baz prim')}</th><th>${t('Priced for LR', 'Hedef HO')}</th><th>${t('LR it got', 'Gerçekleşen HO')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Media', 'Medya')}</th><th>${t('Gifts', 'Hediyeler')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Share', 'Pay')}</th></tr></thead>
     <tbody>${x.teams.map(r => { const st = r.strategy; return `<tr class="${r.eligible ? '' : 'out'}">
       <td class="num rank">${r.rank}</td>
       <td><span class="hs-team">${emblem(r, 'xs')}<b>${esc(r.name)}</b>${r.ai ? ' <em class="ai-tag">JEV AI</em>' : ''}</span></td>
@@ -100,9 +100,8 @@ function standings(x) {
       <td class="num">${pricedFor(r)}</td>
       <td class="num">${Number.isFinite(r.lossRatio) ? pct(r.lossRatio, 0) : '—'}</td>
       <td class="num">${money(st.marketing ?? 0)}</td>
-      <td>${Array.isArray(st.channelFocus) ? esc(mainFocus(st)) : '—'}</td>
-      <td class="num">${money(st.claimsOps ?? 0)}</td>
-      <td>${st.reinsurance ? t('Yes', 'Evet') : t('No', 'Hayır')}</td>
+      <td class="num">${campaignOf(st).media}%</td>
+      <td>${esc(giftMix(st, null))}</td>
       <td class="num ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num">${pct(r.share)}</td>
     </tr>`; }).join('')}</tbody>
   </table></div>`;

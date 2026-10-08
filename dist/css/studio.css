@@ -271,6 +271,11 @@ details.advanced .toggle-row { padding: 4px 16px 16px; }
 /* ——— Results page ——— */
 .final-hero { margin-bottom: 22px; padding: 36px 24px 0; }
 /* Three trophies, three podiums: each column crowns its own criterion. */
+.results-tabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 26px; }
+.results-tabs button { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border: 2px solid var(--ink); border-radius: 999px; background: var(--paper, #fff); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; }
+.results-tabs button[aria-pressed="true"] { background: var(--hl); }
+.results-award { max-width: 760px; margin: 0 auto; }
+.standings th.sorted, .standings td.sorted { background: color-mix(in oklab, var(--hl) 45%, transparent); font-weight: 800; }
 .award-podiums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; align-items: end; }
 .award { display: grid; gap: 16px; min-width: 0; }
 .award > header { display: flex; align-items: center; justify-content: center; gap: 12px; min-width: 0; }
@@ -322,7 +327,7 @@ details.advanced .toggle-row { padding: 4px 16px 16px; }
 .focus-head { display: flex; gap: 16px; align-items: center; margin-bottom: 18px; padding: 0 0 18px; border-bottom: 1.5px dashed var(--line-2); }
 .focus-head > div { min-width: 0; }
 .focus-head h2 { margin-top: 8px; font-size: clamp(26px, 3vw, 34px); overflow-wrap: anywhere; }
-.components { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+.components { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
 .component { --comp: var(--comp-profit); --comp-pen: var(--gold-mark); display: grid; gap: 6px; align-content: start; padding: 16px; border-radius: var(--sk-c); background: var(--canvas); }
 .component:nth-child(2) { --comp: var(--comp-share); --comp-pen: var(--sky-mark); }
 .component:nth-child(3) { --comp: var(--comp-cx); --comp-pen: var(--up-mark); }

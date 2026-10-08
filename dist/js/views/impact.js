@@ -4,13 +4,14 @@
 import { getState } from '../store.js';
 import { icon } from '../ui.js';
 import { esc, fmt, money, points } from '../format.js';
-import { localizedEventTitle, monthsOf, dimensionName, levelName, rulesOf } from '../../engine.js';
+import { localizedEventTitle, monthsOf, dimensionName, levelName, campaignOf } from '../../engine.js';
+import { giftMix } from './plan.js';
 import { attribution } from '../attribution.js';
 import { t, getLang } from '../i18n.js';
 
 const NOISE = 0.05; // below this a line says nothing; don't spend a row on it
 
-const componentNames = () => [t('profitability', 'kârlılık'), t('market share', 'pazar payı'), t('customer satisfaction', 'müşteri memnuniyeti')];
+const componentNames = () => [t('profitability', 'kârlılık'), t('market share', 'pazar payı')];
 
 // What the team actually chose, in words, so the row reads as "this choice, worth this much".
 function decisionLabel(key, strategy, config) {
@@ -22,9 +23,8 @@ function decisionLabel(key, strategy, config) {
   switch (key) {
     case 'basePremium': return [t('Base premium', 'Baz prim'), `€${fmt(strategy.basePremium, 2)}`];
     case 'marketing': return [t('Marketing budget', 'Pazarlama bütçesi'), money(strategy.marketing)];
-    case 'channelFocus': return [t('Marketing focus', 'Pazarlama odağı'), strategy.channelFocus.map((v, i) => `${levelName('channel', i, lang)} ${v}%`).join(' · ')];
-    case 'claimsOps': return [t('Claims operations', 'Hasar operasyonu'), money(strategy.claimsOps)];
-    case 'reinsurance': return [t('Reinsurance', 'Reasürans'), strategy.reinsurance ? t(`${Math.round(rulesOf(config).reinsurance.share * 100)}% quota-share`, `%${Math.round(rulesOf(config).reinsurance.share * 100)} kota paylı`) : t('None', 'Yok')];
+    case 'mediaShare': return [t('Media share', 'Medya payı'), `${campaignOf(strategy).media}%`];
+    case 'offers': return [t('Gift weights', 'Hediye ağırlıkları'), giftMix(strategy, config, lang)];
     default: return [key, ''];
   }
 }

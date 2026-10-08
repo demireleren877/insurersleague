@@ -4,7 +4,7 @@
 // Session content (segment names, events, quiz questions, and every message below) is bilingual, chosen once
 // per room via `lang` on session.config ('en' | 'tr'). UI chrome (buttons, hints) is a separate per-device
 // toggle handled by dist/js/i18n.js.
-import { scenario, simulate, validate, rank, EVENT_SCOPES, defaultRules, rulesOf, presetName, presetOf, defaultStrategy as engineStrategy, cascoMoney, DIMENSIONS, QUARTER_KEYS, assumptionsFor } from '../engine.js';
+import { scenario, simulate, validate, rank, EVENT_SCOPES, defaultRules, rulesOf, presetName, presetOf, defaultStrategy as engineStrategy, cascoMoney, DIMENSIONS, QUARTER_KEYS, assumptionsFor, campaignOf, campaignRules } from '../engine.js';
 import { QUESTIONS, questionsFor } from './quiz.js';
 import { checkRule, setPath, sanitizeRules } from './rules.js';
 
@@ -218,22 +218,20 @@ export function repairStrategy(team, config) {
     const fixed = Array.from({ length: n }, (_, i) => Math.min(R.coef.max, Math.max(R.coef.min, Number.isFinite(list[i]) ? list[i] : 1)));
     if (fixed.some((v, i) => v !== list[i])) { st.coef[dim] = fixed; fixes.push(M(config, `${dim} coefficients`, `${dim} katsayıları`)); }
   }
-  const n = R.dimensions.channel.length, arr = Array.from({ length: n }, (_, i) => Math.max(0, Math.round(Number(st.channelFocus?.[i]) || 0)));
-  const sum = arr.reduce((a, b) => a + b, 0);
-  if (sum !== 100 || !Array.isArray(st.channelFocus) || st.channelFocus.length !== n) {
-    const scaled = sum ? arr.map(v => Math.floor(v / sum * 100)) : arr.map((_, i) => Math.floor(100 / n) + (i < 100 % n ? 1 : 0));
+  // Gift weights: whole steps of 5 summing to 100 (all on the first gift when nothing usable is there).
+  const c = campaignOf(st), n = campaignRules(R).offers.length;
+  const arr = Array.from({ length: n }, (_, i) => Math.max(0, Math.round((Number(c.weights[i]) || 0) / 5) * 5)), sum = arr.reduce((a, b) => a + b, 0);
+  if (!Array.isArray(st.offers) || st.offers.length !== n || sum !== 100 || st.offers.some((v, i) => v !== arr[i])) {
+    const scaled = sum ? arr.map(v => Math.floor(v / sum * 20) * 5) : arr.map((_, i) => (i ? 0 : 100));
     scaled[scaled.indexOf(Math.max(...scaled))] += 100 - scaled.reduce((a, b) => a + b, 0);
-    st.channelFocus = scaled; fixes.push(M(config, 'channel focus', 'kanal odağı'));
+    if (Array.isArray(st.offers) && st.offers.length === n && sum !== 100) fixes.push(M(config, 'gift weights', 'hediye ağırlıkları'));
+    st.offers = scaled;
   }
-  for (const key of ['marketing', 'claimsOps']) if (!Number.isFinite(st[key]) || st[key] < 0) { st[key] = 0; fixes.push(key === 'marketing' ? M(config, 'marketing budget', 'pazarlama bütçesi') : M(config, 'claims operations', 'hasar operasyonu')); }
-  st.reinsurance = st.reinsurance === true;
-  const room = money.budget - (st.reinsurance ? money.reinsuranceFee : 0), used = st.marketing + st.claimsOps;
-  if (used > room) {
-    const k = Math.max(0, room) / used;
-    st.marketing = Math.floor(st.marketing * k / 100) * 100;
-    st.claimsOps = Math.floor(st.claimsOps * k / 100) * 100;
-    fixes.push(M(config, 'budget', 'bütçe'));
-  }
+  const media = Math.round((Number.isFinite(c.media) ? c.media : 50) / 5) * 5;
+  if (st.mediaShare !== Math.min(100, Math.max(0, media))) { st.mediaShare = Math.min(100, Math.max(0, media)); fixes.push(M(config, 'media share', 'medya payı')); }
+  if (!Number.isFinite(st.marketing) || st.marketing < 0) { st.marketing = 0; fixes.push(M(config, 'marketing budget', 'pazarlama bütçesi')); }
+  if (st.marketing > money.budget) { st.marketing = money.budget; fixes.push(M(config, 'budget', 'bütçe')); }
+  for (const key of ['channelFocus', 'claimsOps', 'reinsurance', 'campaign', 'offer']) delete st[key];
   return fixes;
 }
 
@@ -390,8 +388,11 @@ export function checkedConfig(c, lang = 'en') {
   }
   if (typeof c.branch === 'string' && c.branch.trim()) base.branch = c.branch.slice(0, 30);
   base.seed = Number.isInteger(c.seed) ? c.seed : base.seed;
-  if (!Array.isArray(c.weights) || c.weights.length !== 3 || c.weights.some(x => !Number.isFinite(x) || x < 0 || x > 100) || c.weights.reduce((a, b) => a + b, 0) !== 100) throw Error(M(base, 'Score weights must total 100%.', 'Puan ağırlıklarının toplamı %100 olmalı.'));
-  base.weights = c.weights;
+  // Files saved before the satisfaction score was dropped carry three weights: keep the first two, rescaled.
+  const weights = Array.isArray(c.weights) && c.weights.length === 3 && c.weights[0] + c.weights[1] > 0
+    ? (w => [w, 100 - w])(Math.round(c.weights[0] / (c.weights[0] + c.weights[1]) * 100)) : c.weights;
+  if (!Array.isArray(weights) || weights.length !== 2 || weights.some(x => !Number.isFinite(x) || x < 0 || x > 100) || weights.reduce((a, b) => a + b, 0) !== 100) throw Error(M(base, 'Score weights must total 100%.', 'Puan ağırlıklarının toplamı %100 olmalı.'));
+  base.weights = weights;
   base.rules = sanitizeRules(c.rules, base.lang);
   for (const [k, def] of Object.entries(base.assumptions)) {
     const v = c.assumptions?.[k]?.value;
@@ -420,7 +421,7 @@ const cleanQuestion = (q, i) => ({
 
 // A strategy arriving from a workbook: keep only known fields, coerce numbers, fall back to `base`.
 function strategyFrom(source, base, cfg) {
-  const src = source && typeof source === 'object' ? source : {}, R = rulesOf(cfg);
+  const src = source && typeof source === 'object' ? source : {}, R = rulesOf(cfg), gifts = campaignRules(R).offers.length;
   const num = v => (v === '' || v === null || v === undefined ? NaN : Number(v));
   const out = {
     ...structuredClone(base),
@@ -428,16 +429,13 @@ function strategyFrom(source, base, cfg) {
     sentence: clean(src.sentence).slice(0, 90) || base.sentence || M(cfg, 'Our strategy speaks in the race.', 'Stratejimiz yarışta konuşacak.', cfg.lang),
     basePremium: num(src.basePremium ?? base.basePremium),
     marketing: num(src.marketing ?? base.marketing),
-    claimsOps: num(src.claimsOps ?? base.claimsOps),
-    reinsurance: src.reinsurance === undefined ? base.reinsurance : src.reinsurance === true,
-    channelFocus: Array.isArray(src.channelFocus) ? src.channelFocus.slice(0, R.dimensions.channel.length).map(num) : base.channelFocus,
     coef: Object.fromEntries(DIMENSIONS.map(dim => [dim, Array.isArray(src.coef?.[dim]) ? src.coef[dim].slice(0, R.dimensions[dim].length).map(num) : base.coef[dim]])),
-    campaign: num(src.campaign ?? base.campaign ?? 0),
-    mediaShare: num(src.mediaShare ?? base.mediaShare ?? 50),
-    offer: String(src.offer ?? base.offer ?? 'concert')
+    mediaShare: num(src.mediaShare ?? campaignOf(base).media),
+    offers: (Array.isArray(src.offers) ? src.offers : campaignOf(base).weights).slice(0, gifts).map(num)
   };
-  const numbers = [out.basePremium, out.marketing, out.claimsOps, out.campaign, out.mediaShare, ...out.channelFocus, ...DIMENSIONS.flatMap(dim => out.coef[dim])];
-  if (numbers.some(v => !Number.isFinite(v)) || out.channelFocus.length !== R.dimensions.channel.length || DIMENSIONS.some(dim => out.coef[dim].length !== R.dimensions[dim].length))
+  for (const key of ['channelFocus', 'claimsOps', 'reinsurance', 'campaign', 'offer']) delete out[key];
+  const numbers = [out.basePremium, out.marketing, out.mediaShare, ...out.offers, ...DIMENSIONS.flatMap(dim => out.coef[dim])];
+  if (numbers.some(v => !Number.isFinite(v)) || out.offers.length !== gifts || DIMENSIONS.some(dim => out.coef[dim].length !== R.dimensions[dim].length))
     return { error: M(cfg, 'a decision is missing or not a number.', 'eksik ya da sayısal olmayan bir karar var.') };
   return out;
 }
@@ -597,7 +595,7 @@ function reduceAction(s, action, ctx) {
         if (!team) return { error: M(cfg, `“${name}” is not an Excel team in this game.`, `“${name}” bu oyunda Excel takımı olarak bulunamadı.`) };
         if (seen.has(team.id)) return { error: M(cfg, `“${team.name}” appears more than once in the upload.`, `“${team.name}” yüklemede birden fazla kez var.`) };
         seen.add(team.id);
-        // Only the quarter levers move; everything else (reinsurance, names) stays as it was.
+        // Only the quarter levers move; everything else (names, product) stays as it was.
         const incoming = strategyFrom(item?.strategy, team.strategy, cfg);
         if (incoming.error) return { error: M(cfg, `“${team.name}”: ${incoming.error}`, `“${team.name}”: ${incoming.error}`) };
         const strategy = structuredClone(team.strategy);
@@ -636,6 +634,14 @@ function reduceAction(s, action, ctx) {
       const errors = validate(team, cfg, msgLang ?? undefined);
       if (errors.length) return { error: M(cfg, `Jev returned an invalid strategy: ${errors[0]}`, `Jev geçersiz bir strateji döndürdü: ${errors[0]}`) };
       s.teams.push(team);
+      return done;
+    }
+    // The room server stores the image; the state only says which version each team has.
+    case 'brochure-set': {
+      if (role !== 'system') return { error: M(cfg, 'Brochures are uploaded through the room server.', 'Broşürler oda sunucusu üzerinden yüklenir.') };
+      const team = s.teams.find(t => t.id === Number(action.teamId));
+      if (!team) return { changed: false };
+      team.brochure = action.brochure ? { v: Number(action.brochure.v), w: Number(action.brochure.w), h: Number(action.brochure.h) } : null;
       return done;
     }
     case 'presence': {
@@ -877,6 +883,7 @@ function reduceAction(s, action, ctx) {
       if (s.phase === 'race') return { error: M(cfg, 'The race has started.', 'Yarış başladı.') };
       const v = Number(action.value);
       if (!Number.isFinite(v) || v < 0 || v > 100) return { error: M(cfg, 'Enter a weight between 0 and 100.', 'Ağırlığı 0–100 aralığında girin.') };
+      if (![0, 1].includes(Number(action.index))) return { changed: false };
       s.config.weights[Number(action.index)] = v;
       return done;
     }
@@ -887,8 +894,8 @@ function reduceAction(s, action, ctx) {
       // A bigger market needs bigger budgets: money moves with the policy count, keeping its proportions.
       if (action.key === 'policies' && def.value > 0) {
         const k = v / def.value;
-        for (const key of ['capital', 'budget', 'fixedCost', 'reinsuranceFee']) s.config.assumptions[key].value = Math.round(s.config.assumptions[key].value * k / 1000) * 1000;
-        for (const team of s.teams) if (team.excel || team.ai) { team.strategy.marketing = Math.round(team.strategy.marketing * k); team.strategy.claimsOps = Math.round(team.strategy.claimsOps * k); }
+        for (const key of ['budget', 'fixedCost']) if (s.config.assumptions[key]) s.config.assumptions[key].value = Math.round(s.config.assumptions[key].value * k / 1000) * 1000;
+        for (const team of s.teams) if (team.excel || team.ai) team.strategy.marketing = Math.round(team.strategy.marketing * k);
       }
       s.config.assumptions[action.key].value = v;
       return done;
@@ -991,15 +998,15 @@ function reduceAction(s, action, ctx) {
       if (!s.config.rules) s.config.rules = defaultRules(cfg?.lang, cfg?.preset);
       const keys = Array.isArray(action.keys) ? action.keys : Object.keys(defaults);
       for (const k of keys) if (k in defaults) s.config.rules[k] = defaults[k];
-      if (action.scoring) { s.config.weights = [50, 30, 20]; const a = assumptionsFor(cfg?.lang); for (const k of ['profitFloor', 'profitTarget', 'shareTarget', 'serviceTarget']) s.config.assumptions[k].value = a[k].value; }
-      if (action.market) { const a = assumptionsFor(cfg?.lang); for (const k of ['policies', 'capital', 'budget', 'fixedCost', 'reinsuranceFee']) s.config.assumptions[k].value = a[k].value; }
+      if (action.scoring) { s.config.weights = [50, 50]; const a = assumptionsFor(cfg?.lang); for (const k of ['profitFloor', 'profitTarget', 'shareTarget']) s.config.assumptions[k] = { ...a[k] }; }
+      if (action.market) { const a = assumptionsFor(cfg?.lang); for (const k of ['policies', 'budget', 'fixedCost']) s.config.assumptions[k] = { ...a[k] }; }
       if (action.events) s.config.events = scenario(cfg?.lang, cfg?.preset).events;
       return done;
     }
     case 'weights-normalize': {
       if (s.phase === 'race') return { error: M(cfg, 'The race has started.', 'Yarış başladı.') };
       const w = s.config.weights, total = w.reduce((a, b) => a + b, 0);
-      if (!total) { s.config.weights = [50, 30, 20]; return done; }
+      if (!total) { s.config.weights = [50, 50]; return done; }
       const scaled = w.map(v => Math.floor(v / total * 100));
       scaled[scaled.indexOf(Math.max(...scaled))] += 100 - scaled.reduce((a, b) => a + b, 0);
       s.config.weights = scaled;

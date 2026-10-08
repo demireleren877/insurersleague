@@ -33,7 +33,7 @@ body.on-stage { overflow: hidden; }
 .stage {
   --stage-pad: clamp(12px, 1.25vw, 24px);
   --feed-w: clamp(270px, 23vw, 430px);
-  --lane-cols: clamp(44px, 3.4vw, 68px) 30px minmax(180px, 1fr) clamp(118px, 10.4vw, 200px) clamp(60px, 4.8vw, 90px) clamp(88px, 6.8vw, 132px) clamp(58px, 4.6vw, 88px) clamp(50px, 3.8vw, 74px);
+  --lane-cols: clamp(44px, 3.4vw, 68px) 30px minmax(180px, 1fr) clamp(118px, 10.4vw, 200px) clamp(60px, 4.8vw, 90px) clamp(88px, 6.8vw, 132px) clamp(70px, 5.6vw, 104px);
   --lane-gap: clamp(6px, .7vw, 12px);
   position: relative; width: 100%; height: 100%; min-height: 0;
   display: grid; grid-template-columns: minmax(0, 1fr) var(--feed-w); column-gap: clamp(14px, 1.4vw, 26px); grid-template-rows: clamp(86px, 11vh, 120px) minmax(0, 1fr) clamp(58px, 8vh, 78px);
@@ -324,7 +324,6 @@ body.on-stage { overflow: hidden; }
 
 /* ——— Quarterly strategy review ——— */
 .st-review { z-index: 24; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 28px; padding: 46px 72px 40px; }
-.st-review.excel-mode { grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 18px; }
 .st-review.excel-mode .review-stage-team { min-height: 72px; gap: 12px; padding: 9px 14px; }
 .st-review.excel-mode .review-stage-team .emblem { --size: 48px; }
 .st-review.excel-mode .review-stage-team strong { font-size: 23px; }
@@ -380,7 +379,7 @@ body.on-stage { overflow: hidden; }
   .st-brand div span { display: none; }
 }
 @media (max-width: 1180px) and (min-width: 901px) {
-  .stage { --feed-w: 240px; --lane-cols: 40px 26px minmax(150px, 1fr) 112px 54px 84px 54px 44px; --lane-gap: 6px; column-gap: 12px; }
+  .stage { --feed-w: 240px; --lane-cols: 40px 26px minmax(150px, 1fr) 112px 58px 92px 62px; --lane-gap: 6px; column-gap: 12px; }
   .lane-id .emblem { --size: 36px; }
   .lane-val, .st-lanes.compact .lane-val { font-size: 17px; }
   .lane-stat { font-size: 14px; }
@@ -627,6 +626,35 @@ body.on-stage { overflow: hidden; }
 .xl-team-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .xl-team-actions .btn { flex: 1 1 auto; }
 .st-review .xl-teams, .st-pre .xl-teams { margin-bottom: 12px; }
+/* Brochure cards can outgrow the screen: the lobby, decision and review layers scroll instead of clipping. */
+.st-pre { overflow-y: auto; overscroll-behavior: contain; }
+.st-pre > * { flex-shrink: 0; }
+
+/* Quarter end: the quarter's results stay on screen through the review; teams sit in a strip below. */
+.st-review { grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 18px; }
+.qr-results { align-self: start; min-height: 0; max-height: 100%; overflow: auto; border: var(--stroke) solid var(--ink); border-radius: var(--sk-b); background: var(--canvas); }
+.qr-table { width: 100%; border-collapse: collapse; font-size: clamp(16px, 1.25vw, 22px); }
+.qr-table th { position: sticky; top: 0; padding: 14px 18px 10px; border-bottom: var(--stroke) solid var(--ink); background: var(--canvas); text-align: left; font: 700 12px/1 var(--font); font-variation-settings: var(--hand-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }
+.qr-table td { padding: clamp(6px, .65vw, 12px) 18px; border-bottom: 1.5px dashed var(--line-2); white-space: nowrap; }
+.qr-table tr:last-child td { border-bottom: 0; }
+.qr-table .r { text-align: right; }
+.qr-table td.rank { width: 1%; font-weight: 800; color: var(--ink-2); }
+.qr-table td.strong { font-weight: 800; }
+.qr-table td.down { color: var(--down); }
+.qr-table tr.leader td { background: color-mix(in oklab, var(--hl) 38%, transparent); }
+.qr-team { display: inline-flex; align-items: center; gap: 12px; }
+.qr-team b { font-size: clamp(18px, 1.5vw, 26px); line-height: 1.2; }
+.qr-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(228px, 1fr)); gap: 10px; }
+.xl-chip { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "brochure who" "brochure actions"; align-items: center; gap: 6px 12px; min-width: 0; padding: 8px 10px; border: 2px solid var(--ink); border-radius: var(--sk-c); background: color-mix(in oklab, var(--team) 14%, var(--canvas)); }
+.xl-chip-brochure { grid-area: brochure; display: block; width: 50px; height: 66px; padding: 0; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 4px; background: #fff; cursor: zoom-in; }
+.xl-chip-brochure img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.xl-chip-brochure.empty { display: grid; place-items: center; border-style: dashed; border-color: var(--ink-3); background: transparent; color: var(--ink-3); cursor: default; }
+.xl-chip-who { grid-area: who; display: grid; gap: 3px; min-width: 0; }
+.xl-chip-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 18px/1.2 var(--font); font-variation-settings: var(--hand-ui); }
+.xl-chip-who small { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; font-size: 12.5px; font-weight: 700; color: var(--warn); }
+.xl-chip.done .xl-chip-who small { color: var(--up); }
+.xl-chip-who .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.xl-chip-actions { grid-area: actions; display: flex; gap: 4px; }
 
 /* Short projection screens (720p): a smaller podium so the champion never reaches the buttons */
 @media (max-height: 800px) {
@@ -788,3 +816,18 @@ body.on-stage { overflow: hidden; }
   .final-one, .final-one.revealing .podium-slot { transform: none !important; }
   .final-one.revealing .p1.shown .podium-who { animation: none; }
 }
+
+/* ——— Team brochures ——— */
+.xl-brochure { display: grid; place-items: center; width: 100%; padding: 6px; border: 1.5px solid var(--ink); border-radius: var(--sk-c); background: var(--sunk, #f1f3f5); cursor: zoom-in; transition: transform .2s var(--ease-expo); }
+.xl-brochure:hover { transform: rotate(-.6deg) scale(1.01); }
+.xl-brochure img { display: block; max-width: 100%; max-height: 190px; width: auto; height: auto; border-radius: 4px; box-shadow: 0 2px 0 rgba(30, 30, 30, .12); }
+.st-review .xl-brochure img { max-height: 210px; }
+.xl-brochure.empty { min-height: 70px; border-style: dashed; color: var(--ink-3); font-size: 14px; font-weight: 700; cursor: default; gap: 6px; grid-auto-flow: column; }
+.xl-brochure.empty:hover { transform: none; }
+.st-lightbox { position: fixed; inset: 0; z-index: calc(var(--z-appbar, 40) + 20); display: grid; place-items: center; padding: 32px; background: rgba(20, 22, 26, .82); cursor: zoom-out; animation: fade-in .2s ease both; }
+.st-lightbox[hidden] { display: none; }
+.st-lightbox figure { margin: 0; display: grid; gap: 12px; justify-items: center; max-width: 100%; max-height: 100%; }
+.st-lightbox img { max-width: min(92vw, 1400px); max-height: calc(100vh - 140px); border-radius: 8px; background: #fff; box-shadow: 0 10px 40px rgba(0, 0, 0, .35); }
+.st-lightbox figcaption { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 999px; background: var(--paper); color: var(--ink); font: 800 18px/1 var(--font); font-variation-settings: var(--hand-display); }
+.st-lightbox .icon-btn { position: absolute; top: 18px; right: 18px; background: var(--paper); }
+@keyframes fade-in { from { opacity: 0; } }

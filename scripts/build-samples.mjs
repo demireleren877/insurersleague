@@ -19,13 +19,10 @@ for (const lang of ['tr', 'en']) {
   const strategy = {
     ...defaultStrategy(name, s.config),
     product: lang === 'tr' ? 'Örnek Kasko' : 'Sample Casco',
-    sentence: lang === 'tr' ? 'Piyasanın fiyat yapısını izle, acentede büyü.' : 'Follow the market’s price structure, grow through agents.',
+    sentence: lang === 'tr' ? 'Piyasanın fiyat yapısını izle, kampanyayla büyü.' : 'Follow the market’s price structure, grow through the campaign.',
     basePremium: actuarialBase(coef, 0.62, R), coef,
-    marketing: Math.round(money.budget * 0.45 / 1000) * 1000,
-    channelFocus: [45, 25, 15, 15],
-    claimsOps: Math.round(money.budget * 0.42 / 1000) * 1000,
-    reinsurance: false,
-    campaign: 30, mediaShare: 25, offer: 'restaurant'
+    marketing: Math.round(money.budget * 0.6 / 1000) * 1000,
+    mediaShare: 40, offers: [20, 40, 30, 10]
   };
   const file = `dist/samples/${lang === 'tr' ? 'kasko-karar-ornegi' : 'casco-decision-sample'}.xlsx`;
   writeFileSync(file, buildTemplate(s, { lang, teams: [{ name, strategy }] }));

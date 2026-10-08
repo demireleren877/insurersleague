@@ -76,12 +76,12 @@ test('quarter uploads move only the quarter levers and never rewrite finished mo
   assert.match(reduce(s, { type: 'excel-quarter-submit', teams: [{ name: team.name, strategy: broken }] }, host(now + 50)).error, /coefficient/i);
   assert.equal(team.strategy.basePremium, before.basePremium, 'a rejected upload leaves the strategy untouched');
 
-  const uploaded = { ...structuredClone(before), product: 'Not a quarter lever', basePremium: before.basePremium + 2, reinsurance: !before.reinsurance, channelFocus: [70, 10, 10, 10] };
+  const uploaded = { ...structuredClone(before), product: 'Not a quarter lever', basePremium: before.basePremium + 2, mediaShare: 30, offers: [10, 20, 30, 40] };
   assert.ok(reduce(s, { type: 'excel-quarter-submit', teams: [{ name: team.name, strategy: uploaded }] }, host(now + 100)).changed);
   assert.equal(team.strategy.basePremium, before.basePremium + 2);
-  assert.deepEqual(team.strategy.channelFocus, [70, 10, 10, 10]);
+  assert.deepEqual(team.strategy.offers, [10, 20, 30, 40]);
+  assert.equal(team.strategy.mediaShare, 30);
   assert.equal(team.strategy.product, before.product);
-  assert.equal(team.strategy.reinsurance, before.reinsurance, 'the treaty is bought for the whole year');
   assert.equal(team.strategyHistory.at(-1).effectiveMonth, 3);
   assert.equal('initialStrategies' in currentStrategyReview(viewFor(s, { role: 'stage' }, now)), false, 'the stage never sees the private baseline');
   assert.deepEqual(s.results.slice(0, 3), past);
@@ -92,11 +92,11 @@ test('quarter uploads move only the quarter levers and never rewrite finished mo
 
 test('start-race repairs a broken plan so the session never blocks', () => {
   const s = roomWith(['Atlas', 'Nova']);
-  s.teams[0].strategy.channelFocus = [50, 50, 50, 50];
+  s.teams[0].strategy.offers = [50, 50, 50, 50];
   s.teams[1].strategy.marketing = cascoMoney(s.config).budget * 3;
   assert.ok(toRace(s, 2_000).changed);
-  assert.deepEqual(s.teams[0].strategy.channelFocus, [25, 25, 25, 25]);
-  assert.ok(s.teams[1].strategy.marketing + s.teams[1].strategy.claimsOps <= cascoMoney(s.config).budget);
+  assert.deepEqual(s.teams[0].strategy.offers, [25, 25, 25, 25]);
+  assert.ok(s.teams[1].strategy.marketing <= cascoMoney(s.config).budget);
   assert.equal(s.notice.kind, 'auto-locked');
   assert.equal(s.results.length, 12);
 });
@@ -149,11 +149,11 @@ test('rule studio: host edits validated rules that change the simulation; race l
   assert.ok(reduce(s, { type: 'rule', path: 'behavior.2.price', value: 7 }, host(3)).changed);
   assert.notEqual(gwp(), before);
 
-  reduce(s, { type: 'rule', path: 'service.slope', value: 120 }, host(4));
+  reduce(s, { type: 'rule', path: 'campaign.cpm', value: 12 }, host(4));
   reduce(s, { type: 'assumption', key: 'budget', value: 99_000 }, host(4));
   assert.ok(reduce(s, { type: 'rules-reset', keys: ['behavior'] }, host(5)).changed);
   assert.equal(s.config.rules.behavior[2].price, 4.2);
-  assert.equal(s.config.rules.service.slope, 120);
+  assert.equal(s.config.rules.campaign.cpm, 12);
   assert.ok(reduce(s, { type: 'rules-reset', keys: [], market: true }, host(5)).changed);
   assert.equal(s.config.assumptions.budget.value, freshSession(0).config.assumptions.budget.value);
 
@@ -161,7 +161,7 @@ test('rule studio: host edits validated rules that change the simulation; race l
   assert.match(toRace(s, 7).error, /Scoring/);
   assert.ok(reduce(s, { type: 'weights-normalize' }, host(8)).changed);
   assert.ok(reduce(s, { type: 'start-race' }, host(9)).changed);
-  assert.match(reduce(s, { type: 'rule', path: 'service.slope', value: 60 }, host(10)).error, /race/);
+  assert.match(reduce(s, { type: 'rule', path: 'campaign.cpm', value: 10 }, host(10)).error, /race/);
 });
 
 test('a bigger market scales every money figure and the teams’ budgets with it', () => {
@@ -274,4 +274,16 @@ test('the decision window closes team uploads after 25 minutes; quarter reviews 
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 26 * 60_000)).changed, 'the moderator can still upload');
   reduce(s, { type: 'extend' }, host(1_004 + 26 * 60_000));
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 28 * 60_000)).changed, 'added time reopens uploads');
+});
+
+test('a brochure version is set only by the room server, never by a device action', () => {
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  reduce(s, { type: 'excel-add-team', name: 'Atlas' }, host(1_001));
+  const id = s.teams[0].id;
+  assert.match(reduce(s, { type: 'brochure-set', teamId: id, brochure: { v: 5, w: 10, h: 20 } }, host(1_002)).error, /room server/);
+  assert.ok(reduce(s, { type: 'brochure-set', teamId: id, brochure: { v: 5, w: 10, h: 20 } }, { role: 'system', now: 1_003 }).changed);
+  assert.deepEqual(s.teams[0].brochure, { v: 5, w: 10, h: 20 });
+  assert.equal(viewFor(s, { role: 'player', playerId: 'x' }, 1_004).teams[0].brochure.v, 5, 'everyone sees that a brochure exists');
+  reduce(s, { type: 'brochure-set', teamId: id, brochure: null }, { role: 'system', now: 1_005 });
+  assert.equal(s.teams[0].brochure, null);
 });

@@ -18,27 +18,25 @@ import { t, getLang } from '../i18n.js';
 
 export const rulesState = { open: new Set() };
 
-const weightLabels = () => [t('Profitability', 'Kârlılık'), t('Market share', 'Pazar payı'), t('Customer satisfaction', 'Müşteri memnuniyeti')];
-const SCORING_KEYS = ['profitFloor', 'profitTarget', 'shareTarget', 'serviceTarget'];
-const MONEY_KEYS = ['policies', 'capital', 'budget', 'fixedCost', 'reinsuranceFee'];
+const weightLabels = () => [t('Profitability', 'Kârlılık'), t('Market share', 'Pazar payı')];
+const SCORING_KEYS = ['profitFloor', 'profitTarget', 'shareTarget'];
+const MONEY_KEYS = ['policies', 'budget', 'fixedCost'];
 
 const within = prefixes => path => prefixes.some(p => path === p || path.startsWith(`${p}.`));
-const assumptionChanges = (s, keys) => { const d = assumptionsFor(s.config.lang); return keys.filter(k => s.config.assumptions[k].value !== d[k].value).length; };
+const assumptionChanges = (s, keys) => { const d = assumptionsFor(s.config.lang); return keys.filter(k => s.config.assumptions[k] && s.config.assumptions[k].value !== d[k].value).length; };
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const count = keys => (s, R) => changedCount(R, within(keys));
 
 // Sections: menu order, reset-to-default scope, and the change counter.
 export const SECTIONS = [
-  { id: 'puanlama', get name() { return t('Scoring', 'Puanlama'); }, icon: 'cup', reset: { keys: ['capitalRule'], scoring: true },
-    changes: (s, R) => count(['capitalRule'])(s, R) + assumptionChanges(s, SCORING_KEYS) + (sameJson(s.config.weights, [50, 30, 20]) ? 0 : 1) },
+  { id: 'puanlama', get name() { return t('Scoring', 'Puanlama'); }, icon: 'cup', reset: { keys: [], scoring: true },
+    changes: s => assumptionChanges(s, SCORING_KEYS) + (sameJson(s.config.weights, [50, 50]) ? 0 : 1) },
   { id: 'pazar', get name() { return t('Market & money', 'Pazar ve para'); }, icon: 'coins', reset: { keys: ['market', 'coef'], market: true },
     changes: (s, R) => count(['market', 'coef'])(s, R) + assumptionChanges(s, MONEY_KEYS) },
   { id: 'hasar', get name() { return t('Claims model', 'Hasar modeli'); }, icon: 'shield', reset: { keys: ['model'] }, changes: count(['model']) },
   { id: 'segmentler', get name() { return t('Segment coefficients', 'Segment katsayıları'); }, icon: 'users', reset: { keys: ['dimensions'] }, changes: count(['dimensions']) },
   { id: 'davranis', get name() { return t('Customer behaviour', 'Müşteri davranışı'); }, icon: 'eye', reset: { keys: ['behavior', 'commercialPrice'] }, changes: count(['behavior', 'commercialPrice']) },
-  { id: 'operasyon', get name() { return t('Marketing & service', 'Pazarlama ve hizmet'); }, icon: 'megaphone', reset: { keys: ['marketing', 'service'] }, changes: count(['marketing', 'service']) },
   { id: 'kampanya', get name() { return t('Digital campaign', 'Dijital kampanya'); }, icon: 'megaphone', reset: { keys: ['campaign'] }, changes: count(['campaign']) },
-  { id: 'reasurans', get name() { return t('Reinsurance', 'Reasürans'); }, icon: 'tower', reset: { keys: ['reinsurance'] }, changes: count(['reinsurance']) },
   { id: 'olaylar', get name() { return t('Event calendar', 'Olay takvimi'); }, icon: 'bolt', reset: { keys: [], events: true }, changes: s => (sameJson(s.config.events, scenario(s.config.lang).events) ? 0 : 1) },
   { id: 'denge', get name() { return t('Balance test', 'Denge testi'); }, icon: 'scale', reset: null, changes: () => 0 }
 ];
@@ -112,9 +110,9 @@ function levelShares(dim) {
 
 function scoringSection(s, R) {
   const w = s.config.weights, total = w.reduce((a, b) => a + b, 0), locked = raceStarted();
-  const n = Math.max(s.teams.length, 2), market = scaledMarket(s.config, n), a = s.config.assumptions, capital = a.capital.value;
+  const n = Math.max(s.teams.length, 2), market = scaledMarket(s.config, n), a = s.config.assumptions, slice = cascoMoney(s.config).slice;
   const WEIGHT_LABELS = weightLabels();
-  return block(t('Score weights', 'Puan ağırlıkları'), t('The monthly score is a weighted average of three components. They must total 100%.', 'Aylık puan üç bileşenin ağırlıklı ortalamasıdır. Toplamları %100 olmalı.'), `
+  return block(t('Score weights', 'Puan ağırlıkları'), t('The monthly score is a weighted average of two components. They must total 100%.', 'Aylık puan iki bileşenin ağırlıklı ortalamasıdır. Toplamları %100 olmalı.'), `
       <div class="weights">
         ${w.map((v, i) => `<label class="weight" style="--w:${Math.min(100, v)}%" for="weight-${i}"><span>${WEIGHT_LABELS[i]}</span><span class="weight-in"><input class="input" type="number" id="weight-${i}" data-weight="${i}" min="0" max="100" step="1" value="${v}" ${locked ? 'disabled' : ''}><em>%</em></span><i><b></b></i></label>`).join('')}
       </div>
@@ -124,26 +122,23 @@ function scoringSection(s, R) {
       </div>`, { aside: `<span class="chip ${total === 100 ? 'ok' : 'bad'}">${fmt(total)}%</span>` })
     + block(t('Score thresholds', 'Puan eşikleri'), t('Each component is scored 0–100. The thresholds decide how many points a result earns.', 'Her bileşen 0–100 arası puanlanır. Eşikler bir sonucun kaç puan getireceğini belirler.'), `
       <div class="rf-grid">
-        ${assumptionField('profitFloor', { hint: t(`At or below this at year end, 0 points (${money(a.profitFloor.value * capital, { signed: true })}).`, `Yıl sonunda bu orana eşit ya da altındaysa 0 puan (${money(a.profitFloor.value * capital, { signed: true })}).`) })}
-        ${assumptionField('profitTarget', { hint: t(`Reaching this earns full points (${money(a.profitTarget.value * capital)} profit). During the year thresholds are pro-rated.`, `Buna ulaşmak tam puan getirir (${money(a.profitTarget.value * capital)} kâr). Yıl içinde eşikler geçen aylara oranlanır.`) })}
+        ${assumptionField('profitFloor', { hint: t(`At or below this at year end, 0 points (${money(a.profitFloor.value * slice, { signed: true })}).`, `Yıl sonunda bu orana eşit ya da altındaysa 0 puan (${money(a.profitFloor.value * slice, { signed: true })}).`) })}
+        ${assumptionField('profitTarget', { hint: t(`Reaching this earns full points (${money(a.profitTarget.value * slice)} profit). During the year thresholds are pro-rated.`, `Buna ulaşmak tam puan getirir (${money(a.profitTarget.value * slice)} kâr). Yıl içinde eşikler geçen aylara oranlanır.`) })}
         ${assumptionField('shareTarget', { hint: t(`× a fair share. With ${n} teams now, ${pct(market.shareTarget)} premium share earns full points.`, `× adil pay. Şu an ${n} takımla ${pct(market.shareTarget)} prim payı tam puan getirir.`) })}
-        ${assumptionField('serviceTarget')}
       </div>
-      <label class="toggle-row rb-toggle"><input type="checkbox" data-rule-bool="capitalRule" ${R.capitalRule ? 'checked' : ''} ${locked ? 'disabled' : ''}><span><b>${t('Capital rule', 'Sermaye kuralı')}</b><small>${t('A company whose equity goes negative even once during the year drops to the bottom of the championship ranking.', 'Yıl içinde özkaynağı bir kez bile negatife düşen şirket, şampiyonluk sıralamasının en altına düşer.')}</small></span></label>
       ${insight([
-        t(`${WEIGHT_LABELS[0]}: profit / capital ${pct(a.profitFloor.value, 0)} → 0 points, ${pct(a.profitTarget.value, 0)} → 100 points. At most <b>${fmt(w[0])} points</b>.`, `${WEIGHT_LABELS[0]}: kâr / sermaye ${pct(a.profitFloor.value, 0)} → 0 puan, ${pct(a.profitTarget.value, 0)} → 100 puan. En fazla <b>${fmt(w[0])} puan</b>.`),
-        t(`${WEIGHT_LABELS[1]}: ${pct(market.shareTarget)} premium share among the teams earns full points. At most <b>${fmt(w[1])} points</b>.`, `${WEIGHT_LABELS[1]}: takımlar arasında ${pct(market.shareTarget)} prim payı tam puan getirir. En fazla <b>${fmt(w[1])} puan</b>.`),
-        t(`${WEIGHT_LABELS[2]}: an average service score of ${fmt(a.serviceTarget.value)} earns full points. At most <b>${fmt(w[2])} points</b>.`, `${WEIGHT_LABELS[2]}: ${fmt(a.serviceTarget.value)} ortalama hizmet skoru tam puan getirir. En fazla <b>${fmt(w[2])} puan</b>.`)
+        t(`${WEIGHT_LABELS[0]}: profit / fair market slice ${pct(a.profitFloor.value, 1)} → 0 points, ${pct(a.profitTarget.value, 1)} → 100 points. At most <b>${fmt(w[0])} points</b>.`, `${WEIGHT_LABELS[0]}: kâr / adil pazar dilimi ${pct(a.profitFloor.value, 1)} → 0 puan, ${pct(a.profitTarget.value, 1)} → 100 puan. En fazla <b>${fmt(w[0])} puan</b>.`),
+        t(`${WEIGHT_LABELS[1]}: ${pct(market.shareTarget)} premium share among the teams earns full points. At most <b>${fmt(w[1])} points</b>.`, `${WEIGHT_LABELS[1]}: takımlar arasında ${pct(market.shareTarget)} prim payı tam puan getirir. En fazla <b>${fmt(w[1])} puan</b>.`)
       ])}`);
 }
 
 function marketSection(s) {
   const locked = raceStarted(), R = rulesOf(s.config), ref = referenceMarket(R, policiesOf(s.config)), m = cascoMoney(s.config);
-  return block(t('Market size & money', 'Pazar büyüklüğü ve para'), t('The case-study data is a sample; set how many policies the whole market buys in a year. Its profile always matches the sample. Changing the size rescales capital, budget and costs in proportion.', 'Vaka verisi bir örneklemdir; tüm pazarın yılda kaç poliçe aldığını belirle. Profili her zaman örneklemle aynıdır. Büyüklüğü değiştirmek sermaye, bütçe ve giderleri orantılı ölçekler.'), `
+  return block(t('Market size & money', 'Pazar büyüklüğü ve para'), t('The case-study data is a sample; set how many policies the whole market buys in a year. Its profile always matches the sample. Changing the size rescales the budget and costs in proportion.', 'Vaka verisi bir örneklemdir; tüm pazarın yılda kaç poliçe aldığını belirle. Profili her zaman örneklemle aynıdır. Büyüklüğü değiştirmek bütçeyi ve giderleri orantılı ölçekler.'), `
       <div class="rf-grid">${MONEY_KEYS.map(k => assumptionField(k)).join('')}</div>
       ${insight([
         t(`At the market’s own prices the year is worth <b>${money(ref.gwp)}</b> of premium and <b>${money(ref.claims)}</b> of expected claims.`, `Piyasanın kendi fiyatlarıyla yıl <b>${money(ref.gwp)}</b> prim ve <b>${money(ref.claims)}</b> beklenen hasar eder.`),
-        t(`A fair slice for one of ${6} teams is about ${money(m.slice)} of premium; the decision budget is ${pct(m.budget / m.slice)} of it.`, `${6} takımdan birinin adil payı yaklaşık ${money(m.slice)} primdir; karar bütçesi bunun ${pct(m.budget / m.slice)} kadarıdır.`)
+        t(`A fair slice for one of ${6} teams is about ${money(m.slice)} of premium; the marketing budget is ${pct(m.budget / m.slice)} of it.`, `${6} takımdan birinin adil payı yaklaşık ${money(m.slice)} primdir; pazarlama bütçesi bunun ${pct(m.budget / m.slice)} kadarıdır.`)
       ])}`)
     + block(t('Competition', 'Rekabet'), t('Every customer can also buy from the rest of the market at its usual price.', 'Her müşteri piyasanın geri kalanından da alışıldık fiyatla alabilir.'), `
       <div class="rf-grid">
@@ -193,62 +188,31 @@ function segmentsSection(s, R) {
 }
 
 function behaviorSection(s, R) {
-  return block(t('How customers buy', 'Müşteriler nasıl satın alır'), t('Hidden from the teams: they infer it from the data and the race. Price sensitivity is how sharply a persona reacts to a price above or below the market; service weight is how much it values claims service; channel loyalty is how much it needs visibility in its own channel.', 'Takımlardan gizlidir: veriden ve yarıştan çıkarırlar. Fiyat hassasiyeti, personanın piyasanın üstü ya da altındaki fiyata tepkisidir; hizmet ağırlığı hasar hizmetine verdiği önem; kanal sadakati ise kendi kanalındaki görünürlüğe ihtiyacıdır.'), `
+  return block(t('How customers buy', 'Müşteriler nasıl satın alır'), t('Hidden from the teams: they infer it from the data and the race. Price sensitivity is how sharply a persona reacts to a price above or below the market.', 'Takımlardan gizlidir: veriden ve yarıştan çıkarırlar. Fiyat hassasiyeti, personanın piyasanın üstü ya da altındaki fiyata tepkisidir.'), `
       <div class="rt-wrap"><table class="rt probe">
-        <thead><tr><th scope="col">${t('Persona', 'Persona')}</th><th scope="col"><span>${t('Price sensitivity', 'Fiyat hassasiyeti')}</span></th><th scope="col"><span>${t('Service weight', 'Hizmet ağırlığı')}</span></th><th scope="col"><span>${t('Channel loyalty', 'Kanal sadakati')}</span></th></tr></thead>
+        <thead><tr><th scope="col">${t('Persona', 'Persona')}</th><th scope="col"><span>${t('Price sensitivity', 'Fiyat hassasiyeti')}</span></th></tr></thead>
         <tbody>${R.behavior.map((_, i) => `<tr><th scope="row"><b>${levelName('persona', i, getLang())}</b></th>
-          <td>${numCell(`behavior.${i}.price`, `${levelName('persona', i, getLang())} · ${t('price sensitivity', 'fiyat hassasiyeti')}`)}</td>
-          <td>${numCell(`behavior.${i}.service`, `${levelName('persona', i, getLang())} · ${t('service weight', 'hizmet ağırlığı')}`)}</td>
-          <td>${numCell(`behavior.${i}.channel`, `${levelName('persona', i, getLang())} · ${t('channel loyalty', 'kanal sadakati')}`)}</td></tr>`).join('')}</tbody>
+          <td>${numCell(`behavior.${i}.price`, `${levelName('persona', i, getLang())} · ${t('price sensitivity', 'fiyat hassasiyeti')}`)}</td></tr>`).join('')}</tbody>
       </table></div>
       <div class="rf-grid">${ruleField('commercialPrice', t('Commercial price sensitivity', 'Ticari fiyat hassasiyeti'), t('× the persona’s sensitivity for commercial customers.', 'Ticari müşteriler için personanın hassasiyetiyle çarpılır.'))}</div>
-      ${formula([t('choice', 'tercih'), { op: '∝' }, `(${t('offer ÷ market price', 'teklif ÷ piyasa fiyatı')})`, '<sup>−' + t('sensitivity', 'hassasiyet') + '</sup>', { op: '×' }, t('channel visibility', 'kanal görünürlüğü'), '<sup>' + t('loyalty', 'sadakat') + '</sup>', { op: '×' }, t('service reputation', 'hizmet itibarı')])}`);
-}
-
-function operationsSection(s, R) {
-  return block(t('Marketing', 'Pazarlama'), t('Marketing buys visibility in the channels a team focuses on, with diminishing returns.', 'Pazarlama, takımın odaklandığı kanallarda azalan getiriyle görünürlük sağlar.'), `
-      <div class="rf-grid">
-        ${ruleField('marketing.presence', t('Visibility without marketing', 'Pazarlamasız görünürlük'))}
-        ${ruleField('marketing.strength', t('Marketing strength', 'Pazarlama gücü'))}
-        ${ruleField('marketing.scale', t('Spend for a strong effect', 'Güçlü etki için harcama'), t('Share of a fair market slice; higher means marketing needs more money.', 'Adil pazar payının oranı; yüksekse pazarlama daha çok para ister.'))}
-      </div>`)
-    + block(t('Claims operations', 'Hasar operasyonu'), t('Claims operations buy handling capacity. Above the threshold, service slips; beyond full capacity, claims cost leaks.', 'Hasar operasyonu dosya kapasitesi sağlar. Eşiğin üstünde hizmet düşer; tam kapasitenin ötesinde hasar maliyeti kaçar.'), `
-      <div class="rf-grid">
-        ${ruleField('service.handling', t('Cost to handle one claim', 'Bir dosyanın yönetim maliyeti'), t('Share of the base severity.', 'Temel şiddetin oranı.'))}
-        ${ruleField('service.threshold', t('Utilisation threshold', 'Kullanım eşiği'))}
-        ${ruleField('service.slope', t('Service drop per overload', 'Aşırı yükte hizmet düşüşü'))}
-        ${ruleField('service.floor', t('Lowest service score', 'En düşük hizmet skoru'))}
-        ${ruleField('service.max', t('Highest service score', 'En yüksek hizmet skoru'))}
-        ${ruleField('service.leakage', t('Cost leakage when overloaded', 'Aşırı yükte maliyet kaçağı'))}
-        ${ruleField('service.reputation', t('Reputation effect on demand', 'İtibarın talebe etkisi'))}
-      </div>`);
+      ${formula([t('choice', 'tercih'), { op: '∝' }, `(${t('offer ÷ market price', 'teklif ÷ piyasa fiyatı')})`, '<sup>−' + t('sensitivity', 'hassasiyet') + '</sup>'])}`);
 }
 
 function campaignSection(s, R) {
   const m = cascoMoney(s.config), K = campaignRules(R), perTeam = campaignAudience(R, m) / 12;
   const offers = `<div class="rt-wrap"><table class="rt"><thead><tr><th>${t('Gift', 'Hediye')}</th><th>${t('Interest', 'İlgi')}</th><th>${t('Click', 'Tıklama')}</th><th>Hit</th><th>${t('Cost', 'Maliyet')}</th><th>${t('Customers per 1,000 reached', '1.000 erişimde müşteri')}</th></tr></thead><tbody>${K.offers.map((o, i) => `<tr><th>${esc(offerName(o.id, getLang()))}</th><td>${numCell(`campaign.offers.${i}.interest`, `${offerName(o.id, getLang())} · ${t('interest', 'ilgi')}`)}</td><td>${numCell(`campaign.offers.${i}.click`, `${offerName(o.id, getLang())} · ${t('click', 'tıklama')}`)}</td><td>${numCell(`campaign.offers.${i}.hit`, `${offerName(o.id, getLang())} · hit`)}</td><td>${numCell(`campaign.offers.${i}.cost`, `${offerName(o.id, getLang())} · ${t('cost', 'maliyet')}`)}</td><td class="num">${fmt(o.interest * o.click * o.hit * 1000, 1)}</td></tr>`).join('')}</tbody></table></div>`;
-  return block(t('Digital acquisition campaign', 'Dijital müşteri kazanma kampanyası'), t('Teams send part of their marketing here: media buys impressions in a shared target group; interest × click × hit turns reach into customers; each one costs a gift.', 'Takımlar pazarlamanın bir kısmını buraya ayırır: medya ortak bir hedef kitlede gösterim alır; ilgi × tıklama × hit erişimi müşteriye çevirir; her müşteri bir hediyeye mal olur.'), `
+  return block(t('Digital acquisition campaign', 'Dijital müşteri kazanma kampanyası'), t('All of a team’s marketing runs here: media buys impressions in a shared target group; the ads show each gift by its weight; interest × click × hit turns reach into customers; each one costs a gift.', 'Takımın bütün pazarlaması buradan yürür: medya ortak bir hedef kitlede gösterim alır; reklamlar her hediyeyi ağırlığı kadar gösterir; ilgi × tıklama × hit erişimi müşteriye çevirir; her müşteri bir hediyeye mal olur.'), `
       <div class="rf-grid">
         ${ruleField('campaign.cpm', t('Media cost per 1,000 impressions', '1.000 gösterim maliyeti'), t('CPM.', 'CPM.'))}
         ${ruleField('campaign.digitalUsers', t('Digital users (case)', 'Dijital kullanıcı (vaka)'), t('18–55 digital users in the case.', 'Vakadaki 18–55 yaş dijital kullanıcı.'))}
         ${ruleField('campaign.targetShare', t('Target group share', 'Hedef kitle payı'), t('“Joyful Disregarders” among them.', 'İçlerinde “Joyful Disregarders”.'))}
-        ${ruleField('campaign.referenceBudget', t('Case campaign budget', 'Vakadaki kampanya bütçesi'), t('Keeps the case’s people per euro: the audience scales with the decision budget.', 'Vakadaki euro başına kişiyi korur: kitle karar bütçesiyle ölçeklenir.'))}
+        ${ruleField('campaign.referenceBudget', t('Case campaign budget', 'Vakadaki kampanya bütçesi'), t('Keeps the case’s people per euro: the audience scales with the marketing budget.', 'Vakadaki euro başına kişiyi korur: kitle pazarlama bütçesiyle ölçeklenir.'))}
         ${ruleField('campaign.frequency', t('Frequency threshold', 'Frekans eşiği'), t('Average views above this raise the hit ratio.', 'Ortalama görüntüleme bunu aşarsa hit oranı artar.'))}
         ${ruleField('campaign.frequencyBonus', t('Hit ratio bonus', 'Hit oranı artışı'))}
         ${ruleField('campaign.priceCap', t('Price effect cap', 'Fiyat etkisi tavanı'), t('A cheap price can raise conversion at most this many times.', 'Ucuz fiyat dönüşümü en fazla bu kat artırabilir.'))}
       </div>
       ${offers}
       ${insight([t(`In this game the target group is about ${fmt(perTeam)} people a month per team (${fmt(perTeam * s.teams.length || perTeam)} with ${Math.max(1, s.teams.length)} teams). Reaching all of them once costs ${money(perTeam * K.cpm / 1000)} a month per team.`, `Bu oyunda hedef kitle takım başına ayda yaklaşık ${fmt(perTeam)} kişi (${Math.max(1, s.teams.length)} takımla ${fmt(perTeam * s.teams.length || perTeam)}). Hepsine bir kez ulaşmak takım başına ayda ${money(perTeam * K.cpm / 1000)}.`)])}`);
-}
-
-function reinsuranceSection(s, R) {
-  const m = cascoMoney(s.config);
-  return block(t('Quota-share treaty', 'Kota paylı anlaşma'), t('One treaty, the same fixed terms for every team. The fee is set in Market & money.', 'Tek anlaşma, her takıma aynı sabit şartlar. Bedeli Pazar ve para bölümünde ayarlanır.'), `
-      <div class="rf-grid">
-        ${ruleField('reinsurance.share', t('Share ceded', 'Devredilen pay'), t('Of every premium and every claim.', 'Her primin ve her hasarın.'))}
-        ${ruleField('reinsurance.commission', t('Ceding commission', 'Reasürans komisyonu'), t('Paid back on the ceded premium.', 'Devredilen prim üzerinden geri ödenir.'))}
-      </div>
-      ${insight([t(`Buying it costs ${money(m.reinsuranceFee)} from the budget. It pays off when the book’s loss ratio runs above ${pct(1 - R.reinsurance.commission, 0)}.`, `Almanın bedeli bütçeden ${money(m.reinsuranceFee)}. Portföyün hasar oranı ${pct(1 - R.reinsurance.commission, 0)} üzerine çıkarsa kâra geçer.`)])}`);
 }
 
 function eventsSection(s) {
@@ -297,7 +261,6 @@ function previewPanel(s) {
     : (() => {
       const baseRank = Object.fromEntries(p.base.rows.map(r => [r.id, r.rank]));
       const top = p.now.rows[0].score, bottom = p.now.rows[p.now.rows.length - 1].score;
-      const out = p.now.rows.filter(r => !r.eligible).length;
       return `<ol class="pv-list">${p.now.rows.map(r => {
           const t2 = p.now.list.find(x => x.id === r.id), moved = baseRank[r.id] - r.rank;
           return `<li class="${r.eligible ? '' : 'out'}" style="--team:${t2.color}">
@@ -309,7 +272,6 @@ function previewPanel(s) {
         }).join('')}</ol>
         <dl class="pv-stats">
           <div><dt>${t('1st–6th gap', '1.–6. fark')}</dt><dd class="num">${fmt(top - bottom, 1)} ${t('points', 'puan')}</dd></div>
-          <div><dt>${t('Caught by the capital rule', 'Sermaye kuralına takılan')}</dt><dd class="num ${out ? 'down' : ''}">${out}</dd></div>
         </dl>`;
     })();
   return `<aside class="pv" aria-labelledby="pv-title">
@@ -330,7 +292,7 @@ export function rulesPage(sectionId) {
   const R = rulesOf(s.config), section = sectionOf(sectionId);
   const counts = SECTIONS.map(x => x.changes(s, R));
   const total = counts.reduce((a, b) => a + b, 0), locked = raceStarted();
-  const bodies = { puanlama: scoringSection, pazar: marketSection, hasar: claimsSection, segmentler: segmentsSection, davranis: behaviorSection, operasyon: operationsSection, kampanya: campaignSection, reasurans: reinsuranceSection, olaylar: eventsSection, denge: balanceSection };
+  const bodies = { puanlama: scoringSection, pazar: marketSection, hasar: claimsSection, segmentler: segmentsSection, davranis: behaviorSection, kampanya: campaignSection, olaylar: eventsSection, denge: balanceSection };
   const actions = `
     <button class="btn ghost sm" data-action="rules-export">${icon('file', 15)} ${t('Download rules file', 'Kural dosyasını indir')}</button>
     <label class="btn ghost sm ${locked ? 'disabled' : ''}" title="${t('Upload a rules file', 'Kural dosyası yükle')}">${icon('arrow', 15)} ${t('Upload from file', 'Dosyadan yükle')}<input type="file" id="import-file" accept="application/json" hidden ${locked ? 'disabled' : ''}></label>

@@ -41,9 +41,9 @@ export function buildSummary(s, months, label = '') {
       const team = s.teams.find(t => t.id === r.id), st = team.strategy;
       return {
         name: team.name, color: team.color, emblem: team.emblem, code: team.code, ai: team.ai?.profile ?? null,
-        rank: r.rank, score: r.score, eligible: r.eligible, bonus: r.bonus || 0, profit: r.profit, share: r.share, combinedRatio: r.combinedRatio, service: r.service,
+        rank: r.rank, score: r.score, eligible: r.eligible, bonus: r.bonus || 0, profit: r.profit, share: r.share, combinedRatio: r.combinedRatio,
         style: archetypeKey(st, s.config), changes: quarter(team), lossRatio: r.lossRatio, priced: bookProfile(st, s.config).impliedLossRatio,
-        strategy: { basePremium: st.basePremium, coef: st.coef, marketing: st.marketing, channelFocus: st.channelFocus, claimsOps: st.claimsOps, reinsurance: st.reinsurance, sentence: st.sentence }
+        strategy: { basePremium: st.basePremium, coef: st.coef, marketing: st.marketing, mediaShare: st.mediaShare, offers: st.offers, sentence: st.sentence }
       };
     })
   };

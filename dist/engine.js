@@ -90,7 +90,7 @@ export const EVENTS = eventsFor('en');
 export function scenario(lang = 'en') {
   return {
     version: 'casco-1.0', seed: 2026, year: 2026, branch: presetName(DEFAULT_PRESET, lang), preset: DEFAULT_PRESET, minutes: 25, speed: 6,
-    weights: [50, 30, 20], lang, assumptions: cascoAssumptions(lang), events: eventsFor(lang), rules: defaultCascoRules()
+    weights: [50, 50], lang, assumptions: cascoAssumptions(lang), events: eventsFor(lang), rules: defaultCascoRules()
   };
 }
 
@@ -143,14 +143,14 @@ export function sampleStrategies(config) {
   const act = actuarialCoefficients(R), flat = Object.fromEntries(DIMENSIONS.map(d => [d, act[d].map(() => 1)]));
   const tilt = (coef, dim, factors) => ({ ...coef, [dim]: coef[dim].map((v, i) => snapCoef(v * factors[i], R)) });
   const k = v => Math.round(v / 1000) * 1000;
-  const base = { product: '', sentence: '', marketing: k(B * 0.5), channelFocus: [40, 25, 15, 20], claimsOps: k(B * 0.4), reinsurance: false, campaign: 20, mediaShare: 50, offer: 'concert' };
+  const base = { product: '', sentence: '', marketing: k(B * 0.5), mediaShare: 50, offers: [40, 30, 20, 10] };
   return [
     { id: 'actuary', ...base, coef: act, basePremium: actuarialBase(act, 0.62, R) },
     { id: 'flat', ...base, coef: flat, basePremium: actuarialBase(flat, 0.62, R) },
-    { id: 'volume', ...base, coef: act, basePremium: actuarialBase(act, 0.75, R), marketing: k(B * 0.65), claimsOps: k(B * 0.3) },
-    { id: 'margin', ...base, coef: act, basePremium: actuarialBase(act, 0.52, R), reinsurance: true, marketing: k(B * 0.45 - money.reinsuranceFee) },
-    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), channelFocus: [15, 10, 65, 10], campaign: 45, mediaShare: 20, offer: 'coffee' },
-    { id: 'service', ...base, coef: act, basePremium: actuarialBase(act, 0.6, R), marketing: k(B * 0.3), claimsOps: k(B * 0.65) }
+    { id: 'volume', ...base, coef: act, basePremium: actuarialBase(act, 0.75, R), marketing: k(B * 0.9), offers: [25, 25, 25, 25] },
+    { id: 'margin', ...base, coef: act, basePremium: actuarialBase(act, 0.52, R), marketing: k(B * 0.25) },
+    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), marketing: k(B * 0.8), mediaShare: 25, offers: [0, 20, 60, 20] },
+    { id: 'gifts', ...base, coef: act, basePremium: actuarialBase(act, 0.6, R), marketing: k(B * 0.7), mediaShare: 30, offers: [10, 10, 0, 80] }
   ];
 }
 export function teams(lang = 'en', config = scenario(lang)) {
@@ -162,7 +162,7 @@ export function teams(lang = 'en', config = scenario(lang)) {
 
 // ——— Helpers and the engine ———
 export const find = (list, id) => list.find(x => String(x.id) === String(id));
-export const spend = (s, config) => cascoSpend(s, cascoMoney(config));
+export const spend = s => cascoSpend(s);
 export const defaultStrategy = config => defaultCascoStrategy(config);
 export const validate = (team, config, lang) => validateCasco(team, config, lang);
 export const simulate = (teamList, config) => simulateCasco(teamList, config);

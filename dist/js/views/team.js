@@ -1,6 +1,6 @@
 // A team's own device: it joins with the game PIN, names itself, downloads its template and hands in
 // its own workbook — before the race and again at every quarter review. The race itself plays on stage.
-import { getState, getSession, myTeam, raceStarted, seasonDone, playhead, currentStrategyReview, teamStatus, now, timeLeft } from '../store.js';
+import { getState, getSession, myTeam, raceStarted, seasonDone, playhead, currentStrategyReview, teamStatus, now, timeLeft, brochureUrl } from '../store.js';
 import { icon, emblem } from '../ui.js';
 import { esc, clock } from '../format.js';
 import { monthsOf } from '../../engine.js';
@@ -53,6 +53,12 @@ export function teamPage() {
       <button class="btn ${done ? 'ghost' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your file', 'Dosyanı değiştir') : t('Upload your workbook', 'Dosyanı yükle')}</button>
       <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
     </div>`;
+  const brochure = `<section class="team-brochure" data-brochure-box>
+      <div><b>${t('Product brochure', 'Ürün broşürü')}</b><small>${t('PNG, JPG or PDF (first page). It shows on the stage at the strategy reviews.', 'PNG, JPG ya da PDF (ilk sayfa). Strateji molalarında sahnede görünür.')}</small></div>
+      ${team.brochure ? `<img src="${brochureUrl(team.id, team.brochure)}" alt="${t('Your brochure', 'Broşürün')}" style="aspect-ratio:${team.brochure.w} / ${team.brochure.h}">` : ''}
+      <button class="btn lg" data-action="brochure-upload" data-team="${team.id}">${icon('upload', 18)} ${team.brochure ? t('Replace the brochure', 'Broşürü değiştir') : t('Upload a brochure', 'Broşür yükle')}</button>
+      <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
+    </section>`;
   const plan = team.locked ? `<p class="team-plan">${icon('check', 15)} ${esc(planSummary(team.strategy, s.config))}</p>` : '';
 
   if (seasonDone()) return shell(`${head}<h1 class="display">${t('The season is over', 'Sezon bitti')}</h1><p class="muted">${t('The three trophies are handed out on the stage screen.', 'Üç kupa sahne ekranında veriliyor.')}</p>`, pin);
@@ -63,7 +69,8 @@ export function teamPage() {
       <p class="kicker amber">${t(`Quarter ${quarter} review`, `${quarter}. çeyrek molası`)} · <b class="num" data-quarter-clock>${clock(Math.max(0, (review.closesAt - now()) / 1000))}</b></p>
       <h1 class="display">${done ? t('Next-quarter plan received', 'Gelecek çeyrek planın alındı') : t('Update your plan', 'Planını güncelle')}</h1>
       <p class="muted">${t('Download your current plan, change prices, marketing or claims operations, and upload it. If no file arrives, your plan carries on unchanged.', 'Güncel planını indir; fiyat, pazarlama ya da hasar operasyonunu değiştir ve yükle. Dosya gelmezse planın aynen sürer.')}</p>
-      ${upload(true, done)}`, pin);
+      ${upload(true, done)}
+      ${brochure}`, pin);
   }
 
   if (raceStarted()) {
@@ -72,7 +79,8 @@ export function teamPage() {
       <p class="kicker amber">${t('Live race', 'Canlı yarış')} · ${monthsOf(getLang())[m]}</p>
       <h1 class="display">${t('Your plan is racing', 'Planın yarışıyor')}</h1>
       <p class="muted">${t('Follow the race on the stage screen. At every quarter end this page opens your plan for changes.', 'Yarışı sahne ekranından izle. Her çeyrek sonunda bu sayfa planını değişikliğe açar.')}</p>
-      ${plan}`, pin);
+      ${plan}
+      ${brochure}`, pin);
   }
 
   const left = timeLeft(), timer = s.phase === 'decisions' && left !== null
@@ -85,6 +93,7 @@ export function teamPage() {
     <p class="muted">${t('Download your template, fill in the base premium, the segment coefficients and the budget split, then upload it here. You can replace it until the race starts.', 'Şablonunu indir; baz primi, segment katsayılarını ve bütçe dağılımını doldur, sonra buraya yükle. Yarış başlayana kadar değiştirebilirsin.')}</p>
     ${upload(false, team.locked)}
     ${plan}
+    ${brochure}
     <a class="home-history" href="${sampleWorkbook()}" download>${icon('eye', 16)} ${t('See a filled-in example', 'Doldurulmuş örneğe bak')}</a>
     <button class="linklike team-leave" data-action="team-leave">${t('Not your team? Leave it', 'Takımın bu değil mi? Ayrıl')}</button>`, pin);
 }

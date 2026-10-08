@@ -8,7 +8,7 @@
 //
 // Deltas are model score only (the quiz bonus is unaffected by either), so they are directly
 // comparable with the score on screen.
-import { simulate, rank, cascoMoney, DIMENSIONS } from '../engine.js';
+import { simulate, rank, DIMENSIONS, campaignOf } from '../engine.js';
 import { defaultStrategy } from './game.js';
 
 const NEUTRAL_EVENT = { cost: 1, demand: 1 };
@@ -22,15 +22,14 @@ const DECISIONS = [
   lever('basePremium', s => s.basePremium, (s, v) => { s.basePremium = v; }),
   ...DIMENSIONS.map(dim => lever(`coef.${dim}`, s => s.coef[dim], (s, v) => { s.coef = { ...s.coef, [dim]: structuredClone(v) }; })),
   lever('marketing', s => s.marketing, (s, v) => { s.marketing = v; }),
-  lever('channelFocus', s => s.channelFocus, (s, v) => { s.channelFocus = [...v]; }),
-  lever('claimsOps', s => s.claimsOps, (s, v) => { s.claimsOps = v; }),
-  lever('reinsurance', s => s.reinsurance, (s, v) => { s.reinsurance = v; })
+  lever('mediaShare', s => campaignOf(s).media, (s, v) => { s.mediaShare = v; }),
+  lever('offers', s => campaignOf(s).weights, (s, v) => { s.offers = [...v]; delete s.offer; })
 ];
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
-// Which of the three score components moved most, and by how much. Lets the UI say what a
-// decision actually changed — market share, margin or service — not just that it changed something.
+// Which score component moved most, and by how much. Lets the UI say what a decision actually
+// changed — profit or market share — not just that it changed something.
 function componentDelta(actual, counter, weights) {
   const parts = actual.components.map((v, i) => (v - counter.components[i]) * weights[i] / 100);
   let top = 0;
@@ -62,7 +61,6 @@ function compute(teams, config, teamId) {
   const neutral = defaultStrategy(team.name, config);
   const weights = config.weights;
 
-  const money = cascoMoney(config);
   const decisions = [];
   for (const d of DECISIONS) {
     const timeline = team.strategyHistory?.length ? team.strategyHistory.map(entry => entry.strategy) : [team.strategy];
@@ -70,16 +68,7 @@ function compute(teams, config, teamId) {
     const what = clone(teams);
     const mine = what.find(t => t.id === teamId);
     const snapshots = [...(mine.strategyHistory?.length ? mine.strategyHistory.map(entry => entry.strategy) : []), mine.strategy];
-    for (const strategy of snapshots) {
-      d.set(strategy, structuredClone(d.get(neutral)));
-      // Marketing, claims operations and the treaty share one budget: putting a default back can push
-      // the plan over the cap, which the engine rightly refuses. Spend as much of it as the budget allows.
-      const room = money.budget - (strategy.reinsurance ? money.reinsuranceFee : 0);
-      if (strategy.marketing + strategy.claimsOps > room) {
-        if (d.key === 'claimsOps') strategy.claimsOps = Math.max(0, room - strategy.marketing);
-        else strategy.marketing = Math.max(0, room - strategy.claimsOps);
-      }
-    }
+    for (const strategy of snapshots) d.set(strategy, structuredClone(d.get(neutral)));
     let counter;
     try { counter = finalRow(what, config, teamId); } catch { continue; } // can't be asked cleanly: don't guess
     decisions.push({ key: d.key, delta: actual.score - counter.score, ...componentDelta(actual, counter, weights), counterScore: counter.score });

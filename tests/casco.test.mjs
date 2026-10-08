@@ -4,7 +4,7 @@ import { CASCO_MARKET } from '../dist/data/casco-market.js';
 import { simulateCasco, defaultCascoStrategy, defaultCascoRules, validateCasco, actuarialCoefficients, actuarialBase, cascoMoney, cascoAssumptions, cellRisk, DIMENSIONS } from '../dist/casco.js';
 
 const rules = defaultCascoRules();
-const config = (seed = 1) => ({ lang: 'en', seed, weights: [50, 30, 20], events: [], rules, assumptions: cascoAssumptions('en', rules) });
+const config = (seed = 1) => ({ lang: 'en', seed, weights: [60, 40], events: [], rules, assumptions: cascoAssumptions('en', rules) });
 const act = actuarialCoefficients(rules);
 const flat = Object.fromEntries(DIMENSIONS.map(d => [d, act[d].map(() => 1)]));
 const team = (id, coef, lossRatio, extra = {}) => ({ id, name: `T${id}`, strategy: { ...defaultCascoStrategy(config()), coef, basePremium: actuarialBase(coef, lossRatio, rules), ...extra } });
@@ -32,15 +32,14 @@ test('the same decisions and seed reproduce the season exactly', () => {
   assert.deepEqual(a, b);
 });
 
-test('validation catches out-of-range coefficients, a bad channel split and an overspent budget', () => {
+test('validation catches out-of-range coefficients, gift weights off 100 and an overspent budget', () => {
   const money = cascoMoney(config());
   const ok = team(0, act, 0.6);
   assert.deepEqual(validateCasco(ok, config()), []);
   const bad = structuredClone(ok);
   bad.strategy.coef.city[0] = 3;
-  bad.strategy.channelFocus = [50, 50, 50, 0];
-  bad.strategy.marketing = money.budget;
-  bad.strategy.claimsOps = money.budget;
+  bad.strategy.offers = [50, 50, 50, 0];
+  bad.strategy.marketing = money.budget * 2;
   assert.equal(validateCasco(bad, config()).length, 3);
 });
 
@@ -60,24 +59,15 @@ test('cheaper prices buy market share at the cost of profit', () => {
   assert.ok(avg(cheap, 'profit') < avg(dear, 'profit'));
 });
 
-test('starving claims operations hurts customer satisfaction', () => {
+test('profit is premium minus claims minus expenses, and marketing is a cost', () => {
   const B = cascoMoney(config()).budget;
-  const light = mean(seeds, s => field(team(0, act, 0.6, { marketing: B * 0.85, claimsOps: B * 0.05 }), s).find(r => r.id === 0).service);
-  const heavy = mean(seeds, s => field(team(0, act, 0.6, { marketing: B * 0.3, claimsOps: B * 0.7 }), s).find(r => r.id === 0).service);
-  assert.ok(heavy > light + 20, `heavy ${heavy} vs light ${light}`);
-});
-
-test('the quota share cedes premium and claims and softens an underpriced book', () => {
-  const money = cascoMoney(config());
-  const withRe = team(0, act, 0.85, { reinsurance: true, marketing: money.budget * 0.5 - money.reinsuranceFee });
-  const rows = seeds.map(s => field(withRe, s).find(r => r.id === 0));
-  for (const r of rows) {
-    assert.ok(Math.abs(r.ceded - r.gwp * rules.reinsurance.share) < 1e-6);
-    assert.ok(r.recovery > 0);
-  }
-  const lossWith = rows.reduce((a, r) => a + r.profit, 0) / rows.length;
-  const lossWithout = mean(seeds, s => field(team(0, act, 0.85), s).find(r => r.id === 0).profit);
-  assert.ok(lossWith > lossWithout, `with ${lossWith} vs without ${lossWithout}`);
+  const rows = field(team(0, act, 0.6), 3);
+  for (const r of rows) assert.ok(Math.abs(r.profit - (r.gwp - r.claims - r.expenses)) < 1e-6);
+  // The same plan with no marketing at all: fewer customers but no campaign bill.
+  const spend = field(team(0, act, 0.6, { marketing: B }), 3).find(r => r.id === 0);
+  const none = field(team(0, act, 0.6, { marketing: 0 }), 3).find(r => r.id === 0);
+  assert.ok(spend.policies > none.policies, 'the campaign brings customers');
+  assert.ok(spend.expenses - none.expenses > B * 0.99, 'and costs its budget');
 });
 
 test('the moderator sets the market size; every cell keeps its sample share of it', () => {
@@ -103,12 +93,11 @@ test('luck is a table drawn from the seed alone: decisions never change it', asy
   assert.ok(Math.abs(normInv(0.975) - 1.959963984540054) < 1e-14);
 });
 
-test('rows carry NPS and the gross loss ratio the stage shows', () => {
+test('rows carry the gross loss ratio the stage shows', () => {
   const c = config(7);
   const season = simulateCasco([0, 1, 2].map(id => team(id, act, 0.58 + id * 0.04)), c);
   for (const m of season) for (const r of m.rows) {
-    assert.ok(r.nps >= -100 && r.nps <= 100 && Number.isInteger(r.nps), `NPS in range: ${r.nps}`);
-    assert.ok(r.monthNps >= -100 && r.monthNps <= 100);
+    assert.equal(r.nps, undefined, 'no satisfaction score any more');
     assert.ok(Math.abs(r.grossLossRatio - (r.gwp ? season.slice(0, season.indexOf(m) + 1).reduce((s, x) => s + x.rows.find(y => y.id === r.id).monthClaims, 0) / r.gwp : 0)) < 1e-9, 'gross loss ratio is cumulative claims / cumulative GWP');
   }
 });
@@ -133,48 +122,59 @@ test('the model is calibrated to the data: portfolio frequency 10% and the data�
   assert.ok(lr > 0.55 && lr < 0.65, `market loss ratio ${lr}`);
 });
 
-test('coefficients go on a 0.05 grid and every channel keeps at least 10% of the focus', () => {
+test('coefficients go on a 0.05 grid and gift weights on steps of 5', () => {
   const c = config(), money = cascoMoney(c);
   const ok = team(0, act, 0.6);
   assert.deepEqual(validateCasco(ok, c), []);
   const off = structuredClone(ok); off.strategy.coef.city[0] = 1.03;
   assert.match(validateCasco(off, c).join(' '), /steps of 0.05/);
-  const thin = structuredClone(ok); thin.strategy.channelFocus = [60, 25, 10, 5];
-  assert.match(validateCasco(thin, c).join(' '), /at least 10%/);
+  const odd = structuredClone(ok); odd.strategy.offers = [52, 48, 0, 0];
+  assert.match(validateCasco(odd, c).join(' '), /steps of 5/);
   assert.ok(money.budget > 0);
 });
 
 const withCampaign = (id, lr, camp) => { const t = team(id, act, lr); Object.assign(t.strategy, camp); return t; };
 const at = (season, id, m = 0) => season[m].rows.find(r => r.id === id).campaign;
 
-test('the campaign never wins more customers than its gift budget pays for', () => {
+test('each gift wins at most what its slice of the gift budget pays for', () => {
   const c = config(4), money = cascoMoney(c);
-  const season = simulateCasco([withCampaign(0, 0.6, { campaign: 80, mediaShare: 90, offer: 'gym' }), withCampaign(1, 0.6, { campaign: 0, mediaShare: 50, offer: 'concert' })], c);
+  const season = simulateCasco([withCampaign(0, 0.6, { marketing: money.budget, mediaShare: 90, offers: [0, 0, 0, 100] }), withCampaign(1, 0.6, { marketing: 0 })], c);
   for (const month of season) {
     const k = month.rows.find(r => r.id === 0).campaign;
     assert.ok(k.customers * 85 <= k.giftBudget + 1e-6, `gifts ${k.customers * 85} ≤ budget ${k.giftBudget}`);
     assert.ok(k.wanted > k.customers, 'with 90% on media the gift budget binds');
-    assert.equal(month.rows.find(r => r.id === 1).campaign.customers, 0, 'no campaign, no campaign customers');
+    assert.deepEqual(k.gifts.slice(0, 3).map(g => g.customers), [0, 0, 0], 'a gift with no weight wins nobody');
+    assert.equal(month.rows.find(r => r.id === 1).campaign.customers, 0, 'no marketing, no campaign customers');
   }
-  assert.ok(money.budget > 0);
+});
+
+test('the gift weights split the reach and the gift budget', () => {
+  const c = config(4), B = cascoMoney(c).budget;
+  const mixed = simulateCasco([withCampaign(0, 0.6, { marketing: B, mediaShare: 40, offers: [0, 0, 50, 50] }), withCampaign(1, 0.6, {})], c);
+  const k = at(mixed, 0);
+  const [coffee, gym] = [k.gifts[2], k.gifts[3]];
+  assert.ok(Math.abs(coffee.leads / gym.leads - (0.6 * 0.06) / (0.81 * 0.5)) < 1e-9, 'leads follow interest × click at equal weights');
+  assert.ok(gym.customers <= k.giftBudget * 0.5 / 85 + 1e-6 && coffee.customers <= k.giftBudget * 0.5 / 15 + 1e-6);
+  assert.ok(Math.abs(k.customers - coffee.customers - gym.customers) < 1e-9);
 });
 
 test('a cheaper price converts more campaign customers, and heavy media triggers the frequency bonus', () => {
-  const c = config(4);
-  const cheap = simulateCasco([withCampaign(0, 0.75, { campaign: 40, mediaShare: 20, offer: 'restaurant' }), withCampaign(1, 0.6, {})], c);
-  const dear = simulateCasco([withCampaign(0, 0.5, { campaign: 40, mediaShare: 20, offer: 'restaurant' }), withCampaign(1, 0.6, {})], c);
+  const c = config(4), B = cascoMoney(c).budget;
+  const camp = { marketing: B * 0.4, mediaShare: 20, offers: [0, 100, 0, 0] };
+  const cheap = simulateCasco([withCampaign(0, 0.75, camp), withCampaign(1, 0.6, {})], c);
+  const dear = simulateCasco([withCampaign(0, 0.5, camp), withCampaign(1, 0.6, {})], c);
   assert.ok(at(cheap, 0).wanted > at(dear, 0).wanted, 'lower prices pull more of the reached people');
-  const light = simulateCasco([withCampaign(0, 0.6, { campaign: 20, mediaShare: 10, offer: 'coffee' }), withCampaign(1, 0.6, { campaign: 20, mediaShare: 10, offer: 'coffee' })], c);
-  const heavy = simulateCasco([withCampaign(0, 0.6, { campaign: 100, mediaShare: 100, offer: 'coffee' }), withCampaign(1, 0.6, { campaign: 100, mediaShare: 100, offer: 'coffee' })], c);
-  assert.ok(at(light, 0).frequency <= 5 && at(heavy, 0).frequency > 5);
+  const light = simulateCasco([withCampaign(0, 0.6, { marketing: B * 0.2, mediaShare: 5, offers: [0, 0, 100, 0] }), withCampaign(1, 0.6, { marketing: B * 0.2, mediaShare: 5, offers: [0, 0, 100, 0] })], c);
+  const heavy = simulateCasco([withCampaign(0, 0.6, { marketing: B, mediaShare: 100, offers: [0, 0, 100, 0] }), withCampaign(1, 0.6, { marketing: B, mediaShare: 100, offers: [0, 0, 100, 0] })], c);
+  assert.ok(at(light, 0).frequency <= 5 && at(heavy, 0).frequency > 5, `light ${at(light, 0).frequency} heavy ${at(heavy, 0).frequency}`);
 });
 
 test('a campaign change at a quarter review applies from the next month', () => {
   const c = config(4);
-  const t0 = withCampaign(0, 0.6, { campaign: 0, mediaShare: 50, offer: 'concert' });
-  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 3, strategy: { ...structuredClone(t0.strategy), campaign: 50, mediaShare: 25, offer: 'coffee' } }];
+  const t0 = withCampaign(0, 0.6, { marketing: 0 });
+  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 3, strategy: { ...structuredClone(t0.strategy), marketing: cascoMoney(c).budget * 0.5, mediaShare: 25, offers: [0, 0, 100, 0] } }];
   const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
   assert.equal(at(season, 0, 2).customers, 0);
   assert.ok(at(season, 0, 3).customers > 0);
-  assert.equal(at(season, 0, 3).offer, 'coffee');
+  assert.ok(at(season, 0, 3).gifts[2].customers > 0 && at(season, 0, 3).gifts[0].customers === 0, 'the new gift does the work');
 });

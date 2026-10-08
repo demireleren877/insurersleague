@@ -36,7 +36,7 @@ test('reading the data beats ignoring it over many seasons', () => {
 
 test('the verdict flags an approach that wins most seasons', () => {
   const tally = emptyTally();
-  tally.margin.wins = 70; tally.actuary.wins = 20; tally.service.wins = 10;
+  tally.margin.wins = 70; tally.actuary.wins = 20; tally.gifts.wins = 10;
   for (const x of Object.values(tally)) x.rankSum = 350;
   assert.equal(summarize(tally, 100).verdict, 'dominant');
   const even = emptyTally();

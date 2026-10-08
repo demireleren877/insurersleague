@@ -9,11 +9,14 @@ parameter, so this is exactly the same draw made with the corrected severity; ze
 
 Outputs (in veri/):
   pricing_case_data_duzeltilmis.xlsx   all sheets and columns, corrected (moderator copy)
-  katilimci_verisi.xlsx                what teams get: the customer/policy columns and the corrected claims,
-                                       plus a column dictionary — no model columns, no coefficient tables
+  katilimci_verisi.xlsx                what teams get: only the columns the game uses (segments, premium,
+                                       competitor index, corrected claims), a column dictionary and the
+                                       marketing inputs — no model columns, no coefficient tables
 
 Usage:  python3 scripts/fix-case-data.py [path/to/pricing_case_data.xlsx]
 """
+import json
+import subprocess
 import sys
 from collections import defaultdict
 from openpyxl import Workbook, load_workbook
@@ -111,11 +114,14 @@ write_table(ws, logic[0], logic[1:], widths={'Output': 30, 'Formula / Method': 1
 full.save('veri/pricing_case_data_duzeltilmis.xlsx')
 
 # ——— 2. Participant workbook ———
-keep = head[:head.index('persona') + 1]
+# Only what the game uses: the five segment columns, the premium the customer pays, the competitors'
+# price index (it sets the rest of the market's price) and the claims. The renewal-offer columns
+# (previous premium, offer, price change, discount) play no part in the game.
+keep = ['customer_id', 'renewal_channel', 'city', 'vehicle_segment', 'customer_type', 'final_premium_gross', 'competitor_price_index', 'claims_count_12m', 'claims_paid_12m', 'persona']
 part = Workbook()
 ws = part.active
 ws.title = 'DATA'
-write_table(ws, keep, [r[:len(keep)] for r in body], DATA_FMT, DATA_W)
+write_table(ws, keep, [[r[col[k]] for k in keep] for r in body], DATA_FMT, DATA_W)
 ws = part.create_sheet('DICTIONARY')
 dictionary = [
     ('customer_id', 'Customer identifier', 'Müşteri kimliği'),
@@ -123,12 +129,7 @@ dictionary = [
     ('city', 'City: Istanbul, Ankara, Izmir, Bursa, Antalya, Other', 'İl: İstanbul, Ankara, İzmir, Bursa, Antalya, diğer'),
     ('vehicle_segment', 'Vehicle age: New/0-1y, Mid (2-6y), Old (7y+)', 'Araç yaşı: yeni (0–1), orta (2–6), eski (7+)'),
     ('customer_type', 'Individual or Commercial', 'Bireysel ya da ticari'),
-    ('base_premium_prev_term', 'Gross premium paid in the previous term (EUR)', 'Önceki dönemde ödenen brüt prim (EUR)'),
-    ('offer_premium_gross', 'Gross premium offered for this term (EUR)', 'Bu dönem için teklif edilen brüt prim (EUR)'),
-    ('price_change_pct', 'Offer vs previous premium', 'Teklifin önceki prime göre değişimi'),
-    ('discount_offered', '1 if a discount was given', 'İndirim verildiyse 1'),
-    ('discount_pct', 'Discount on the offer', 'Teklif üzerindeki indirim oranı'),
-    ('final_premium_gross', 'Gross premium after discount: what the customer pays (EUR)', 'İndirim sonrası brüt prim: müşterinin ödediği (EUR)'),
+    ('final_premium_gross', 'Gross premium the customer pays (EUR)', 'Müşterinin ödediği brüt prim (EUR)'),
     ('competitor_price_index', 'Competitors’ price ÷ our price (1.05 = competitors 5% dearer)', 'Rakip fiyatı ÷ bizim fiyat (1,05 = rakipler %5 pahalı)'),
     ('claims_count_12m', 'Number of claims in the last 12 months', 'Son 12 aydaki hasar adedi'),
     ('claims_paid_12m', 'Claims paid in the last 12 months (EUR)', 'Son 12 ayda ödenen hasar (EUR)'),
@@ -144,6 +145,47 @@ for letter, w in zip('ABC', (24, 70, 70)):
 ws.freeze_panes = 'A2'
 ws.append([])
 ws.append(['Note', f'The data is a sample of {n_all:,} customers from the casco market; its profile matches the market the game simulates.', f'Veri kasko pazarından {n_all:,} müşterilik bir örneklemdir; profili oyunun simüle ettiği pazarla aynıdır.'.replace(',', '.')])
+
+# The marketing inputs (Marketing_Input.xlsx) with this game's own budget and audience.
+game = json.loads(subprocess.run(['node', '--input-type=module', '-e', """
+import { scenario, cascoMoney, campaignRules, campaignAudience, offerName } from './dist/engine.js';
+const c = scenario('tr'), m = cascoMoney(c), R = c.rules, K = campaignRules(R);
+console.log(JSON.stringify({ budget: m.budget, audience: campaignAudience(R, m), K, names: K.offers.map(o => [offerName(o.id, 'en'), offerName(o.id, 'tr')]) }));
+"""], capture_output=True, text=True, check=True).stdout)
+KC = game['K']
+ws = part.create_sheet('MARKETING')
+ws.append(['Item', 'Value', 'Açıklama / Description'])
+for c in ws[1]:
+    c.font, c.fill = HEAD_FONT, HEAD_FILL
+rows = [
+    ('Population', 84_000_000, 'Nüfus'),
+    ('18–55 digital users', KC['digitalUsers'], '18–55 yaş dijital kullanıcı'),
+    ('Target group: Joyful Disregarders', KC['targetShare'], 'Hedef kitle: dijital kullanıcıların payı'),
+    ('Marketing budget per team (EUR, at most)', game['budget'], 'Takım başına pazarlama bütçesi (en fazla). Medya ve hediye arasında bölünür.'),
+    ('Target group per team in a year', round(game['audience']), 'Bu oyunda takım başına yıllık hedef kitle (vakadaki euro başına kişi korunur)'),
+    ('Media cost per 1,000 impressions (EUR)', KC['cpm'], '1.000 reklam gösteriminin maliyeti'),
+    (f"Frequency bonus: seen more than {KC['frequency']} times", KC['frequencyBonus'], f"Reklamı ortalama {KC['frequency']} kereden fazla gören kitlede hit oranı bu kadar artar"),
+    ('Price effect cap on conversion (×)', KC['priceCap'], 'Ucuz fiyat kampanya dönüşümünü en fazla bu kat artırır'),
+]
+for r in rows:
+    ws.append(list(r))
+for i, fmt in enumerate(['#,##0', '#,##0', PCT1, EUR0, '#,##0', EUR2, PCT1, '0.0'], start=2):
+    ws.cell(row=i, column=2).number_format = fmt
+ws.append([])
+ws.append(['Gift', 'Interest rate', 'Cost (EUR)', 'Click rate', 'Hit ratio', 'Hediye'])
+for c in ws[ws.max_row]:
+    c.font, c.fill = HEAD_FONT, HEAD_FILL
+for o, (en, tr) in zip(KC['offers'], game['names']):
+    ws.append([en, o['interest'], o['cost'], o['click'], o['hit'], tr])
+    r = ws.max_row
+    for cl, fmt in (('B', PCT1), ('C', EUR0), ('D', PCT1), ('E', PCT1)):
+        ws[f'{cl}{r}'].number_format = fmt
+ws.append([])
+ws.append(['How it works', '', 'Customers per gift = reach × gift weight × interest × click × hit ratio; each gift serves at most (gift budget × its weight) ÷ its cost customers. Every acquired customer gets one gift.'])
+ws.append(['Nasıl çalışır', '', 'Hediye başına müşteri = erişim × hediye ağırlığı × ilgi × tıklama × hit oranı; her hediye en fazla (hediye bütçesi × ağırlığı) ÷ maliyeti kadar müşteriye yeter. Kazanılan her müşteri bir hediye alır.'])
+for letter, w in zip('ABCDEF', (40, 16, 90, 12, 12, 30)):
+    ws.column_dimensions[letter].width = w
+ws.freeze_panes = 'A2'
 part.save('veri/katilimci_verisi.xlsx')
 
 paid = sum(r[col['claims_paid_12m']] for r in body)

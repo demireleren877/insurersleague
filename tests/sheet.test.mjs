@@ -54,16 +54,15 @@ test('strategy workbook template round-trips localized Excel decisions', async (
   strategy.basePremium = 21.5;
   strategy.coef.persona = [0.9, 1.15, 1, 0.8];
   strategy.coef.channel = [0.95, 1.05, 0.8, 1.2];
-  strategy.campaign = 35; strategy.mediaShare = 20; strategy.offer = 'coffee';
-  strategy.channelFocus = [40, 30, 20, 10];
-  strategy.reinsurance = true;
+  strategy.mediaShare = 20; strategy.offers = [10, 20, 30, 40];
   strategy.marketing = 30_000;
   const bytes = buildTemplate(state, { lang: 'tr', teams: [{ name: 'Atlas', strategy }] });
   const archiveText = new TextDecoder().decode(bytes);
   const workbookXml = archiveText.slice(archiveText.indexOf('<workbook '), archiveText.indexOf('</workbook>') + 11);
-  // The case file's design: its four sheets and its named dropdown lists.
-  for (const sheet of ['Input', 'Premium', 'Marketing', 'Claim']) assert.match(workbookXml, new RegExp(`<sheet name="${sheet}"`));
-  for (const list of ['CoefficientList', 'PercentageList', 'FocusList', 'OfferList', 'YesNoList']) assert.match(workbookXml, new RegExp(`<definedName name="${list}">`));
+  // The case file's design: its sheets and its named dropdown lists. No Claim sheet any more.
+  for (const sheet of ['Input', 'Premium', 'Marketing']) assert.match(workbookXml, new RegExp(`<sheet name="${sheet}"`));
+  assert.doesNotMatch(workbookXml, /<sheet name="Claim"/);
+  for (const list of ['CoefficientList', 'PercentageList']) assert.match(workbookXml, new RegExp(`<definedName name="${list}">`));
   assert.match(archiveText, /<formula1>CoefficientList<\/formula1>/);
   assert.match(archiveText, /<tabColor rgb="FF004FA3"\/>/);
   const result = await readSheets([fileOf('atlas.xlsx', bytes)], state.config, 'tr');
@@ -75,13 +74,10 @@ test('strategy workbook template round-trips localized Excel decisions', async (
   assert.equal(result.teams[0].strategy.sentence, 'Dengeli fiyatla aileleri büyüt.');
   assert.equal(result.teams[0].strategy.basePremium, 21.5);
   assert.deepEqual(result.teams[0].strategy.coef, strategy.coef);
-  assert.deepEqual(result.teams[0].strategy.channelFocus, [40, 30, 20, 10]);
   assert.equal(result.teams[0].strategy.marketing, 30_000);
-  assert.equal(result.teams[0].strategy.claimsOps, strategy.claimsOps);
-  assert.equal(result.teams[0].strategy.reinsurance, true);
-  assert.equal(result.teams[0].strategy.campaign, 35);
   assert.equal(result.teams[0].strategy.mediaShare, 20);
-  assert.equal(result.teams[0].strategy.offer, 'coffee');
+  assert.deepEqual(result.teams[0].strategy.offers, [10, 20, 30, 40]);
+  for (const gone of ['channelFocus', 'claimsOps', 'reinsurance', 'campaign', 'offer']) assert.equal(gone in result.teams[0].strategy, false, gone);
 });
 
 test('compressed Excel workbooks import correctly', async () => {
@@ -202,4 +198,17 @@ test('the media and offer shares of the campaign must total 100%', async () => {
   const bad = teamsFromSheets([{ file: 'atlas.xlsx', sheets }], state.config, 'en');
   assert.equal(bad.teams.length, 0);
   assert.match(bad.errors.join(' '), /media \+ offer must total 100%/);
+});
+
+test('the gift weights must total 100%, and an old four-sheet workbook is refused', async () => {
+  const { readWorkbook, teamsFromSheets } = await import('../dist/js/sheet.js');
+  const state = freshSession(1_000, { lang: 'en' });
+  const bytes = buildTemplate(state, { lang: 'en', teams: [{ name: 'Atlas', strategy: defaultStrategy('Atlas', state.config) }] });
+  const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  sheets.find(sh => sh.name === 'Marketing').rows[16][10] = 0.25; // Marketing!K17: restaurant 25% on top of concert 100%
+  const bad = teamsFromSheets([{ file: 'atlas.xlsx', sheets }], state.config, 'en');
+  assert.equal(bad.teams.length, 0);
+  assert.match(bad.errors.join(' '), /gift weights must total 100%/);
+  const old = teamsFromSheets([{ file: 'old.xlsx', sheets: [...sheets, { name: 'Claim', rows: [] }] }], state.config, 'en');
+  assert.match(old.errors.join(' '), /earlier version/);
 });

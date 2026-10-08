@@ -20,7 +20,7 @@ export function home() {
       <section class="home-hero">
         <p class="kicker amber">${t('A casco pricing race', 'Bir kasko fiyatlama yarışı')}</p>
         <h1 class="display">${t('One market.<br>12 months.<br><em>Who prices it right?</em>', 'Tek pazar.<br>12 ay.<br><em>Kim doğru fiyatlar?</em>')}</h1>
-        <p class="lead">${t('Teams read a real casco sample, price every segment and split a budget between marketing, claims operations and reinsurance. Then they compete for the same customers all year.', 'Takımlar gerçek bir kasko örneklemini okur, her segmenti fiyatlar ve bütçesini pazarlama, hasar operasyonu ve reasürans arasında böler. Sonra yıl boyunca aynı müşteriler için yarışır.')}</p>
+        <p class="lead">${t('Teams read a real casco sample, price every segment and run a digital campaign with media and gifts. Then they compete for the same customers all year.', 'Takımlar gerçek bir kasko örneklemini okur, her segmenti fiyatlar ve medya ile hediyelerden oluşan bir dijital kampanya kurar. Sonra yıl boyunca aynı müşteriler için yarışır.')}</p>
       </section>
       <section class="home-cards">
         <div class="home-card host">

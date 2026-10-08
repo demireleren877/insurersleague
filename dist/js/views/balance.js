@@ -50,9 +50,9 @@ const PLAYS = {
   actuary: () => t('Coefficients from the claims model; aims for a ~60% loss ratio', 'Katsayılar hasar modelinden; yaklaşık %60 hasar oranı hedefler'),
   flat: () => t('Ignores the data: every coefficient near 1', 'Veriyi yok sayar: tüm katsayılar 1 civarında'),
   volume: () => t('Risk-based but cheap (75–85% loss ratio), heavy marketing', 'Riske göre ama ucuz (%75–85 hasar oranı), yoğun pazarlama'),
-  margin: () => t('Risk-based and dear (45–55%), buys the quota share', 'Riske göre ve pahalı (%45–55), kota paylı reasürans alır'),
-  digital: () => t('Puts most marketing behind the digital channel', 'Pazarlamanın çoğunu dijital kanala yığar'),
-  service: () => t('Spends most of the budget on claims operations', 'Bütçenin çoğunu hasar operasyonuna ayırır')
+  margin: () => t('Risk-based and dear (45–55%), spends little on marketing', 'Riske göre ve pahalı (%45–55), pazarlamaya az harcar'),
+  digital: () => t('Cheaper online, a big campaign with cheap coffee cards', 'Dijitalde ucuz; ucuz kahve kartlarıyla büyük kampanya'),
+  gifts: () => t('Leans on the rich gym gift, most of the budget on gifts', 'Değerli spor salonu hediyesine yaslanır; bütçenin çoğu hediyeye')
 };
 const colorOf = id => TEAM_META[APPROACHES.indexOf(id)]?.color ?? 'var(--ink-4)';
 const nameOf = id => esc(ARCHETYPES[id]?.name ?? id);
@@ -77,7 +77,7 @@ function verdictText(r) {
 function resultTable(r, base) {
   const baseRate = Object.fromEntries((base?.rows ?? []).map(x => [x.profile, x.winRate]));
   return `<div class="table-wrap"><table class="bt-table">
-    <thead><tr><th>${t('Approach', 'Yaklaşım')}</th><th class="bt-wins-col">${t('Seasons won', 'Kazandığı sezon')}</th><th>${t('Podium', 'Podyum')}</th><th>${t('Avg. rank', 'Ort. sıra')}</th><th>${t('Capital breach', 'Sermaye ihlali')}</th>${base ? `<th>${t('vs default rules', 'Varsayılana göre')}</th>` : ''}</tr></thead>
+    <thead><tr><th>${t('Approach', 'Yaklaşım')}</th><th class="bt-wins-col">${t('Seasons won', 'Kazandığı sezon')}</th><th>${t('Podium', 'Podyum')}</th><th>${t('Avg. rank', 'Ort. sıra')}</th>${base ? `<th>${t('vs default rules', 'Varsayılana göre')}</th>` : ''}</tr></thead>
     <tbody>${r.rows.map(x => {
       const delta = base ? x.winRate - baseRate[x.profile] : 0;
       return `<tr style="--team:${colorOf(x.profile)}">

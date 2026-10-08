@@ -8,32 +8,32 @@ export const AI_PROFILES = [
   {
     id: 'challenger', name: { en: 'Market challenger', tr: 'Pazar meydan okuyucusu' },
     brief: 'Win market share assertively with low prices and heavy marketing, while keeping the company solvent.',
-    signature: { lossRatio: 3, allocation: 1, focus: 0, reinsurance: false }
+    signature: { lossRatio: 3, budget: 0 }
   },
   {
     id: 'underwriter', name: { en: 'Disciplined underwriter', tr: 'Disiplinli teknikçi' },
-    brief: 'Price every segment by its true risk, protect margin and capital first, and accept slower growth.',
-    signature: { view: 0, lossRatio: 0, reinsurance: true }
+    brief: 'Price every segment by its true risk, protect margin first, and accept slower growth.',
+    signature: { view: 0, lossRatio: 0, budget: 2 }
   },
   {
-    id: 'customer', name: { en: 'Service leader', tr: 'Hizmet lideri' },
-    brief: 'Win through claims service and customer satisfaction while keeping a credible technical result.',
-    signature: { allocation: 2, reinsurance: false }
+    id: 'customer', name: { en: 'Gift strategist', tr: 'Hediye stratejisti' },
+    brief: 'Win customers through the digital campaign with the gifts that convert best for their cost, while keeping a credible technical result.',
+    signature: { budget: 0, campaign: 3 }
   },
   {
     id: 'digital', name: { en: 'Digital grower', tr: 'Dijital büyümeci' },
     brief: 'Grow through the direct digital channel, where acquisition costs are lowest.',
-    signature: { focus: 2, reinsurance: false }
+    signature: { budget: 0, campaign: 1 }
   },
   {
     id: 'premium', name: { en: 'Low-risk specialist', tr: 'Düşük risk uzmanı' },
     brief: 'Attract the lowest-risk customers — new vehicles, value-driven buyers — with sharp risk-based prices, and avoid the costly ones.',
-    signature: { view: 0, lossRatio: 1, focus: 1, reinsurance: true }
+    signature: { view: 0, lossRatio: 1, budget: 2 }
   },
   {
     id: 'allocator', name: { en: 'Balanced allocator', tr: 'Dengeli sermaye yöneticisi' },
-    brief: 'Balance profit, market share and service according to the scoring weights; avoid one-dimensional bets.',
-    signature: { view: 3, lossRatio: 2, allocation: 0, focus: 4, reinsurance: true }
+    brief: 'Balance profit and market share according to the scoring weights; avoid one-dimensional bets.',
+    signature: { view: 3, lossRatio: 2, budget: 1, campaign: 4 }
   }
 ];
 
@@ -62,25 +62,18 @@ const VIEWS = [
   { id: 'blend', label: 'Blend risk and market relativities half and half.' }
 ];
 const LOSS_RATIOS = [0.5, 0.56, 0.62, 0.7, 0.78];
-const ALLOCATIONS = [
-  { marketing: 0.5, ops: 0.4, label: 'Balanced: half the budget on marketing, 40% on claims operations.' },
-  { marketing: 0.68, ops: 0.3, label: 'Growth-heavy: most of the budget on marketing.' },
-  { marketing: 0.3, ops: 0.65, label: 'Service-heavy: most of the budget on claims operations.' },
-  { marketing: 0.42, ops: 0.42, label: 'Cautious: keep a reserve and split the rest evenly.' }
+const BUDGETS = [
+  { marketing: 0.9, label: 'Spend nearly the whole marketing budget on the campaign.' },
+  { marketing: 0.6, label: 'Spend about 60% of the marketing budget.' },
+  { marketing: 0.3, label: 'Spend a lean 30% and protect profit.' }
 ];
+// Gift weights in the order concert, restaurant, coffee, gym.
 const CAMPAIGNS = [
-  { campaign: 0, mediaShare: 50, offer: 'concert', label: 'No campaign: all marketing buys channel visibility.' },
-  { campaign: 40, mediaShare: 20, offer: 'coffee', label: 'Cheap coffee cards, broad reach: 40% of marketing, a fifth of it on media.' },
-  { campaign: 40, mediaShare: 25, offer: 'restaurant', label: 'Restaurant cards: 40% of marketing, a quarter of it on media.' },
-  { campaign: 30, mediaShare: 60, offer: 'gym', label: 'Rich gym gift for the most engaged: 30% of marketing, mostly media.' },
-  { campaign: 60, mediaShare: 40, offer: 'concert', label: 'Loud: 60% of marketing into the campaign with concert discounts.' }
-];
-const FOCUS = [
-  { value: [55, 20, 10, 15], label: 'Agency-led: follow the largest channel.' },
-  { value: [20, 55, 10, 15], label: 'Bank-led: bancassurance customers are loyal and less price sensitive.' },
-  { value: [15, 10, 65, 10], label: 'Digital-led: the cheapest channel to sell through.' },
-  { value: [20, 15, 10, 55], label: 'Broker-led: large commercial accounts, costly claims.' },
-  { value: [25, 25, 25, 25], label: 'Even across all four channels.' }
+  { mediaShare: 50, offers: [100, 0, 0, 0], label: 'Concert discounts only, half the budget on media.' },
+  { mediaShare: 20, offers: [0, 20, 80, 0], label: 'Cheap coffee cards, broad reach: a fifth on media, mostly coffee.' },
+  { mediaShare: 25, offers: [0, 70, 30, 0], label: 'Restaurant cards with some coffee: a quarter on media.' },
+  { mediaShare: 60, offers: [0, 0, 0, 100], label: 'Rich gym gift for the most engaged: mostly media.' },
+  { mediaShare: 40, offers: [25, 25, 25, 25], label: 'Even across all four gifts, 40% on media.' }
 ];
 
 function coefficientsFor(view, rules) {
@@ -106,11 +99,10 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
     ai_profile: { id: profile.id, objective: profile.brief },
     market: {
       line: config.branch, year: config.year, annual_policies: policiesOf(config),
-      starting_capital: money.capital, decision_budget: money.budget,
+      marketing_budget: money.budget,
       claim_model: { base_frequency: rules.model.frequency, base_severity_eur: rules.model.severity, base_loss_ratio: rules.model.lossRatio },
-      reinsurance: { quota_share: rules.reinsurance.share, ceding_commission: rules.reinsurance.commission, fee: money.reinsuranceFee },
-      digital_campaign: { cost_per_1000_impressions: campaignRules(rules).cpm, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), frequency_bonus: { above_views: campaignRules(rules).frequency, hit_ratio_up: campaignRules(rules).frequencyBonus }, gifts: campaignRules(rules).offers, note: 'Customers = reach × interest × click × hit, at most gift budget ÷ gift cost. Marketing spent on the campaign no longer buys channel visibility.' },
-      scoring_weights: { profit: config.weights[0], market_share: config.weights[1], satisfaction: config.weights[2] }
+      digital_campaign: { cost_per_1000_impressions: campaignRules(rules).cpm, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), frequency_bonus: { above_views: campaignRules(rules).frequency, hit_ratio_up: campaignRules(rules).frequencyBonus }, gifts: campaignRules(rules).offers, note: 'All marketing runs the campaign. The ads show each gift in proportion to its weight. Customers per gift = reach × weight × interest × click × hit, at most (gift budget × weight) ÷ gift cost.' },
+      scoring_weights: { profit: config.weights[0], market_share: config.weights[1] }
     },
     segments: Object.fromEntries(DIMENSIONS.map(dim => [dim, rules.dimensions[dim].map(lv => ({ level: lv.id, frequency_coef: lv.freq, severity_coef: lv.sev, market_premium_coef: lv.prem, ...(lv.expense !== undefined ? { channel_expense_ratio: lv.expense } : {}) }))])),
     events: config.events.map(event => ({ month: event.month + 1, title: event.title, description: event.description, scope: event.scope })),
@@ -119,7 +111,7 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
       completed_month: reviewMonth + 1,
       latest_results: (session.results?.[reviewMonth]?.rows || []).map(row => ({
         team: session.teams.find(team => team.id === row.id)?.name || String(row.id),
-        score: row.score, rank: row.rank, market_share: row.share, technical_profit: row.profit, loss_ratio: row.lossRatio, service: row.monthService
+        score: row.score, rank: row.rank, market_share: row.share, technical_profit: row.profit, loss_ratio: row.lossRatio
       })),
       instruction: 'Revise the plan for the next quarter. Completed months are fixed; respond to the observed loss ratios, shares and events.'
     } : null
@@ -127,13 +119,8 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
   const questions = {
     pricing_view: choice('How should the price coefficients follow the segments?', Object.fromEntries(VIEWS.map((row, i) => [keyOf('v', i), row.label]))),
     loss_ratio: choice('Choose the loss ratio your prices aim for. Lower means dearer prices and fewer, more profitable policies.', Object.fromEntries(LOSS_RATIOS.map((value, i) => [keyOf('l', i), `Target loss ratio ${Math.round(value * 100)}%.`]))),
-    allocation: choice('Split the decision budget between marketing and claims operations.', Object.fromEntries(ALLOCATIONS.map((row, i) => [keyOf('a', i), row.label]))),
-    campaign: choice('How much of marketing should run the digital acquisition campaign, and with which gift?', Object.fromEntries(CAMPAIGNS.map((row, i) => [keyOf('c', i), row.label]))),
-    channel_focus: choice('Where should marketing concentrate?', Object.fromEntries(FOCUS.map((row, i) => [keyOf('f', i), row.label]))),
-    reinsurance: choice('Buy the quota-share treaty? It cedes premium and claims for a commission and costs a fixed fee from the budget.', {
-      yes: 'Buy it when capital protection and a softer downside justify giving up part of the upside.',
-      no: 'Keep all the risk when margin and capital are strong enough.'
-    })
+    budget: choice('How much of the marketing budget should the campaign spend?', Object.fromEntries(BUDGETS.map((row, i) => [keyOf('b', i), row.label]))),
+    campaign: choice('How should the campaign split media and gifts, and weight the gifts?', Object.fromEntries(CAMPAIGNS.map((row, i) => [keyOf('c', i), row.label])))
   };
   return {
     body: { model, state, questions, provider: { zdr: true, data_collection: 'deny' } },
@@ -210,22 +197,18 @@ export function strategyFromJev(session, profile, answers, context) {
   // stay adaptive without collapsing into the same strategy.
   const view = pick(answers.pricing_view, VIEWS, 'v', signature.view);
   const lossRatio = pick(answers.loss_ratio, LOSS_RATIOS, 'l', signature.lossRatio);
-  const allocation = pick(answers.allocation, ALLOCATIONS, 'a', signature.allocation);
-  const focus = pick(answers.channel_focus, FOCUS, 'f', signature.focus);
+  const budget = pick(answers.budget, BUDGETS, 'b', signature.budget);
   const campaign = pick(answers.campaign, CAMPAIGNS, 'c', signature.campaign);
-  const reinsurance = typeof signature.reinsurance === 'boolean' ? signature.reinsurance : picked(answers.reinsurance) === 'yes';
   const coef = coefficientsFor(view.id, rules);
-  const fee = reinsurance ? money.reinsuranceFee : 0;
-  const claimsOps = round1k(money.budget * allocation.ops);
-  const marketing = Math.max(0, Math.min(round1k(money.budget * allocation.marketing), Math.floor((money.budget - fee - claimsOps) / 1000) * 1000));
+  const marketing = Math.max(0, Math.min(round1k(money.budget * budget.marketing), Math.floor(money.budget / 1000) * 1000));
   const confidenceValues = Object.values(answers).map(confidenceOf).filter(Number.isFinite);
   const confidence = confidenceValues.length ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length : null;
   const profileName = profile.name[session.config.lang === 'tr' ? 'tr' : 'en'];
   const sentence = session.config.lang === 'tr'
     ? `${profileName}: riski doğru fiyatla, sermayeyi koru.`
-    : `${profileName}: price the risk right, protect the capital.`;
+    : `${profileName}: price the risk right, protect the margin.`;
   return {
-    strategy: { sentence, basePremium: actuarialBase(coef, lossRatio, rules), coef, marketing, channelFocus: [...focus.value], claimsOps, reinsurance, campaign: campaign.campaign, mediaShare: campaign.mediaShare, offer: campaign.offer },
+    strategy: { sentence, basePremium: actuarialBase(coef, lossRatio, rules), coef, marketing, mediaShare: campaign.mediaShare, offers: [...campaign.offers] },
     confidence
   };
 }

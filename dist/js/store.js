@@ -188,3 +188,16 @@ export function forgetPlayer() {
   try { sessionStorage.removeItem(PLAYER_KEY); sessionStorage.removeItem(STEP_KEY); } catch { /* ignore */ }
   disconnect();
 }
+
+// ——— Brochures (images live on the room server; the state carries { v, w, h } per team) ———
+export const brochureUrl = (teamId, brochure) => (brochure && session.pin ? `/api/rooms/${session.pin}/brochure/${teamId}?v=${brochure.v}` : null);
+export async function sendBrochure(teamId, blob, w, h) {
+  if (!session.pin) throw Error(t('You\u2019re not connected to a game.', 'Bir oyuna bağlı değilsin.'));
+  const headers = { 'content-type': blob.type };
+  if (session.role === 'host') headers['x-host-key'] = savedHost()?.hostKey || '';
+  if (session.playerId) headers['x-player'] = session.playerId;
+  let r;
+  try { r = await fetch(`/api/rooms/${session.pin}/brochure/${teamId}?w=${w}&h=${h}`, { method: 'POST', headers, body: blob }); }
+  catch { throw Error(t('Couldn\u2019t reach the server. Check your internet connection.', 'Sunucuya ulaşılamadı. İnternet bağlantını kontrol et.')); }
+  if (!r.ok) throw Error((await r.json().catch(() => ({}))).error || t('The brochure was not saved.', 'Broşür kaydedilmedi.'));
+}

@@ -2,7 +2,7 @@
 // Chrome words (titles, connectives) are translated per-viewer via t(); segment/coverage/channel
 // names come from localizeRules(), which shows each viewer's own language for any name the host
 // never customized away from the room's default.
-import { monthsOf, rank, localizedEventText, cascoMoney, bookProfile, strategyAt, levelName, offerName, campaignRules, rulesOf } from '../engine.js';
+import { monthsOf, rank, localizedEventText, cascoMoney, bookProfile, strategyAt, levelName, offerName, campaignRules, campaignOf, rulesOf } from '../engine.js';
 import { fmt, money, pct, points, lower } from './format.js';
 import { t, getLang } from './i18n.js';
 
@@ -34,8 +34,7 @@ export function archetypeKey(s, config) {
   const money = cascoMoney(config), p = bookProfile(s, config);
   const near = Math.max(0.02, p.spread * 0.5);
   if (p.flatGap < near && p.dataGap > near) return 'flat';
-  if (s.claimsOps >= money.budget * 0.55) return 'service';
-  if (s.channelFocus[2] >= 50) return 'digital';
+  if (s.marketing >= money.budget * 0.75) return 'gifts';
   if (p.impliedLossRatio >= 0.72) return 'volume';
   if (p.impliedLossRatio <= 0.55) return 'margin';
   return p.dataGap <= near ? 'actuary' : 'custom';
@@ -47,7 +46,9 @@ export const ARCHETYPES = {
   volume: { get name() { return t('Volume hunter', 'Hacim avcısı'); }, get text() { return t('Cheap prices and loud marketing to win share fast.', 'Hızlı pay için ucuz fiyat ve yoğun pazarlama.'); } },
   margin: { get name() { return t('Selective margin', 'Seçici marj'); }, get text() { return t('Fewer but profitable policies; price discipline.', 'Az ama kârlı poliçe; fiyat disiplini.'); } },
   digital: { get name() { return t('Digital focus', 'Dijital odak'); }, get text() { return t('Puts marketing behind the cheapest channel.', 'Pazarlamayı en ucuz kanala yığar.'); } },
-  service: { get name() { return t('Service first', 'Önce hizmet'); }, get text() { return t('Spends most of the budget on claims operations.', 'Bütçenin çoğunu hasar operasyonuna ayırır.'); } },
+  gifts: { get name() { return t('Campaign-led', 'Kampanyacı'); }, get text() { return t('Spends most of the marketing budget to win customers through the digital campaign.', 'Pazarlama bütçesinin çoğunu dijital kampanyayla müşteri kazanmaya harcar.'); } },
+  // Approaches from earlier versions, kept so saved sessions still read.
+  service: { get name() { return t('Service first', 'Önce hizmet'); }, get text() { return t('Spent most of the budget on claims operations.', 'Bütçenin çoğunu hasar operasyonuna ayırdı.'); } },
   custom: { get name() { return t('Own read of the data', 'Kendi okuması'); }, get text() { return t('Prices segments on its own view, away from both the data and a flat tariff.', 'Segmentleri ne veriye ne düz tarifeye göre, kendi görüşüyle fiyatlar.'); } }
 };
 
@@ -64,7 +65,6 @@ export function monthDigest(results, m, teams, config) {
   const prev = results[m - 1];
   const byGwp = rows => [...rows].sort((a, b) => b.gwp - a.gwp);
   const ranked = byGwp(now.rows), prevRanked = prev ? byGwp(prev.rows) : null;
-  const capital = config.assumptions.capital.value;
   const items = [];
   const add = (type, icon, tone, weight, text, ids) => items.push({ type, icon, tone, weight, text, teams: ids });
 
@@ -85,14 +85,10 @@ export function monthDigest(results, m, teams, config) {
     const before = prev && row(prev, r.id), name = nameOf(teams, r.id);
     if (r.monthGwp > 0 && r.monthLossRatio > 1)
       add('claims', 'shield', 'bad', 5 + Math.min(2, r.monthLossRatio - 1), t(`${name} paid out more than it earned this month: claims at ${pct(r.monthLossRatio, 0)} of premium.`, `${name} bu ay kazandığından fazla hasar ödedi: hasar/prim ${pct(r.monthLossRatio, 0)}.`), [r.id]);
-    if (before && r.monthService < 82 && before.monthService >= 82)
-      add('service', 'users', 'bad', 4, t(`${name}’s claims desk can’t keep up: NPS falls to ${r.nps}.`, `${name} hasar dosyalarına yetişemiyor: NPS ${r.nps} seviyesine indi.`), [r.id]);
     if (before && before.profit < 0 && r.profit >= 0)
       add('profit', 'up', 'good', 4, t(`${name} is back in profit: ${money(r.profit)} so far.`, `${name} kâra geçti: şimdiye kadar ${money(r.profit)}.`), [r.id]);
     if (before && before.profit >= 0 && r.profit < 0)
       add('profit', 'down', 'bad', 4, t(`${name} slips into a loss: ${money(r.profit)} so far.`, `${name} zarara düştü: şimdiye kadar ${money(r.profit)}.`), [r.id]);
-    if (r.equity < capital * 0.6 && (!before || before.equity >= capital * 0.6))
-      add('capital', 'coins', 'bad', 4, t(`Capital alarm: ${name} has lost more than 40% of its capital.`, `Sermaye alarmı: ${name} sermayesinin %40’ından fazlasını kaybetti.`), [r.id]);
     if (before && r.share - before.share >= 0.02)
       add('share', 'chart', 'good', 3, t(`${name} climbs from ${pct(before.share)} to ${pct(r.share)} market share.`, `${name} pazar payını ${pct(before.share)}’dan ${pct(r.share)}’a çıkardı.`), [r.id]);
   }
@@ -100,7 +96,11 @@ export function monthDigest(results, m, teams, config) {
   // The digital campaign: the month's best haul, a gift budget that ran out, the frequency bonus kicking in.
   const lang = getLang(), K = campaignRules(rulesOf(config));
   const camp = now.rows.filter(r => r.campaign?.customers >= 1).sort((a, b) => b.campaign.customers - a.campaign.customers);
-  if (camp[0]) add('campaign', 'megaphone', 'good', 3, t(`${nameOf(teams, camp[0].id)}’s campaign won ${fmt(camp[0].campaign.customers)} new customers this month with the ${lower(offerName(camp[0].campaign.offer, lang))}.`, `${nameOf(teams, camp[0].id)} kampanyası bu ay ${lower(offerName(camp[0].campaign.offer, lang))} ile ${fmt(camp[0].campaign.customers)} yeni müşteri kazandı.`), [camp[0].id]);
+  if (camp[0]) {
+    const best = [...(camp[0].campaign.gifts || [])].sort((a, b) => b.customers - a.customers)[0];
+    const gift = best ? lower(offerName(best.id, lang)) : t('its gifts', 'hediyeleri');
+    add('campaign', 'megaphone', 'good', 3, t(`${nameOf(teams, camp[0].id)}’s campaign won ${fmt(camp[0].campaign.customers)} new customers this month, most with the ${gift}.`, `${nameOf(teams, camp[0].id)} kampanyası bu ay ${fmt(camp[0].campaign.customers)} yeni müşteri kazandı; çoğu ${gift} ile.`), [camp[0].id]);
+  }
   const capped = now.rows.filter(r => r.campaign && r.campaign.wanted > r.campaign.customers * 1.5 && r.campaign.wanted - r.campaign.customers >= 50).sort((a, b) => (b.campaign.wanted - b.campaign.customers) - (a.campaign.wanted - a.campaign.customers))[0];
   if (capped) add('gifts', 'coins', 'bad', 3, t(`${nameOf(teams, capped.id)} ran out of gifts: about ${fmt(capped.campaign.wanted - capped.campaign.customers)} interested customers walked away.`, `${nameOf(teams, capped.id)} hediyeleri tükendi: yaklaşık ${fmt(capped.campaign.wanted - capped.campaign.customers)} ilgili müşteri kaçtı.`), [capped.id]);
   const freqNow = now.rows[0]?.campaign?.frequency ?? 1, freqBefore = prev?.rows[0]?.campaign?.frequency ?? 1;
@@ -120,28 +120,25 @@ export function badges(results, teams) {
   return [
     { id: 'market', label: t('Market Leader', 'Pazar Lideri'), rule: t('Highest premium-based share', 'En yüksek prim bazlı pay'), team: top('share').id, value: pct(top('share').share) },
     { id: 'profit', label: t('Profit Master', 'Kârlılık Ustası'), rule: t('Highest technical profit', 'En yüksek teknik kâr'), team: top('profit').id, value: money(top('profit').profit) },
-    { id: 'service', label: t('Customer Champion', 'Müşteri Şampiyonu'), rule: t('Highest annual service score', 'En yüksek yıllık hizmet skoru'), team: top('service').id, value: fmt(top('service').service, 1) },
     { id: 'comeback', label: t('Biggest Comeback', 'En Güçlü Geri Dönüş'), rule: t('Most places gained since January', 'Ocak’tan bu yana en çok sıra kazanan'), team: comeback.gain > 0 ? comeback.id : null, value: comeback.gain > 0 ? t(`+${comeback.gain} places`, `+${comeback.gain} sıra`) : t('No one gained places', 'Sıra kazanan olmadı') }
   ];
 }
 
 export function debrief(team, results, config) {
   const s = strategyAt(team, 11), r = row(results[11], team.id);
-  const cap = config.assumptions.capital.value, lang = getLang(), p = bookProfile(s, config);
-  const focusTop = s.channelFocus.indexOf(Math.max(...s.channelFocus));
+  const lang = getLang(), p = bookProfile(s, config);
+  const c = campaignOf(s), giftTop = c.weights.indexOf(Math.max(...c.weights)), gift = lower(offerName(campaignRules(rulesOf(config)).offers[giftTop]?.id, lang));
   const read = p.flatGap < 0.06 && p.dataGap > 0.12 ? t('a flat tariff', 'düz bir tarife') : p.dataGap <= 0.12 ? t('coefficients close to the true risk', 'gerçek riske yakın katsayılar') : t('its own view of the segments', 'segmentlere kendi bakışı');
-  const chose = t(`Base premium €${fmt(s.basePremium, 2)} with ${read}; prices aimed at a ${pct(p.impliedLossRatio, 0)} loss ratio on the sample. ${money(s.marketing)} marketing, mostly ${lower(levelName('channel', focusTop, lang))}; ${money(s.claimsOps)} claims operations${s.reinsurance ? '; quota-share bought' : ''}.`,
-    `${read} ile €${fmt(s.basePremium, 2)} baz prim; fiyatlar örneklemde ${pct(p.impliedLossRatio, 0)} hasar oranını hedefledi. ${money(s.marketing)} pazarlama, çoğu ${lower(levelName('channel', focusTop, lang))}; ${money(s.claimsOps)} hasar operasyonu${s.reinsurance ? '; kota paylı reasürans alındı' : ''}.`);
+  const chose = t(`Base premium €${fmt(s.basePremium, 2)} with ${read}; prices aimed at a ${pct(p.impliedLossRatio, 0)} loss ratio on the sample. ${money(s.marketing)} marketing, ${c.media}% of it on media; gifts led by the ${gift} (${c.weights[giftTop]}%).`,
+    `${read} ile €${fmt(s.basePremium, 2)} baz prim; fiyatlar örneklemde ${pct(p.impliedLossRatio, 0)} hasar oranını hedefledi. ${money(s.marketing)} pazarlama, %${c.media}'i medyaya; hediyelerde öne çıkan ${gift} (%${c.weights[giftTop]}).`);
   const personaTop = r.segments.indexOf(Math.max(...r.segments)), channelTop = r.channels.indexOf(Math.max(...r.channels));
-  const happened = t(`${fmt(r.policies)} policies, ${pct(r.share)} premium share, ${money(r.profit)} technical profit, ${pct(r.lossRatio)} loss ratio, ${fmt(r.service, 1)} service score. The largest group in the book was ${lower(levelName('persona', personaTop, lang))} (${fmt(r.segments[personaTop] / r.policies * 100)}%), sold mostly through ${lower(levelName('channel', channelTop, lang))}.`,
-    `${fmt(r.policies)} poliçe, ${pct(r.share)} prim payı, ${money(r.profit)} teknik kâr, ${pct(r.lossRatio)} hasar oranı, ${fmt(r.service, 1)} hizmet skoru. Portföyün en büyük grubu ${lower(levelName('persona', personaTop, lang))} (%${fmt(r.segments[personaTop] / r.policies * 100)}), çoğu ${lower(levelName('channel', channelTop, lang))} kanalından.`);
+  const happened = t(`${fmt(r.policies)} policies, ${pct(r.share)} premium share, ${money(r.profit)} technical profit, ${pct(r.lossRatio)} loss ratio, ${fmt(r.campaign?.total ?? 0)} customers won by the campaign. The largest group in the book was ${lower(levelName('persona', personaTop, lang))} (${fmt(r.segments[personaTop] / r.policies * 100)}%), sold mostly through ${lower(levelName('channel', channelTop, lang))}.`,
+    `${fmt(r.policies)} poliçe, ${pct(r.share)} prim payı, ${money(r.profit)} teknik kâr, ${pct(r.lossRatio)} hasar oranı, kampanyayla ${fmt(r.campaign?.total ?? 0)} müşteri. Portföyün en büyük grubu ${lower(levelName('persona', personaTop, lang))} (%${fmt(r.segments[personaTop] / r.policies * 100)}), çoğu ${lower(levelName('channel', channelTop, lang))} kanalından.`);
   let tradeoff;
-  if (!r.eligible) tradeoff = { title: t('Growth consumed capital.', 'Büyüme sermayeyi tüketti.'), text: t(`Equity bottomed out at ${money(r.minEquity)}. Volume came, but claims and expenses outran premium.`, `Özkaynak en düşük ${money(r.minEquity)} seviyesine indi. Hacim geldi ama hasar ve giderler primi aştı.`) };
-  else if (r.expectedLossRatio > p.impliedLossRatio + 0.08) tradeoff = { title: t('The risky customers chose you.', 'Riskli müşteri seni seçti.'), text: t(`On paper your prices aimed at ${pct(p.impliedLossRatio, 0)}, but the book you actually wrote was expected to run at ${pct(r.expectedLossRatio, 0)}: the segments you underpriced came to you, the ones you overpriced went elsewhere.`, `Kâğıt üstünde fiyatların ${pct(p.impliedLossRatio, 0)} hedefliyordu, ama gerçekte yazdığın portföyün beklenen hasar oranı ${pct(r.expectedLossRatio, 0)} oldu: ucuz fiyatladığın segmentler sana geldi, pahalı fiyatladıkların başka yere gitti.`) };
-  else if (r.combinedRatio > 1) tradeoff = { title: t('The cost of growth outran margin.', 'Büyümenin maliyeti marjı aştı.'), text: t(`Every €100 of net premium brought €${fmt(r.combinedRatio * 100)} of claims and expenses.`, `Her €100 net prime karşı €${fmt(r.combinedRatio * 100)} hasar ve gider oluştu.`) };
-  else if (r.utilization > 1) tradeoff = { title: t('Sales outgrew claims operations.', 'Satış hasar operasyonundan hızlı büyüdü.'), text: t(`Capacity was ${fmt(r.utilization * 100)}% full by year end. The service score fell to ${fmt(r.service, 1)} and the reputation hit slowed sales.`, `Yıl sonunda kapasitenin %${fmt(r.utilization * 100)}’i doluydu. Hizmet skoru ${fmt(r.service, 1)}’e düştü; itibar kaybı satışları yavaşlattı.`) };
-  else if (r.share < 0.1) tradeoff = { title: t('Profit discipline, a narrow market.', 'Kâr disiplini, dar pazar.'), text: t(`Profit / capital was ${pct(r.profit / cap)}, but a ${pct(r.share)} share left you behind on the ${config.weights[1]}% of the score it carries.`, `Kâr / sermaye ${pct(r.profit / cap)} oldu, ama ${pct(r.share)} pay, puanın %${config.weights[1]}’lik kısmında seni geride bıraktı.`) };
-  else tradeoff = { title: t('Price, volume and service stayed in balance.', 'Fiyat, hacim ve hizmet dengede kaldı.'), text: t(`A ${pct(r.share)} share and a ${pct(r.combinedRatio)} combined ratio: you grew and stayed profitable at once.`, `${pct(r.share)} pay ve ${pct(r.combinedRatio)} bileşik oran: hem büyüdün hem kârlı kaldın.`) };
+  if (r.expectedLossRatio > p.impliedLossRatio + 0.08) tradeoff = { title: t('The risky customers chose you.', 'Riskli müşteri seni seçti.'), text: t(`On paper your prices aimed at ${pct(p.impliedLossRatio, 0)}, but the book you actually wrote was expected to run at ${pct(r.expectedLossRatio, 0)}: the segments you underpriced came to you, the ones you overpriced went elsewhere.`, `Kâğıt üstünde fiyatların ${pct(p.impliedLossRatio, 0)} hedefliyordu, ama gerçekte yazdığın portföyün beklenen hasar oranı ${pct(r.expectedLossRatio, 0)} oldu: ucuz fiyatladığın segmentler sana geldi, pahalı fiyatladıkların başka yere gitti.`) };
+  else if (r.combinedRatio > 1) tradeoff = { title: t('The cost of growth outran margin.', 'Büyümenin maliyeti marjı aştı.'), text: t(`Every €100 of premium brought €${fmt(r.combinedRatio * 100)} of claims and expenses.`, `Her €100 prime karşı €${fmt(r.combinedRatio * 100)} hasar ve gider oluştu.`) };
+  else if (r.share < 0.1) tradeoff = { title: t('Profit discipline, a narrow market.', 'Kâr disiplini, dar pazar.'), text: t(`The book made ${money(r.profit)}, but a ${pct(r.share)} share left you behind in the market-share race.`, `Portföy ${money(r.profit)} kazandırdı, ama ${pct(r.share)} pay seni pazar payı yarışında geride bıraktı.`) };
+  else tradeoff = { title: t('Price and volume stayed in balance.', 'Fiyat ve hacim dengede kaldı.'), text: t(`A ${pct(r.share)} share and a ${pct(r.combinedRatio)} combined ratio: you grew and stayed profitable at once.`, `${pct(r.share)} pay ve ${pct(r.combinedRatio)} bileşik oran: hem büyüdün hem kârlı kaldın.`) };
   return { chose, happened, tradeoff };
 }
 

@@ -16,20 +16,14 @@ export const RULE_FIELDS = {
   'model.lossRatio': F('pct', 0.1, 2, 0.01), 'model.gammaShape': F('num', 0.2, 20, 0.1),
   ...LEVEL_FIELDS,
   'dimensions.channel.#.expense': F('pct', 0, 0.6, 0.005),
-  'behavior.#.price': F('num', 0, 10, 0.1), 'behavior.#.service': F('num', 0, 5, 0.1), 'behavior.#.channel': F('num', 0.2, 3, 0.1),
+  'behavior.#.price': F('num', 0, 10, 0.1),
   'commercialPrice': F('x', 0.2, 2, 0.05),
   'market.outside': F('num', 0, 10, 0.1), 'market.seasonality': F('pct', 0, 0.5, 0.01),
   'coef.min': F('num', 0.1, 1, 0.05), 'coef.max': F('num', 1, 5, 0.05),
-  'marketing.presence': F('num', 0, 2, 0.05), 'marketing.strength': F('num', 0, 3, 0.05), 'marketing.scale': F('pct', 0.0001, 0.05, 0.0001),
-  'service.handling': F('pct', 0.01, 1, 0.01), 'service.threshold': F('pct', 0.1, 1.5, 0.01),
-  'service.slope': F('num', 0, 300, 1), 'service.floor': F('num', 0, 100, 1), 'service.max': F('num', 1, 100, 1),
-  'service.leakage': F('pct', 0, 1, 0.01), 'service.reputation': F('num', 0, 3, 0.1),
-  'reinsurance.share': F('pct', 0, 0.9, 0.01), 'reinsurance.commission': F('pct', 0, 1, 0.01),
   'campaign.cpm': F('eur', 0.5, 200, 0.5), 'campaign.digitalUsers': F('num', 100000, 100000000, 100000), 'campaign.targetShare': F('pct', 0.01, 1, 0.01),
   'campaign.referenceBudget': F('eur', 100000, 100000000, 100000), 'campaign.frequency': F('num', 1, 50, 1), 'campaign.frequencyBonus': F('pct', 0, 1, 0.01),
   'campaign.priceCap': F('x', 1, 5, 0.1),
-  'campaign.offers.#.interest': F('pct', 0, 1, 0.01), 'campaign.offers.#.click': F('pct', 0, 1, 0.01), 'campaign.offers.#.hit': F('pct', 0, 1, 0.01), 'campaign.offers.#.cost': F('eur', 0, 1000, 1),
-  'capitalRule': { format: 'bool' }
+  'campaign.offers.#.interest': F('pct', 0, 1, 0.01), 'campaign.offers.#.click': F('pct', 0, 1, 0.01), 'campaign.offers.#.hit': F('pct', 0, 1, 0.01), 'campaign.offers.#.cost': F('eur', 0, 1000, 1)
 };
 
 export const fieldSpec = path => RULE_FIELDS[String(path).replace(/\.\d+(?=\.|$)/g, '.#')] || null;
@@ -58,8 +52,6 @@ export function checkRule(rules, path, raw, lang = 'en') {
   }
   if (path === 'coef.min' && v >= rules.coef.max) return { error: em('The lowest coefficient must be below the highest.', 'En düşük katsayı en yükseğin altında olmalı.', lang) };
   if (path === 'coef.max' && v <= rules.coef.min) return { error: em('The highest coefficient must be above the lowest.', 'En yüksek katsayı en düşüğün üstünde olmalı.', lang) };
-  if (path === 'service.floor' && v > rules.service.max) return { error: em('The floor score can’t exceed the max score.', 'Taban skor en yüksek skoru aşamaz.', lang) };
-  if (path === 'service.max' && v < rules.service.floor) return { error: em('The max score can’t be below the floor score.', 'En yüksek skor taban skorun altında olamaz.', lang) };
   return { value: Math.round(v / spec.step) * spec.step === v ? v : Number(v.toFixed(6)) };
 }
 
