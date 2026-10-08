@@ -127,7 +127,7 @@ export function stageMarkup() {
         <div class="st-race-head">
           <div><p class="kicker" data-st="metric-kicker"></p><h2 class="display">${t('Gross premium race', 'Brüt prim yarışı')}</h2></div>
         </div>
-        <div class="st-cols"><span>${t('RANK', 'SIRA')}</span><span></span><span>${t('TEAM', 'TAKIM')}</span><span class="r">${t('GROSS PREMIUM', 'BRÜT PRİM')}</span><span class="r">${t('SHARE', 'PAY')}</span><span class="r">${t('PROFIT / LOSS', 'KÂR / ZARAR')}</span><span class="r">${t('LOSS RATIO', 'HASAR / PRİM')}</span></div>
+        <div class="st-cols"><span>${t('RANK', 'SIRA')}</span><span></span><span>${t('TEAM', 'TAKIM')}</span><span class="r">${t('GROSS PREMIUM', 'BRÜT PRİM')}</span><span class="r">${t('SHARE', 'PAY')}</span><span class="r">${t('PROFIT / LOSS', 'KÂR / ZARAR')}</span><span class="r">${t('LOSS RATIO', 'HASAR / PRİM')}</span><span class="r">${t('CAMPAIGN CUST.', 'KAMPANYA MÜŞ.')}</span></div>
         <div class="st-lanes" data-st="lanes"></div>
         <div class="st-banner" data-st="banner" aria-hidden="true"></div>
         <div class="st-notice" data-st="notice" hidden></div>
@@ -190,6 +190,7 @@ export function mountStage(root) {
       <span class="lane-stat num" data-k="share"></span>
       <span class="lane-stat num" data-k="profit"></span>
       <span class="lane-stat num" data-k="loss"></span>
+      <span class="lane-stat num" data-k="camp"></span>
     </button>`).join('');
     lanes.clear();
     el.querySelectorAll('.lane').forEach(node => lanes.set(Number(node.dataset.lane), {
@@ -663,7 +664,9 @@ export function mountStage(root) {
     const m = h.month;
     const months = monthsOf(getLang());
     const elapsed = now - h.start;
-    const revealAt = Math.min(900, h.step * 0.15), growFor = Math.min(3200, h.step * 0.55);
+    // The month's change plays over most of the month, whatever its length: a short beat to reveal, about
+    // three quarters of the month to grow, and a moment at the end to read the new standings.
+    const revealAt = Math.min(900, h.step * 0.12), growFor = h.step * 0.72;
     const t2v = reduced() ? 1 : easeInOut(clamp((elapsed - revealAt) / growFor));
 
     const monthChanged = m !== shownMonth;
@@ -722,13 +725,14 @@ export function mountStage(root) {
       lane.node.classList.toggle('dq', !row.eligible);
       setText(lane, 'pos', lane.pos, pad(t2v >= 1 ? x.endRank : p + 1));
       setText(lane, 'val', lane.val, money(x.v));
-      // The side stats move with the bar: last month's figure until the month lands, then this month's.
-      const shown = t2v >= 1 || !prev ? row : prev;
+      // The side stats move with the bar, from last month's figure to this month's.
       setText(lane, 'share', lane.stat.share, pct(lerp(prev?.share ?? 0, row.share, t2v)));
       setText(lane, 'profit', lane.stat.profit, money(lerp(prev?.profit ?? 0, row.profit, t2v)));
       lane.stat.profit.classList.toggle('down', lerp(prev?.profit ?? 0, row.profit, t2v) < 0);
-      setText(lane, 'loss', lane.stat.loss, pct(shown.grossLossRatio, 0));
-      lane.stat.loss.classList.toggle('down', shown.grossLossRatio > 1);
+      const loss = prev ? lerp(prev.grossLossRatio, row.grossLossRatio, t2v) : row.grossLossRatio;
+      setText(lane, 'loss', lane.stat.loss, pct(loss, 0));
+      lane.stat.loss.classList.toggle('down', loss > 1);
+      setText(lane, 'camp', lane.stat.camp, fmt(lerp(prev?.campaign?.total ?? 0, row.campaign?.total ?? 0, t2v)));
       const moved = startOrder.indexOf(x.id) - p;
       setText(lane, 'move', lane.move, !from ? '' : moved > 0 ? `<b class="up">▲${moved}</b>` : moved < 0 ? `<b class="down">▼${-moved}</b>` : '<b class="flat">–</b>', true);
       const tag = elapsed < revealAt ? '' : !row.eligible ? `<i class="bad">${icon('x', 12)} ${t('OUT OF THE TROPHIES', 'KUPA DIŞI')}</i>` : row.exposed.length ? `<i class="warn">${icon('bolt', 12)} ${t('EVENT IMPACT', 'OLAY ETKİSİ')}</i>` : row.monthLossRatio > 1 ? `<i class="bad">${icon('shield', 12)} ${t('CLAIMS OVER PREMIUM', 'HASAR PRİMİ AŞTI')}</i>` : '';

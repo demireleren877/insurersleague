@@ -33,7 +33,7 @@ body.on-stage { overflow: hidden; }
 .stage {
   --stage-pad: clamp(12px, 1.25vw, 24px);
   --feed-w: clamp(270px, 23vw, 430px);
-  --lane-cols: clamp(44px, 3.4vw, 68px) 30px minmax(180px, 1fr) clamp(118px, 10.4vw, 200px) clamp(60px, 4.8vw, 90px) clamp(88px, 6.8vw, 132px) clamp(70px, 5.6vw, 104px);
+  --lane-cols: clamp(44px, 3.4vw, 68px) 30px minmax(180px, 1fr) clamp(118px, 10.4vw, 200px) clamp(60px, 4.8vw, 90px) clamp(88px, 6.8vw, 132px) clamp(70px, 5.6vw, 104px) clamp(74px, 6vw, 112px);
   --lane-gap: clamp(6px, .7vw, 12px);
   position: relative; width: 100%; height: 100%; min-height: 0;
   display: grid; grid-template-columns: minmax(0, 1fr) var(--feed-w); column-gap: clamp(14px, 1.4vw, 26px); grid-template-rows: clamp(86px, 11vh, 120px) minmax(0, 1fr) clamp(58px, 8vh, 78px);
@@ -379,7 +379,7 @@ body.on-stage { overflow: hidden; }
   .st-brand div span { display: none; }
 }
 @media (max-width: 1180px) and (min-width: 901px) {
-  .stage { --feed-w: 240px; --lane-cols: 40px 26px minmax(150px, 1fr) 112px 58px 92px 62px; --lane-gap: 6px; column-gap: 12px; }
+  .stage { --feed-w: 240px; --lane-cols: 40px 26px minmax(150px, 1fr) 112px 58px 92px 62px 70px; --lane-gap: 6px; column-gap: 12px; }
   .lane-id .emblem { --size: 36px; }
   .lane-val, .st-lanes.compact .lane-val { font-size: 17px; }
   .lane-stat { font-size: 14px; }
