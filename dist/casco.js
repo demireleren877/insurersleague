@@ -179,11 +179,24 @@ export function validateCasco(team, config, lang = config?.lang) {
 }
 
 // A team may revise its plan at quarter reviews. Each snapshot applies from the following month.
-export function strategyAt(team, month) {
+export function planAt(team, month) {
   const history = Array.isArray(team?.strategyHistory) ? team.strategyHistory : [];
   let active = null;
   for (const entry of history) if (Number.isInteger(entry?.effectiveMonth) && entry.effectiveMonth <= month && entry.strategy && (!active || entry.effectiveMonth >= active.effectiveMonth)) active = entry;
-  return active?.strategy || team.strategy;
+  return active ? { strategy: active.strategy, from: active.effectiveMonth } : { strategy: team.strategy, from: 0 };
+}
+export const strategyAt = (team, month) => planAt(team, month).strategy;
+
+// The marketing budget is one wallet for the year. A plan's `marketing` is what it spends from the month it
+// takes effect to December, in equal monthly parts; a quarter revision can only spend what is left.
+export function monthlyMarketing(team, month) {
+  const p = planAt(team, month);
+  return (Number(p.strategy.marketing) || 0) / (12 - p.from);
+}
+export function marketingSpent(team, month) {
+  let spent = 0;
+  for (let m = 0; m < month; m++) spent += monthlyMarketing(team, m);
+  return spent;
 }
 
 // ——— Randomness ———
@@ -250,6 +263,8 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
     const snapshots = Array.isArray(t.strategyHistory) && t.strategyHistory.length ? t.strategyHistory : [{ strategy: t.strategy }];
     return snapshots.flatMap(entry => validateCasco({ ...t, strategy: entry.strategy }, config));
   });
+  for (const t of teamList) if (marketingSpent(t, 12) > money.budget + 1)
+    errors.push(L(config.lang, `${t.name}: marketing over the year exceeds the marketing budget.`, `${t.name}: yıllık pazarlama harcaması pazarlama bütçesini aşıyor.`));
   if (errors.length) throw Error([...new Set(errors)].join(' '));
   if (config.weights.reduce((a, b) => a + b, 0) !== 100) throw Error(L(config.lang, 'Score weights must total 100%.', 'Puan ağırlıkları toplamı %100 olmalı.'));
 
@@ -270,7 +285,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
   for (let m = 0; m < 12; m++) {
     const live = activeEvents(events, m);
     const season = 1 + R.market.seasonality * Math.sin((m + 1) / 1.9);
-    const strategies = teamList.map(t => strategyAt(t, m));
+    const strategies = teamList.map(t => strategyAt(t, m)), spendNow = teamList.map(t => monthlyMarketing(t, m));
     const counts = teamList.map(() => new Float64Array(cells().length));
     const demandOf = new Float64Array(cells().length);
     let available = 0, outsideSold = 0;
@@ -292,7 +307,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
     const marketCounts = trace ? counts.map(a => Array.from(a)) : null;
     // The campaign: impressions share one target group; reach, frequency, then each gift's funnel and its
     // own slice of the gift budget (both in proportion to the gift's weight).
-    const plans = strategies.map(s => { const c = campaignOf(s), spend = s.marketing / 12; return { ...c, media: spend * c.media / 100, gifts: spend * (1 - c.media / 100) }; });
+    const plans = strategies.map((s, i) => { const c = campaignOf(s), spend = spendNow[i]; return { ...c, media: spend * c.media / 100, gifts: spend * (1 - c.media / 100) }; });
     const impressions = plans.map(p => p.media / K.cpm * 1000), allImpressions = impressions.reduce((a, b) => a + b, 0);
     const frequency = Math.max(1, allImpressions / audience), bonus = frequency > K.frequency ? 1 + K.frequencyBonus : 1;
     const campaign = plans.map((p, i) => {
@@ -336,7 +351,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       const draw = claimDraw(expectedCount, meanSev, R.model.gammaShape, u1, u2);
       const count = draw.count, claims = draw.amount;
 
-      const monthExpenses = acquisition + money.fixedMonthly + cascoSpend(s) / 12;
+      const monthExpenses = acquisition + money.fixedMonthly + spendNow[i];
       const profitBefore = l.profit;
       l.claims += claims; l.claimCount += count; l.expenses += monthExpenses;
 

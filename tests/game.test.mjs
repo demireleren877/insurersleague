@@ -90,6 +90,20 @@ test('quarter uploads move only the quarter levers and never rewrite finished mo
   assert.equal(currentStrategyReview(s), null);
 });
 
+test('a quarter plan can spend only what is left of the year’s marketing budget', () => {
+  let now = 10_000;
+  const s = roomWith(['Atlas', 'Nova'], now);
+  toRace(s, ++now);
+  now = s.playback.t0 + s.config.speed * 1000 * 4 + 50;
+  tick(s, now);
+  const team = s.teams[0], budget = cascoMoney(s.config).budget, spent = team.strategy.marketing * 3 / 12, left = budget - spent;
+  const tooMuch = { ...structuredClone(team.strategy), marketing: Math.ceil(left) + 1000 };
+  assert.match(reduce(s, { type: 'excel-quarter-submit', teams: [{ name: team.name, strategy: tooMuch }] }, host(now + 10)).error, /at most/);
+  const all = { ...structuredClone(team.strategy), marketing: Math.floor(left) };
+  assert.ok(reduce(s, { type: 'excel-quarter-submit', teams: [{ name: team.name, strategy: all }] }, host(now + 20)).changed);
+  assert.ok(Math.abs(simulate(s.teams, s.config)[11].rows.find(r => r.id === team.id).expenses) > 0);
+});
+
 test('start-race repairs a broken plan so the session never blocks', () => {
   const s = roomWith(['Atlas', 'Nova']);
   s.teams[0].strategy.offers = [50, 50, 50, 50];

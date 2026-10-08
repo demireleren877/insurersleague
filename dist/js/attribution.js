@@ -67,8 +67,12 @@ function compute(teams, config, teamId) {
     if (timeline.every(strategy => same(d.get(strategy), d.get(neutral)))) continue; // untouched: nothing to explain
     const what = clone(teams);
     const mine = what.find(t => t.id === teamId);
-    const snapshots = [...(mine.strategyHistory?.length ? mine.strategyHistory.map(entry => entry.strategy) : []), mine.strategy];
-    for (const strategy of snapshots) d.set(strategy, structuredClone(d.get(neutral)));
+    const entries = [...(mine.strategyHistory?.length ? mine.strategyHistory : []), { strategy: mine.strategy, effectiveMonth: 0 }];
+    for (const { strategy, effectiveMonth } of entries) {
+      d.set(strategy, structuredClone(d.get(neutral)));
+      // Marketing is spent from a plan's start month to December: the default pace covers only the months left.
+      if (d.key === 'marketing') strategy.marketing = Math.round(neutral.marketing * (12 - effectiveMonth) / 12);
+    }
     let counter;
     try { counter = finalRow(what, config, teamId); } catch { continue; } // can't be asked cleanly: don't guess
     decisions.push({ key: d.key, delta: actual.score - counter.score, ...componentDelta(actual, counter, weights), counterScore: counter.score });

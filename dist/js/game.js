@@ -4,7 +4,7 @@
 // Session content (segment names, events, quiz questions, and every message below) is bilingual, chosen once
 // per room via `lang` on session.config ('en' | 'tr'). UI chrome (buttons, hints) is a separate per-device
 // toggle handled by dist/js/i18n.js.
-import { scenario, simulate, validate, rank, EVENT_SCOPES, defaultRules, rulesOf, presetName, presetOf, defaultStrategy as engineStrategy, cascoMoney, DIMENSIONS, QUARTER_KEYS, assumptionsFor, campaignOf, campaignRules } from '../engine.js';
+import { scenario, simulate, validate, rank, EVENT_SCOPES, defaultRules, rulesOf, presetName, presetOf, defaultStrategy as engineStrategy, cascoMoney, DIMENSIONS, QUARTER_KEYS, assumptionsFor, campaignOf, campaignRules, marketingSpent } from '../engine.js';
 import { QUESTIONS, questionsFor } from './quiz.js';
 import { checkRule, setPath, sanitizeRules } from './rules.js';
 
@@ -311,10 +311,24 @@ function openStrategyReview(s, month, now) {
   return true;
 }
 
+// What a team can still spend on marketing from `month` to December.
+export function marketingLeft(s, team, month) {
+  return Math.max(0, cascoMoney(s.config).budget - marketingSpent(team, month));
+}
+
+// One wallet for the year: the rest of the year can spend only what the months so far left.
+function marketingOver(s, team, strategy, review) {
+  const left = marketingLeft(s, team, review.month + 1), spent = cascoMoney(s.config).budget - left;
+  const eur = v => `€${Math.round(v).toLocaleString(s.config.lang === 'tr' ? 'tr-TR' : 'en-US')}`;
+  return strategy.marketing > left + 0.5 ? M(s.config, `Marketing for the rest of the year can be at most ${eur(left)} (${eur(spent)} already spent).`, `Yılın kalanı için pazarlama en fazla ${eur(left)} olabilir (${eur(spent)} harcandı).`) : null;
+}
+
 function commitQuarterStrategy(s, team, strategy, review, now) {
   const draftTeam = { ...team, strategy };
   const errors = validate(draftTeam, s.config, msgLang ?? undefined);
   if (errors.length) return { error: errors[0] };
+  const over = marketingOver(s, team, strategy, review);
+  if (over) return { error: over };
   const before = JSON.stringify(team.strategy);
   const previous = structuredClone(team.strategy);
   if (!Array.isArray(team.strategyHistory) || !team.strategyHistory.length) team.strategyHistory = [{ effectiveMonth: 0, strategy: previous }];
@@ -602,6 +616,8 @@ function reduceAction(s, action, ctx) {
         for (const field of QUARTER_KEYS) strategy[field] = structuredClone(incoming[field]);
         const errors = validate({ ...team, strategy }, cfg, msgLang ?? undefined);
         if (errors.length) return { error: M(cfg, `“${team.name}”: ${errors[0]}`, `“${team.name}”: ${errors[0]}`) };
+        const over = marketingOver(s, team, strategy, review);
+        if (over) return { error: M(cfg, `“${team.name}”: ${over}`, `“${team.name}”: ${over}`) };
         proposals.push({ team, strategy });
       }
       for (const proposal of proposals) commitQuarterStrategy(s, proposal.team, proposal.strategy, review, now);
@@ -727,6 +743,8 @@ function reduceAction(s, action, ctx) {
       const strategy = structuredClone(team.strategy);
       for (const key of QUARTER_KEYS) strategy[key] = structuredClone(incoming[key]);
       repairStrategy({ ...team, strategy }, cfg);
+      // Jev picks a yearly pace; the rest of the year gets that pace for the months left, within what is left.
+      strategy.marketing = Math.min(marketingLeft(s, team, review.month + 1), Math.round(strategy.marketing * (11 - review.month) / 12 / 1000) * 1000);
       const result = commitQuarterStrategy(s, team, strategy, review, now);
       if (result.error) return result;
       team.ai.decidedAt = now;
@@ -1108,7 +1126,7 @@ export function viewFor(s, who, now) {
     if (t === mine) return t;
     const pub = { ...t, owner: null, quarterDraft: null };
     if (seasonOver) return pub;
-    return { ...pub, strategy: { _hidden: true, product: t.strategy.product, sentence: t.strategy.sentence } };
+    return { ...pub, strategyHistory: undefined, strategy: { _hidden: true, product: t.strategy.product, sentence: t.strategy.sentence } };
   });
   view.results = s.results.slice(0, Math.max(0, h.month + 1));
   view.config = { ...s.config, events: s.config.events.filter(e => raceStarted(s) && e.month <= h.month) };

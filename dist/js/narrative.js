@@ -2,7 +2,7 @@
 // Chrome words (titles, connectives) are translated per-viewer via t(); segment/coverage/channel
 // names come from localizeRules(), which shows each viewer's own language for any name the host
 // never customized away from the room's default.
-import { monthsOf, rank, localizedEventText, cascoMoney, bookProfile, strategyAt, levelName, offerName, campaignRules, campaignOf, rulesOf } from '../engine.js';
+import { monthsOf, rank, localizedEventText, cascoMoney, bookProfile, strategyAt, yearPlan, levelName, offerName, campaignRules, campaignOf, rulesOf } from '../engine.js';
 import { fmt, money, pct, points, lower } from './format.js';
 import { t, getLang } from './i18n.js';
 
@@ -125,7 +125,7 @@ export function badges(results, teams) {
 }
 
 export function debrief(team, results, config) {
-  const s = strategyAt(team, 11), r = row(results[11], team.id);
+  const s = yearPlan(team), r = row(results[11], team.id);
   const lang = getLang(), p = bookProfile(s, config);
   const c = campaignOf(s), giftTop = c.weights.indexOf(Math.max(...c.weights)), gift = lower(offerName(campaignRules(rulesOf(config)).offers[giftTop]?.id, lang));
   const read = p.flatGap < 0.06 && p.dataGap > 0.12 ? t('a flat tariff', 'düz bir tarife') : p.dataGap <= 0.12 ? t('coefficients close to the true risk', 'gerçek riske yakın katsayılar') : t('its own view of the segments', 'segmentlere kendi bakışı');

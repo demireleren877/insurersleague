@@ -11,12 +11,12 @@ import { resultsPage, setResultsCategory } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=53';
+import { stageMarkup, mountStage } from './views/stage.js?v=54';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=53';
-import { buildAuditWorkbook } from './audit.js?v=53';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=54';
+import { buildAuditWorkbook } from './audit.js?v=54';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -217,7 +217,7 @@ document.addEventListener('click', async e => {
       if (!team) break;
       // Before the race: the team's blank template with its name filled in. At a review: its current plan to edit.
       const quarter = d.quarter === 'true';
-      const bytes = buildTemplate(s, { lang: getLang(), teams: [{ name: team.name, strategy: team.strategy }], single: true });
+      const bytes = buildTemplate(s, { lang: getLang(), teams: [team], single: true });
       const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob), a = document.createElement('a');
       const slug = team.name.toLocaleLowerCase(getLang() === 'tr' ? 'tr-TR' : 'en-US').replace(/\s+/g, '-');

@@ -1,7 +1,7 @@
 import { getState, seasonDone, playhead, raceStarted, results } from '../store.js';
 import { icon, emblem, byId } from '../ui.js';
 import { esc, money, fmt, pct } from '../format.js';
-import { rank, localizedTeamProduct, levelName, bookProfile, strategyAt, rulesOf, campaignOf } from '../../engine.js';
+import { rank, localizedTeamProduct, levelName, bookProfile, strategyAt, yearPlan, rulesOf, campaignOf } from '../../engine.js';
 import { debrief, rankHistory, ARCHETYPES, archetypeKey } from '../narrative.js';
 import { bump } from './charts.js';
 import { impactPanel } from './impact.js';
@@ -110,7 +110,7 @@ export function resultsPage() {
     </div>
     ${impactPanel(focus)}
     <details class="rules"><summary>${icon('file', 16)} ${t('The whole plan and the book it won', 'Planın tamamı ve kazandığı portföy')}</summary>
-      <div class="focus-detail">${planTable(strategyAt(focus, 11), s.config)}${realized(fr)}</div>
+      <div class="focus-detail">${planTable(yearPlan(focus), s.config)}${realized(fr)}</div>
     </details>
   </section>
 
@@ -118,7 +118,7 @@ export function resultsPage() {
     <header><h2 class="display">${t('Strategy comparison', 'Strateji karşılaştırması')}</h2><span class="faint small">${t('The same market, different plans', 'Aynı pazar, farklı planlar')}</span></header>
     <div class="table-wrap"><table>
       <thead><tr><th>${t('Team', 'Takım')}</th><th>${t('Approach', 'Yaklaşım')}</th><th>${t('Base premium', 'Baz prim')}</th><th>${t('Priced for LR', 'Hedef HO')}</th><th>${t('LR it got', 'Gerçekleşen HO')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Media', 'Medya')}</th><th>${t('Gifts', 'Hediyeler')}</th><th>${t('Policies', 'Poliçe')}</th><th>${t('Rank', 'Sıra')}</th></tr></thead>
-      <tbody>${rows.map(r => { const t2 = byId(s.teams, r.id), st = strategyAt(t2, 11), p = bookProfile(st, s.config); return `<tr style="--team:${t2.color}" class="${r.id === focus.id ? 'on' : ''}">
+      <tbody>${rows.map(r => { const t2 = byId(s.teams, r.id), st = yearPlan(t2), p = bookProfile(st, s.config); return `<tr style="--team:${t2.color}" class="${r.id === focus.id ? 'on' : ''}">
         <td><button class="team-link" data-focus="${t2.id}">${emblem(t2, 'xs')}<b>${esc(t2.name)}</b></button></td>
         <td>${ARCHETYPES[archetypeKey(st, s.config)].name}</td><td class="num">€${fmt(st.basePremium, 2)}</td><td class="num">${pct(p.impliedLossRatio, 0)}</td><td class="num ${r.lossRatio > p.impliedLossRatio + 0.05 ? 'down' : ''}">${pct(r.lossRatio, 0)}</td>
         <td class="num">${money(st.marketing)}</td><td class="num">${campaignOf(st).media}%</td><td>${esc(giftMix(st, s.config))}</td>

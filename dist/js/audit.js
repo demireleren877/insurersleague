@@ -4,7 +4,7 @@
 // inputs the workbook lands on the same scores as the app, and changing a plan in the workbook gives the
 // score the app would give that plan.
 import {
-  rulesOf, cascoMoney, policiesOf, marketCells, drawsFor, strategyAt, simulate, rank, DIMENSIONS,
+  rulesOf, cascoMoney, policiesOf, marketCells, drawsFor, planAt, simulate, rank, DIMENSIONS,
   dimensionName, levelName, eventScopesFor, monthsOf, campaignRules, campaignOf, offerName
 } from '../engine.js';
 
@@ -207,13 +207,16 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   const decisionRows = [
     ['basePremium', L(lang, 'Base premium (EUR)', 'Baz prim (EUR)')],
     ...DIMENSIONS.flatMap(dim => R.dimensions[dim].map((_, i) => [`coef.${dim}.${i}`, `${dimensionName(dim, lang)} · ${levelName(dim, i, lang)}`])),
-    ['marketing', L(lang, 'Marketing (EUR)', 'Pazarlama (EUR)')],
+    ['marketing', L(lang, 'Marketing to spend from the start month to December (EUR)', 'Başlangıç ayından Aralık’a harcanacak pazarlama (EUR)')],
+    ['marketingFrom', L(lang, 'Start month of that marketing (1–12)', 'O pazarlamanın başladığı ay (1–12)')],
     ['mediaShare', L(lang, 'Media share % (of marketing)', 'Medya payı % (pazarlamanın)')],
     ...K.offers.map((o, i) => [`offers.${i}`, `${L(lang, 'Gift weight %', 'Hediye ağırlığı %')} · ${offerName(o.id, lang)}`])
   ];
   const D0 = 5; // first decision row
   const rowOf = key => D0 + decisionRows.findIndex(([k]) => k === key);
-  const valueOf = (st, key) => {
+  const valueOf = (plan, key) => {
+    const st = plan.strategy;
+    if (key === 'marketingFrom') return plan.from + 1;
     if (key === 'mediaShare') return campaignOf(st).media;
     if (key.startsWith('offers.')) return campaignOf(st).weights[Number(key.slice(7))] ?? 0;
     return key.split('.').reduce((o, k) => o[k], st);
@@ -223,7 +226,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   plans.put(3, 0, L(lang, 'Team', 'Takım'), S.head); plans.put(4, 0, L(lang, 'Quarter', 'Çeyrek'), S.head);
   decisionRows.forEach(([, label], k) => plans.put(D0 + k, 0, label));
   teams.forEach((team, ti) => {
-    const periods = [0, 3, 6, 9].map(m => strategyAt(team, m));
+    const periods = [0, 3, 6, 9].map(m => planAt(team, m));
     for (let qi = 0; qi < QUARTERS; qi++) {
       const c = 2 + ti * QUARTERS + qi;
       plans.put(3, c, qi === 0 ? team.name : '', S.head);
@@ -239,9 +242,9 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   const P = key => rowOf(key) - D0 + 1; // row inside Plans
   // Checks per team (the app refuses plans that overspend or whose gift weights don't total 100)
   const checkRow = D0 + decisionRows.length + 1;
-  plans.put(checkRow, 0, L(lang, 'Budget used (must be ≤ Budget)', 'Kullanılan bütçe (≤ Bütçe olmalı)'), S.section);
+  plans.put(checkRow, 0, L(lang, 'Marketing spent in the quarter (the year’s total must be ≤ Budget)', 'Çeyrekte harcanan pazarlama (yıl toplamı ≤ Bütçe olmalı)'), S.section);
   plans.put(checkRow + 1, 0, L(lang, 'Gift weights total % (must be 100)', 'Hediye ağırlıkları toplamı % (100 olmalı)'), S.section);
-  teams.forEach((_, ti) => { for (let qi = 0; qi < QUARTERS; qi++) { const c = 2 + ti * QUARTERS + qi, cl = col(c); plans.put(checkRow, c, `=${cl}${rowOf('marketing')}`, S.int); plans.put(checkRow + 1, c, `=SUM(${cl}${rowOf('offers.0')}:${cl}${rowOf(`offers.${K.offers.length - 1}`)})`, S.int); } });
+  teams.forEach((_, ti) => { for (let qi = 0; qi < QUARTERS; qi++) { const c = 2 + ti * QUARTERS + qi, cl = col(c); plans.put(checkRow, c, `=3*${cl}${rowOf('marketing')}/(13-${cl}${rowOf('marketingFrom')})`, S.int); plans.put(checkRow + 1, c, `=SUM(${cl}${rowOf('offers.0')}:${cl}${rowOf(`offers.${K.offers.length - 1}`)})`, S.int); } });
 
   // ——— Market: the 247 cells of the sample ———
   const market = sheet();
@@ -340,7 +343,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     for (let m = 1; m <= 12; m++) {
       const row = 2 + ti * 12 + m - 1, pc = `${ti * QUARTERS}+C${row}`, plan = rr => `INDEX(Plans,${rr},${pc})`;
       camp.put(row, 0, team.name); camp.put(row, 1, m); camp.put(row, 2, `=IF(B${row}<=3,1,IF(B${row}<=6,2,IF(B${row}<=9,3,4)))`);
-      camp.put(row, 3, `=${plan(P('marketing'))}/12`, S.dec);
+      camp.put(row, 3, `=${plan(P('marketing'))}/(13-${plan(P('marketingFrom'))})`, S.dec);
       camp.put(row, 4, `=D${row}*${plan(P('mediaShare'))}/100`, S.dec);
       camp.put(row, 5, `=D${row}*(1-${plan(P('mediaShare'))}/100)`, S.dec);
       camp.put(row, 6, `=E${row}/CampCPM*1000`, S.dec);
@@ -392,7 +395,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
       ledger.put(row, 10, `=IF(G${row}>0,MAX(0,ROUND(G${row}+SQRT(G${row})*NORMSINV(I${row}),0)),0)`, S.int);
       ledger.put(row, 11, `=IF(G${row}>0,H${row}/G${row},BaseSev)`, S.dec);
       ledger.put(row, 12, `=IF(K${row}>0,MAX(0,K${row}*L${row}+L${row}*SQRT(K${row}/GammaShape)*NORMSINV(J${row})),0)`, S.dec);
-      ledger.put(row, 13, `=F${row}+FixedCost/12+${plan(P('marketing'))}/12`, S.dec);
+      ledger.put(row, 13, `=F${row}+FixedCost/12+${q(SH.campaign)}!D${row}`, S.dec);
       ledger.put(row, 14, `=SUM(E$${first}:E${row})`, S.dec);
       ledger.put(row, 15, `=SUM(M$${first}:M${row})`, S.dec);
       ledger.put(row, 16, `=SUM(N$${first}:N${row})`, S.dec);
@@ -455,7 +458,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     [L(lang, 'Accounts run on an underwriting-year basis: a month’s policies book their full premium, channel expense and ultimate claims in that month.', 'Hesaplar poliçe yılı esasındadır: bir ayın poliçeleri tam primini, kanal giderini ve nihai hasarını o ay yazar.')],
     [L(lang, 'λ = Σ policies × frequency (× event claims multiplier). Claim count N = max(0, round(λ + √λ × NORMSINV(u₁))) — Poisson in its normal form.', 'λ = Σ poliçe × frekans (× olay hasar çarpanı). Hasar adedi N = max(0, round(λ + √λ × NORMSINV(u₁))) — Poisson’un normal hali.')],
     [L(lang, 'Claims = max(0, N × s + s × √(N ÷ gamma shape) × NORMSINV(u₂)), s = the book’s mean severity — the sum of N Gamma claims in its normal form.', 'Hasar = max(0, N × s + s × √(N ÷ gamma şekli) × NORMSINV(u₂)), s = portföyün ortalama şiddeti — N adet Gamma hasarın toplamının normal hali.')],
-    [L(lang, 'Expenses a month = channel acquisition + fixed cost ÷ 12 + marketing ÷ 12.', 'Aylık gider = kanal edinim gideri + sabit gider ÷ 12 + pazarlama ÷ 12.')],
+    [L(lang, 'Expenses a month = channel acquisition + fixed cost ÷ 12 + this month’s marketing. The marketing budget is one wallet for the year: a plan’s marketing is spent evenly from its start month to December (marketing ÷ (13 − start month)), and a quarter revision can spend only what is left.', 'Aylık gider = kanal edinim gideri + sabit gider ÷ 12 + bu ayın pazarlaması. Pazarlama bütçesi yıllık tek cüzdandır: bir planın pazarlaması başladığı aydan Aralık’a eşit harcanır (pazarlama ÷ (13 − başlangıç ayı)); çeyrek revizyonu yalnızca kalanı harcayabilir.')],
     [L(lang, 'Profit = Σ premium − Σ claims − Σ expenses.', 'Kâr = Σ prim − Σ hasar − Σ gider.')],
     [L(lang, '4 · The score', '4 · Puan'), S.section],
     [L(lang, 'Profit points = clamp((profit ÷ fair slice − floor × m/12) ÷ ((target − floor) × m/12) × 100, 0, 100). Share points = clamp(premium share ÷ min(1, share target ÷ teams) × 100).', 'Kâr puanı = sınırla((kâr ÷ adil dilim − taban × a/12) ÷ ((hedef − taban) × a/12) × 100, 0, 100). Pay puanı = sınırla(prim payı ÷ min(1, pay hedefi ÷ takım sayısı) × 100).')],

@@ -178,3 +178,19 @@ test('a campaign change at a quarter review applies from the next month', () => 
   assert.ok(at(season, 0, 3).customers > 0);
   assert.ok(at(season, 0, 3).gifts[2].customers > 0 && at(season, 0, 3).gifts[0].customers === 0, 'the new gift does the work');
 });
+
+test('the marketing budget is one wallet: a quarter plan spends its amount over the months left', async () => {
+  const { monthlyMarketing, marketingSpent } = await import('../dist/casco.js');
+  const c = config(4), B = cascoMoney(c).budget;
+  const t0 = withCampaign(0, 0.6, { marketing: 120000 });
+  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 6, strategy: { ...structuredClone(t0.strategy), marketing: 300000 } }];
+  assert.equal(monthlyMarketing(t0, 2), 10000);
+  assert.equal(monthlyMarketing(t0, 6), 50000);
+  assert.equal(marketingSpent(t0, 6), 60000);
+  assert.equal(marketingSpent(t0, 12), 360000);
+  const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
+  const own = m => { const r = season[m].rows.find(x => x.id === 0); return r.expenses - r.acquisition; }; // fixed cost + marketing, cumulative
+  assert.ok(Math.abs((own(6) - own(5)) - (own(5) - own(4)) - 40000) < 1, 'the monthly bill jumps by the new pace');
+  const over = structuredClone(t0); over.strategyHistory[1].strategy.marketing = B - 50000;
+  assert.throws(() => simulateCasco([over, withCampaign(1, 0.6, {})], c), /exceeds the marketing budget/);
+});

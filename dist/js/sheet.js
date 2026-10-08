@@ -4,7 +4,7 @@
 //
 // Layout: one decision per row, one team per column. Column A holds a hidden machine key for every row,
 // so imports never depend on the visible (translated) labels; the labels are a fallback.
-import { rulesOf, validate, presetName, DIMENSIONS, QUARTER_KEYS, cascoMoney, defaultStrategy, dimensionName, levelName, policiesOf, campaignRules, campaignAudience, campaignOf, offerName } from '../engine.js';
+import { rulesOf, validate, presetName, DIMENSIONS, QUARTER_KEYS, cascoMoney, defaultStrategy, dimensionName, levelName, policiesOf, campaignRules, campaignAudience, campaignOf, offerName, monthlyMarketing, marketingSpent, monthsOf } from '../engine.js';
 
 export { QUARTER_KEYS };
 const L = (lang, en, tr) => (lang === 'tr' ? tr : en);
@@ -170,6 +170,12 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   const config = state.config, R = rulesOf(config), money = cascoMoney(config), K = campaignRules(R);
   const team = (teams ?? state.teams.filter(t => !t.ai))[0];
   const st = team?.strategy ?? defaultStrategy(config), c0 = campaignOf(st);
+  // At a quarter review the budget cell is what is left of the year's wallet, pre-filled with the current pace.
+  const review = state.strategyReviews?.current != null ? state.strategyReviews.rounds?.[state.strategyReviews.current] : null;
+  const from = review && team?.strategy ? review.month + 1 : 0;
+  const spent = from ? marketingSpent(team, from) : 0, left = Math.max(0, money.budget - spent);
+  const marketingCell = from ? Math.min(left, Math.round(monthlyMarketing(team, from) * (12 - from))) : st.marketing;
+  const months = monthsOf(lang);
   const styles = styleRegistry();
   const eur = v => `€${Math.round(v).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}`;
   const fmtDec = fmtDecOf(lang);
@@ -185,7 +191,8 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   input.set('B11', L(lang, '⚠️ IMPORTANT NOTES', '⚠️ ÖNEMLİ NOTLAR'), 'notesBanner'); input.merge('B11:H11');
   [L(lang, 'Coefficients, shares and choices are selected from dropdown lists.', 'Katsayılar, paylar ve seçimler açılır listelerden seçilir.'),
     L(lang, 'Media + offer must equal 100%; the gift weights must equal 100%.', 'Medya + hediye %100 olmalı; hediye ağırlıkları %100 olmalı.'),
-    L(lang, `The marketing budget must stay within ${eur(money.budget)}.`, `Pazarlama bütçesi ${eur(money.budget)} tutarını aşmamalı.`)
+    from ? L(lang, `The marketing budget is one wallet for the year: ${eur(spent)} is spent, at most ${eur(left)} is left for ${months[from]}–${months[11]}.`, `Pazarlama bütçesi yıllık tek cüzdandır: ${eur(spent)} harcandı, ${months[from]}–${months[11]} için en fazla ${eur(left)} kaldı.`)
+      : L(lang, `The marketing budget must stay within ${eur(money.budget)} for the year.`, `Pazarlama bütçesi yıl boyunca ${eur(money.budget)} tutarını aşmamalı.`)
   ].forEach((text, i) => { input.set(`B${13 + i}`, '•', 'text'); input.set(`C${13 + i}`, text, 'text'); });
   input.set('B17', L(lang, '🏷️ TEAM', '🏷️ TAKIM'), 'section14'); input.merge('B17:H17');
   [[L(lang, 'Team name', 'Takım adı'), team?.name ?? ''], [L(lang, 'Product name (optional)', 'Ürün adı (isteğe bağlı)'), st.product ?? ''], [L(lang, 'Strategy in one sentence (optional)', 'Tek cümlede strateji (isteğe bağlı)'), st.sentence ?? '']]
@@ -217,13 +224,17 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   // ——— Marketing ———
   const mkt = caseSheet({ styles, widths: { A: 3.9, B: 17.7, C: 55.1, D: 14.6, E: 17.6, F: 28.1, G: 31.9, I: 10.3, J: 8.1, K: 12.6, L: 11.3 }, heights: { 2: 35.2, 3: 37.2, 5: 42.6, 10: 27.8, 11: 27.8, 12: 27.8, 13: 29.2, 14: 30, 16: 24, 17: 24, 18: 24, 19: 14.4, 20: 27.6 }, tab: BLUE, grid: false });
   mkt.set('B2', L(lang, 'MARKETING - MEDIA & OFFER', 'PAZARLAMA - MEDYA VE HEDİYE'), 'sheetTitle'); mkt.merge('B2:H2');
-  mkt.set('B3', L(lang, `You have a budget of up to ${eur(money.budget)}. You will split this among media & offer.\nSum should equal to 100%. Then weight the gifts: their sum should also equal to 100%.`, `En fazla ${eur(money.budget)} bütçen var. Bunu medya ve hediye arasında böleceksin.\nToplam %100 olmalı. Sonra hediyeleri ağırlıklandır: onların toplamı da %100 olmalı.`), 'mktSub'); mkt.merge('B3:H3');
+  mkt.set('B3', from
+    ? L(lang, `You have ${eur(left)} left of the year's ${eur(money.budget)} (${eur(spent)} spent). Whatever you enter is spent evenly over ${months[from]}–${months[11]}.\nSplit it among media & offer (sum = 100%) and weight the gifts (sum = 100%).`, `Yılın ${eur(money.budget)} bütçesinden ${eur(left)} kaldı (${eur(spent)} harcandı). Gireceğin tutar ${months[from]}–${months[11]} arasına eşit dağıtılır.\nMedya ve hediye arasında böl (toplam %100) ve hediyeleri ağırlıklandır (toplam %100).`)
+    : L(lang, `You have a budget of up to ${eur(money.budget)} for the year. You will split this among media & offer.\nSum should equal to 100%. Then weight the gifts: their sum should also equal to 100%.`, `Yıl için en fazla ${eur(money.budget)} bütçen var. Bunu medya ve hediye arasında böleceksin.\nToplam %100 olmalı. Sonra hediyeleri ağırlıklandır: onların toplamı da %100 olmalı.`), 'mktSub'); mkt.merge('B3:H3');
   mkt.set('B5', L(lang, 'Population : 84 million\n18-55 years old digital users: 43 million\nTarget Group: Joyful Disregarders (21% of 18-55 digital users)', 'Nüfus: 84 milyon\n18-55 yaş dijital kullanıcı: 43 milyon\nHedef kitle: Joyful Disregarders (18-55 yaş dijital kullanıcıların %21’i)'), 'population'); mkt.merge('B5:H5');
   [['B10', L(lang, 'Budget Split', 'Bütçe dağılımı')], ['C10', L(lang, 'Description', 'Açıklama')], ['D10', L(lang, 'Share', 'Pay')], ['F10', L(lang, 'Media', 'Medya')], ['G10', L(lang, 'Description', 'Açıklama')], ['H10', L(lang, 'Cost', 'Maliyet')]].forEach(([ref, v]) => mkt.set(ref, v, 'head'));
   mkt.set('B11', L(lang, 'Media', 'Medya'), 'mktLabel'); mkt.set('C11', L(lang, 'Social media ads to increase the awareness of the campaign', 'Kampanyanın bilinirliğini artıran sosyal medya reklamları'), 'mktDesc'); mkt.set('D11', c0.media / 100, 'yellowPct');
   mkt.set('B12', L(lang, 'Offer', 'Hediye'), 'mktLabel'); mkt.set('C12', L(lang, 'The offer & gifts you will give to casco new acquisition customers', 'Yeni kazanılan kasko müşterilerine vereceğin teklif ve hediyeler'), 'mktDesc'); mkt.set('D12', (100 - c0.media) / 100, 'yellowPct');
   mkt.set('B13', 'TOTAL', 'totalLabel'); mkt.set('C13', '', 'totalLabel'); mkt.merge('B13:C13'); mkt.set('D13', '=D11+D12', 'totalPct');
-  mkt.set('B14', L(lang, 'BUDGET', 'BÜTÇE'), 'totalLabel'); mkt.set('C14', L(lang, `Your marketing for the year (at most ${eur(money.budget)})`, `Yıllık pazarlaman (en fazla ${eur(money.budget)})`), 'totalLabel'); mkt.set('D14', st.marketing, 'yellowEuro');
+  mkt.set('B14', L(lang, 'BUDGET', 'BÜTÇE'), 'totalLabel');
+  mkt.set('C14', from ? L(lang, `Marketing for ${months[from]}–${months[11]} (at most ${eur(left)})`, `${months[from]}–${months[11]} pazarlaman (en fazla ${eur(left)})`) : L(lang, `Your marketing for the year (at most ${eur(money.budget)})`, `Yıllık pazarlaman (en fazla ${eur(money.budget)})`), 'totalLabel');
+  mkt.set('D14', marketingCell, 'yellowEuro');
   mkt.set('B16', L(lang, 'Customers per gift = reach × weight × interest × click × hit ratio.\nEach gift can serve at most (offer budget × its weight) ÷ its cost customers.', 'Hediye başına müşteri = erişim × ağırlık × ilgi × tıklama × hit oranı.\nHer hediye en fazla (hediye bütçesi × ağırlığı) ÷ maliyeti kadar müşteriye yeter.'), 'mktSub'); ['C', 'D'].forEach(cl => { mkt.set(`${cl}16`, '', 'mktSub'); mkt.set(`${cl}17`, '', 'mktSub'); }); mkt.set('B17', '', 'mktSub'); mkt.merge('B16:D17');
   mkt.set('F11', L(lang, 'Cost per reach', 'Erişim maliyeti'), 'mktLabel'); mkt.set('G11', L(lang, 'The cost of 1,000 ad impressions', '1.000 reklam gösteriminin maliyeti'), 'mktDesc'); mkt.set('H11', K.cpm, 'euro666');
   mkt.set('F12', L(lang, `If a customer sees an ad more than ${K.frequency} times, the hit ratio tends to increase by ${Math.round(K.frequencyBonus * 100)}%`, `Müşteri reklamı ${K.frequency} kereden fazla görürse hit oranı %${Math.round(K.frequencyBonus * 100)} artar`), 'mktSub'); mkt.set('G12', '', 'mktSub'); mkt.set('H12', '', 'mktSub'); mkt.merge('F12:H12');
@@ -237,8 +248,8 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   pctList.forEach((v, i) => mkt.set(`XFB${i + 1}`, v, 'listCell'));
   const pickPct = L(lang, 'Pick a share from the list (steps of 5%).', 'Listeden bir pay seç (%5 adım).');
   mkt.list(`D11:D12 K16:K${lastOffer}`, 'PercentageList', pickPct);
-  mkt.decimal('D14', 0, money.budget, L(lang, `Enter 0 to ${money.budget}.`, `0 ile ${money.budget} arasında gir.`));
-  mkt.redWhen('D13', 'notEqual', '1', 1); mkt.redWhen('K20', 'notEqual', '1', 2); mkt.redWhen('D14', 'greaterThan', String(money.budget), 3);
+  mkt.decimal('D14', 0, Math.floor(from ? left : money.budget), L(lang, `Enter 0 to ${Math.floor(from ? left : money.budget)}.`, `0 ile ${Math.floor(from ? left : money.budget)} arasında gir.`));
+  mkt.redWhen('D13', 'notEqual', '1', 1); mkt.redWhen('K20', 'notEqual', '1', 2); mkt.redWhen('D14', 'greaterThan', String(Math.floor(from ? left : money.budget)), 3);
 
   const sheets = [['Input', input], ['Premium', prem], ['Marketing', mkt]];
   const definedNames = [

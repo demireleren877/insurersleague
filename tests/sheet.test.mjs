@@ -212,3 +212,19 @@ test('the gift weights must total 100%, and an old four-sheet workbook is refuse
   const old = teamsFromSheets([{ file: 'old.xlsx', sheets: [...sheets, { name: 'Claim', rows: [] }] }], state.config, 'en');
   assert.match(old.errors.join(' '), /earlier version/);
 });
+
+test('the quarter workbook shows what is spent and pre-fills the rest of the year at the current pace', async () => {
+  const { readWorkbook } = await import('../dist/js/sheet.js');
+  const { reduce } = await import('../dist/js/game.js');
+  const s = freshSession(1_000, { lang: 'en' });
+  reduce(s, { type: 'excel-import-teams', teams: ['Atlas', 'Nova'].map(name => ({ name, strategy: { ...defaultStrategy(name, s.config), sentence: 'p', marketing: 240000 } })) }, { role: 'host', now: 1_000 });
+  reduce(s, { type: 'phase', to: 'briefing' }, { role: 'host', now: 1_000 }); reduce(s, { type: 'phase', to: 'decisions' }, { role: 'host', now: 1_000 }); reduce(s, { type: 'start-race' }, { role: 'host', now: 1_000 });
+  for (let i = 0; i < 6 && !s.strategyReviews.current && s.strategyReviews.current !== 0; i++) reduce(s, { type: 'next-month' }, { role: 'host', now: 1_000 });
+  const review = s.strategyReviews.rounds[s.strategyReviews.current];
+  assert.equal(review.month, 2);
+  const bytes = buildTemplate(s, { lang: 'en', teams: [s.teams[0]] });
+  const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const mkt = sheets.find(sh => sh.name === 'Marketing');
+  assert.equal(mkt.rows[13][3], 180000, 'nine months left at €20k a month');
+  assert.match(String(mkt.rows[2][1]), /€60,000 spent/);
+});

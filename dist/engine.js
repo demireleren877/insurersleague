@@ -4,12 +4,12 @@
 // Room content is fixed once in config.lang; names below are looked up per viewer for display.
 import {
   DIMENSIONS, QUARTER_KEYS, NOMINAL_TEAMS, defaultCascoRules, cascoRulesOf, cascoAssumptions, cascoMoney, cascoSpend,
-  defaultCascoStrategy, validateCasco, simulateCasco, strategyAt, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
+  defaultCascoStrategy, validateCasco, simulateCasco, strategyAt, planAt, monthlyMarketing, marketingSpent, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
   marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience
 } from './casco.js';
 
 export {
-  DIMENSIONS, QUARTER_KEYS, cascoMoney, cascoSpend, strategyAt, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
+  DIMENSIONS, QUARTER_KEYS, cascoMoney, cascoSpend, strategyAt, planAt, monthlyMarketing, marketingSpent, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
   marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience
 };
 
@@ -164,6 +164,8 @@ export function teams(lang = 'en', config = scenario(lang)) {
 export const find = (list, id) => list.find(x => String(x.id) === String(id));
 export const spend = s => cascoSpend(s);
 export const defaultStrategy = config => defaultCascoStrategy(config);
+// The plan as the year saw it: the final prices and campaign, with marketing as the year's total spend.
+export const yearPlan = team => ({ ...strategyAt(team, 11), marketing: Math.round(marketingSpent(team, 12)) });
 export const validate = (team, config, lang) => validateCasco(team, config, lang);
 export const simulate = (teamList, config) => simulateCasco(teamList, config);
 

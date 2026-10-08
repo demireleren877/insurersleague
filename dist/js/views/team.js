@@ -3,11 +3,12 @@
 import { getState, getSession, myTeam, raceStarted, seasonDone, playhead, currentStrategyReview, teamStatus, now, timeLeft, brochureUrl } from '../store.js';
 import { icon, emblem } from '../ui.js';
 import { esc, clock } from '../format.js';
-import { monthsOf } from '../../engine.js';
+import { monthsOf, marketingSpent, cascoMoney } from '../../engine.js';
 import { t, getLang, languageControl } from '../i18n.js';
 import { planSummary } from './plan.js';
 import { sampleWorkbook } from './home.js';
 
+const fmtInt = v => Math.round(v).toLocaleString(getLang() === 'tr' ? 'tr-TR' : 'en-US');
 const shell = (body, pin) => `<div class="join-app team-app">
   <header class="join-brand"><span class="brand-mark">${icon('bolt', 20)}</span><strong class="display">Insurers<b>League</b></strong>${pin ? `<span class="chip">PIN <b class="num">${esc(pin.replace(/(\d{3})(\d{3})/, '$1 $2'))}</b></span>` : ''}${languageControl()}</header>
   <main class="join-card" id="main">${body}</main>
@@ -69,6 +70,7 @@ export function teamPage() {
       <p class="kicker amber">${t(`Quarter ${quarter} review`, `${quarter}. çeyrek molası`)} · <b class="num" data-quarter-clock>${clock(Math.max(0, (review.closesAt - now()) / 1000))}</b></p>
       <h1 class="display">${done ? t('Next-quarter plan received', 'Gelecek çeyrek planın alındı') : t('Update your plan', 'Planını güncelle')}</h1>
       <p class="muted">${t('Download your current plan, change prices, marketing or claims operations, and upload it. If no file arrives, your plan carries on unchanged.', 'Güncel planını indir; fiyat, pazarlama ya da hasar operasyonunu değiştir ve yükle. Dosya gelmezse planın aynen sürer.')}</p>
+      ${(() => { const spent = marketingSpent(team, review.month + 1), budget = cascoMoney(s.config).budget, months = monthsOf(getLang()); return `<p class="team-timer">${icon('coins', 16)} ${t(`Marketing: €${fmtInt(spent)} spent, €${fmtInt(budget - spent)} left for ${months[review.month + 1]}–${months[11]}.`, `Pazarlama: €${fmtInt(spent)} harcandı, ${months[review.month + 1]}–${months[11]} için €${fmtInt(budget - spent)} kaldı.`)}</p>`; })()}
       ${upload(true, done)}
       ${brochure}`, pin);
   }

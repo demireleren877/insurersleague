@@ -1,6 +1,6 @@
 // Session history: a compact record of every finished season, filed on the server under this
 // device's private history code (and cached locally so the list opens offline).
-import { rank, bookProfile } from '../engine.js';
+import { rank, bookProfile, yearPlan } from '../engine.js';
 import { archetypeKey } from './narrative.js';
 
 const CODE_KEY = 'il-history-code';
@@ -38,7 +38,7 @@ export function buildSummary(s, months, label = '') {
     id: sessionId(s), at: raceStart(s) ?? Date.now(), code: s.code, label,
     preset: s.config.preset, lang: s.config.lang, year: s.config.year, weights: s.config.weights,
     teams: rows.map(r => {
-      const team = s.teams.find(t => t.id === r.id), st = team.strategy;
+      const team = s.teams.find(t => t.id === r.id), st = yearPlan(team);
       return {
         name: team.name, color: team.color, emblem: team.emblem, code: team.code, ai: team.ai?.profile ?? null,
         rank: r.rank, score: r.score, eligible: r.eligible, bonus: r.bonus || 0, profit: r.profit, share: r.share, combinedRatio: r.combinedRatio,
