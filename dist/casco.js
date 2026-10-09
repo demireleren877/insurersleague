@@ -158,7 +158,9 @@ export function validateCasco(team, config, lang = config?.lang) {
   const s = team.strategy, R = cascoRulesOf(config), money = cascoMoney(config), errors = [];
   const m = (en, tr) => L(lang, en, tr);
   if (!String(team.name || '').trim()) errors.push(m('Enter a company name.', 'Şirket adını girin.'));
+  // Same bounds as the workbook cell (Premium!C5).
   if (!(Number.isFinite(s.basePremium) && s.basePremium > 0)) errors.push(m('Enter a base premium above zero.', 'Sıfırdan büyük bir baz prim girin.'));
+  else if (s.basePremium > 1e7) errors.push(m('The base premium can be at most 10,000,000 EUR.', 'Baz prim en fazla 10.000.000 EUR olabilir.'));
   for (const dim of DIMENSIONS) {
     const list = s.coef?.[dim];
     if (!Array.isArray(list) || list.length !== R.dimensions[dim].length || list.some(v => !Number.isFinite(v) || v < R.coef.min - 1e-9 || v > R.coef.max + 1e-9))

@@ -11,7 +11,7 @@ import { checkRule, setPath, sanitizeRules } from './rules.js';
 export const SCHEMA = 5;
 export const MIN_TEAMS = 2;
 export const MAX_TEAMS = 12;
-export const COUNTDOWN_MS = 3200;
+export const COUNTDOWN_MS = 4000; // 3 · 2 · 1 · GO, a second each
 export const REVEAL_MS = 10000;
 export const FINAL_DELAY_MS = 2500;
 export const STRATEGY_REVIEW_MONTHS = [2, 5, 8];
@@ -132,7 +132,8 @@ export function playhead(s, now) {
     month = Math.min(limit, p.base + n);
     start = p.t0 + (month - p.base) * step;
   }
-  const countdown = p.running && month === -1 ? Math.max(0, Math.ceil((p.t0 + step - now) / 1000)) : null;
+  // 3, 2, 1, then 0 (GO) for the last second. Capped at 3 so a device clock a little behind the server never shows a 4.
+  const countdown = p.running && month === -1 ? Math.min(3, Math.max(0, Math.ceil((p.t0 + step - now) / 1000) - 1)) : null;
   const waiting = p.running && gate !== undefined && month === gate && now >= start + step;
   return { month, start, step, running: p.running && month < 11 && !waiting, countdown, waiting };
 }

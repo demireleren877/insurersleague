@@ -130,6 +130,8 @@ test('coefficients go on a 0.05 grid and gift weights on steps of 5', () => {
   assert.match(validateCasco(off, c).join(' '), /steps of 0.05/);
   const odd = structuredClone(ok); odd.strategy.offers = [52, 48, 0, 0];
   assert.match(validateCasco(odd, c).join(' '), /steps of 5/);
+  const huge = structuredClone(ok); huge.strategy.basePremium = 5e7;
+  assert.match(validateCasco(huge, c).join(' '), /at most 10,000,000/);
   assert.ok(money.budget > 0);
 });
 
