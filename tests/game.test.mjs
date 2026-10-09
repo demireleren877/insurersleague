@@ -90,6 +90,24 @@ test('quarter uploads move only the quarter levers and never rewrite finished mo
   assert.equal(currentStrategyReview(s), null);
 });
 
+test('a team device applies its own quarter plan locally even though rivals’ plans are hidden', () => {
+  let now = 10_000;
+  const s = freshSession(now, { code: '123456', lang: 'en' });
+  reduce(s, { type: 'excel-join', name: 'Kartal' }, player('p1', ++now));
+  reduce(s, { type: 'excel-add-team', name: 'Mavi' }, host(++now));
+  toRace(s, ++now);
+  now = s.playback.t0 + s.config.speed * 1000 * 4 + 50;
+  tick(s, now);
+  assert.ok(currentStrategyReview(s));
+  // What the team's own browser holds: its plan in full, the rival's hidden.
+  const local = structuredClone(viewFor(s, { role: 'player', playerId: 'p1' }, now));
+  const mine = local.teams.find(t => t.name === 'Kartal');
+  const plan = { ...structuredClone(mine.strategy), basePremium: mine.strategy.basePremium + 5 };
+  const optimistic = reduce(local, { type: 'excel-team-plan', teamId: mine.id, strategy: plan }, player('p1', now + 10));
+  assert.ok(optimistic.changed, optimistic.error);
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: mine.id, strategy: plan }, player('p1', now + 10)).changed, 'and the server takes it');
+});
+
 test('a quarter plan can spend only what is left of the year’s marketing budget', () => {
   let now = 10_000;
   const s = roomWith(['Atlas', 'Nova'], now);

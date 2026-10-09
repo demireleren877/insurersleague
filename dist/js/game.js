@@ -290,6 +290,8 @@ function reviewsOf(s) {
 }
 
 function recalculateSeason(s) {
+  // A team device sees its rivals' plans hidden: it can't (and needn't) re-run the season. The room server does.
+  if (s.teams.some(t => t.strategy?._hidden)) return;
   const results = simulate(s.teams, s.config);
   s.results = results;
   s.scales = seasonScales(results);
