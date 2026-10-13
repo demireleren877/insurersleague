@@ -36,3 +36,9 @@ new_sqlite_classes = ["Room"]
 [[migrations]]
 tag = "v2"
 new_sqlite_classes = ["Archive"]
+
+# The participant data file (2.4 MB). Served by the Worker from R2, which answers the same everywhere;
+# as a static asset it was missing on some edges. Upload: npm run upload-data
+[[r2_buckets]]
+binding = "DATA"
+bucket_name = "insurersleague-data"

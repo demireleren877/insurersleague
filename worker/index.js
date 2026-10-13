@@ -21,6 +21,17 @@ export default {
     }
     if (url.pathname === '/api/health') return json({ ok: true });
 
+    // The participant data file lives in R2 (the same answer from every edge), not among the static assets.
+    if (url.pathname === '/data/katilimci-verisi.xlsx' && (request.method === 'GET' || request.method === 'HEAD')) {
+      const file = await env.DATA?.get('katilimci-verisi.xlsx');
+      if (!file) return new Response('The data file is not available yet.', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+      return new Response(request.method === 'HEAD' ? null : file.body, { headers: {
+        'content-type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'content-disposition': 'attachment; filename="Pricing Case Data.xlsx"',
+        'content-length': String(file.size), etag: file.httpEtag, 'cache-control': 'public, max-age=300'
+      } });
+    }
+
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
       const body = await request.clone().json().catch(() => ({}));
       const lang = body.lang === 'tr' ? 'tr' : 'en';
