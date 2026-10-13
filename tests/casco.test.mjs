@@ -191,8 +191,14 @@ test('the marketing budget is one wallet: a quarter plan spends its amount over 
   assert.equal(marketingSpent(t0, 6), 60000);
   assert.equal(marketingSpent(t0, 12), 360000);
   const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
-  const own = m => { const r = season[m].rows.find(x => x.id === 0); return r.expenses - r.acquisition; }; // fixed cost + marketing, cumulative
-  assert.ok(Math.abs((own(6) - own(5)) - (own(5) - own(4)) - 40000) < 1, 'the monthly bill jumps by the new pace');
+  const fixed = c.assumptions.fixedCost.value / 12;
+  for (let m = 0; m < 12; m++) {
+    const r = season[m].rows.find(x => x.id === 0), before = m ? season[m - 1].rows.find(x => x.id === 0).expenses : 0;
+    // Only what the money bought is a cost: the media and the gifts handed out.
+    assert.ok(Math.abs(r.expenses - before - fixed - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
+    assert.ok(r.campaign.giftsUsed <= r.campaign.giftBudget + 1e-6, 'never more gifts than their budget');
+  }
+  assert.ok(Math.abs(season[6].rows.find(x => x.id === 0).campaign.media - 50000 * t0.strategy.mediaShare / 100) < 1e-6, 'from July the media follows the new pace');
   const over = structuredClone(t0); over.strategyHistory[1].strategy.marketing = B - 50000;
   assert.throws(() => simulateCasco([over, withCampaign(1, 0.6, {})], c), /exceeds the marketing budget/);
 });

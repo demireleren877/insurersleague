@@ -15,7 +15,6 @@ export const RULE_FIELDS = {
   'model.frequency': F('pct', 0.001, 1, 0.001), 'model.severity': F('eur', 1, 1000000, 0.001),
   'model.lossRatio': F('pct', 0.1, 2, 0.01), 'model.gammaShape': F('num', 0.2, 20, 0.1),
   ...LEVEL_FIELDS,
-  'dimensions.channel.#.expense': F('pct', 0, 0.6, 0.005),
   'behavior.#.price': F('num', 0, 10, 0.1),
   'commercialPrice': F('x', 0.2, 2, 0.05),
   'market.outside': F('num', 0, 10, 0.1), 'market.seasonality': F('pct', 0, 0.5, 0.01),

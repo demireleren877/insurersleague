@@ -104,7 +104,7 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
       digital_campaign: { cost_per_1000_impressions: campaignRules(rules).cpm, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), frequency_bonus: { above_views: campaignRules(rules).frequency, hit_ratio_up: campaignRules(rules).frequencyBonus }, gifts: campaignRules(rules).offers, note: 'All marketing runs the campaign. The ads show each gift in proportion to its weight. Customers per gift = reach × weight × interest × click × hit, at most (gift budget × weight) ÷ gift cost.' },
       scoring_weights: { profit: config.weights[0], market_share: config.weights[1] }
     },
-    segments: Object.fromEntries(DIMENSIONS.map(dim => [dim, rules.dimensions[dim].map(lv => ({ level: lv.id, frequency_coef: lv.freq, severity_coef: lv.sev, market_premium_coef: lv.prem, ...(lv.expense !== undefined ? { channel_expense_ratio: lv.expense } : {}) }))])),
+    segments: Object.fromEntries(DIMENSIONS.map(dim => [dim, rules.dimensions[dim].map(lv => ({ level: lv.id, frequency_coef: lv.freq, severity_coef: lv.sev, market_premium_coef: lv.prem }))])),
     events: config.events.map(event => ({ month: event.month + 1, title: event.title, description: event.description, scope: event.scope })),
     competitors: session.teams.map(team => ({ name: team.name, ai: !!team.ai })),
     quarterly_review: Number.isInteger(reviewMonth) ? {

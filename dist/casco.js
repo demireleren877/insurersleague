@@ -110,9 +110,9 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
       'The most a team can spend on its digital campaign in the year.', 'Bir takımın yıl içinde dijital kampanyasına harcayabileceği en fazla tutar.'),
     fixedCost: A(k(0.052), 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
       'Yearly overhead every company carries, claims handling included.', 'Her şirketin taşıdığı yıllık genel gider; hasar yönetimi dahil.'),
-    profitFloor: A(-0.03, -1, 0.5, 'ratio', 'Profitability floor', 'Kârlılık tabanı',
+    profitFloor: A(0, -1, 0.5, 'ratio', 'Profitability floor', 'Kârlılık tabanı',
       'Profit as a share of a fair market slice (the market’s premium ÷ 6) that scores 0 profitability points.', 'Kârlılıktan 0 puan alınan kâr / adil pazar dilimi (piyasa primi ÷ 6) oranı.'),
-    profitTarget: A(0.075, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
+    profitTarget: A(0.2, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
       'Profit as a share of a fair market slice that scores full profitability points.', 'Kârlılıktan tam puan alınan kâr / adil pazar dilimi oranı.'),
     shareTarget: A(1.5, 0.5, 6, 'x', 'Market share target', 'Pazar payı hedefi',
       'Full share points at this multiple of a fair share (1 / teams).', 'Adil payın (1 / takım) bu katında tam pay puanı.')
@@ -279,7 +279,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
   const risk = cells().map(c => cellRisk(c, R));
   const channels = R.dimensions.channel.length, personas = R.dimensions.persona.length;
   const ledgers = teamList.map(t => ({
-    id: t.id, policies: 0, gwp: 0, claims: 0, claimCount: 0, expenses: 0, acquisition: 0, expectedCost: 0, profit: 0,
+    id: t.id, policies: 0, gwp: 0, claims: 0, claimCount: 0, expenses: 0, marketing: 0, expectedCost: 0, profit: 0,
     persona: Array(personas).fill(0), channel: Array(channels).fill(0)
   }));
   const months = [];
@@ -335,17 +335,17 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       const s = strategies[i], l = ledgers[i], [u1, u2] = draws.teams[t.id][m];
       const camp = campaign[i];
       l.campaignCustomers = (l.campaignCustomers || 0) + camp.customers;
-      let policiesSold = 0, gwp = 0, expectedCount = 0, expectedCost = 0, acquisition = 0;
+      let policiesSold = 0, gwp = 0, expectedCount = 0, expectedCost = 0;
       const byChannel = Array(channels).fill(0), byPersona = Array(personas).fill(0);
       counts[i].forEach((k, c) => {
         if (!k) return;
         const cell = cells()[c], premium = k * offerFor(s, cell);
         const shock = live.reduce((x, e) => x * (inScope(e.scope, cell) ? e.cost ?? 1 : 1), 1);
-        policiesSold += k; gwp += premium; acquisition += premium * R.dimensions.channel[cell[1]].expense;
+        policiesSold += k; gwp += premium;
         expectedCount += k * risk[c].freq * shock; expectedCost += k * risk[c].cost * shock;
         byChannel[cell[1]] += k; byPersona[cell[3]] += k;
       });
-      l.policies += policiesSold; l.gwp += gwp; l.acquisition += acquisition; l.expectedCost += expectedCost;
+      l.policies += policiesSold; l.gwp += gwp; l.expectedCost += expectedCost;
       byChannel.forEach((v, k) => { l.channel[k] += v; }); byPersona.forEach((v, k) => { l.persona[k] += v; });
 
       // Underwriting-year basis: this month's policies book their full-year premium and ultimate claims.
@@ -353,7 +353,11 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       const draw = claimDraw(expectedCount, meanSev, R.model.gammaShape, u1, u2);
       const count = draw.count, claims = draw.amount;
 
-      const monthExpenses = acquisition + money.fixedMonthly + spendNow[i];
+      // Marketing costs what it actually bought: the media and the gifts handed out. Gift money no customer
+      // took stays with the company, like any part of the budget left unspent.
+      const marketingCost = camp.media + camp.giftsUsed;
+      const monthExpenses = money.fixedMonthly + marketingCost;
+      l.marketing += marketingCost;
       const profitBefore = l.profit;
       l.claims += claims; l.claimCount += count; l.expenses += monthExpenses;
 
@@ -361,7 +365,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       l.profit = profit;
       return {
         id: t.id, policies: l.policies, newPolicies: policiesSold, gwp: l.gwp, earned: l.gwp, claims: l.claims,
-        expenses: l.expenses, acquisition: l.acquisition, profit, monthProfit: profit - profitBefore, claimCount: l.claimCount,
+        expenses: l.expenses, marketing: l.marketing, profit, monthProfit: profit - profitBefore, claimCount: l.claimCount,
         grossLossRatio: l.gwp ? l.claims / l.gwp : 0,
         lossRatio: l.gwp ? l.claims / l.gwp : 0, combinedRatio: l.gwp ? (l.claims + l.expenses) / l.gwp : 0,
         monthLossRatio: gwp ? claims / gwp : 0, eligible: true, // every team competes for every trophy (kept so saved sessions still read)

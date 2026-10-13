@@ -171,7 +171,7 @@ function segmentsSection(s, R) {
     const shares = levelShares(dim), isChannel = dim === 'channel';
     return `<h3 class="rs-sub">${dimensionName(dim, getLang())}</h3>
       <div class="rt-wrap"><table class="rt probe">
-        <thead><tr><th scope="col">${t('Level', 'Seviye')}</th><th scope="col"><span>${t('In the sample', 'Örneklemde')}</span></th><th scope="col"><span>${t('Frequency', 'Frekans')}</span><small>${t('× base', '× temel')}</small></th><th scope="col"><span>${t('Severity', 'Şiddet')}</span><small>${t('× base', '× temel')}</small></th><th scope="col"><span>${t('Market premium', 'Piyasa primi')}</span><small>${t('× base', '× temel')}</small></th>${isChannel ? `<th scope="col"><span>${t('Expense ratio', 'Gider oranı')}</span></th>` : ''}<th scope="col"><span>${t('Market loss ratio', 'Piyasa hasar oranı')}</span><small>${t('LR × F × S ÷ P', 'HO × F × Ş ÷ P')}</small></th></tr></thead>
+        <thead><tr><th scope="col">${t('Level', 'Seviye')}</th><th scope="col"><span>${t('In the sample', 'Örneklemde')}</span></th><th scope="col"><span>${t('Frequency', 'Frekans')}</span><small>${t('× base', '× temel')}</small></th><th scope="col"><span>${t('Severity', 'Şiddet')}</span><small>${t('× base', '× temel')}</small></th><th scope="col"><span>${t('Market premium', 'Piyasa primi')}</span><small>${t('× base', '× temel')}</small></th><th scope="col"><span>${t('Market loss ratio', 'Piyasa hasar oranı')}</span><small>${t('LR × F × S ÷ P', 'HO × F × Ş ÷ P')}</small></th></tr></thead>
         <tbody>${R.dimensions[dim].map((lv, i) => {
           const lr = R.model.lossRatio * lv.freq * lv.sev / lv.prem;
           return `<tr><th scope="row"><b>${levelName(dim, i, getLang())}</b><small class="faint"> ${esc(lv.id)}</small></th>
@@ -179,7 +179,6 @@ function segmentsSection(s, R) {
             <td>${numCell(`dimensions.${dim}.${i}.freq`, `${levelName(dim, i, getLang())} · ${t('frequency', 'frekans')}`)}</td>
             <td>${numCell(`dimensions.${dim}.${i}.sev`, `${levelName(dim, i, getLang())} · ${t('severity', 'şiddet')}`)}</td>
             <td>${numCell(`dimensions.${dim}.${i}.prem`, `${levelName(dim, i, getLang())} · ${t('premium', 'prim')}`)}</td>
-            ${isChannel ? `<td>${numCell(`dimensions.channel.${i}.expense`, `${levelName(dim, i, getLang())} · ${t('expense', 'gider')}`)}</td>` : ''}
             <td class="num ${lr > R.model.lossRatio * 1.15 ? 'down' : lr < R.model.lossRatio * 0.85 ? 'up' : ''}">${pct(lr, 0)}</td></tr>`;
         }).join('')}</tbody>
       </table></div>`;
