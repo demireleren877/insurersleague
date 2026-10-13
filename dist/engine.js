@@ -89,7 +89,7 @@ export const EVENTS = eventsFor('en');
 
 export function scenario(lang = 'en') {
   return {
-    version: 'casco-1.0', seed: 2026, year: 2026, branch: presetName(DEFAULT_PRESET, lang), preset: DEFAULT_PRESET, minutes: 25, speed: 6,
+    version: 'casco-1.0', seed: 2026, year: 2026, branch: presetName(DEFAULT_PRESET, lang), preset: DEFAULT_PRESET, minutes: 20, speed: 6,
     weights: [50, 50], lang, assumptions: cascoAssumptions(lang), events: eventsFor(lang), rules: defaultCascoRules()
   };
 }

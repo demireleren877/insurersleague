@@ -632,6 +632,14 @@ body.on-stage { overflow: hidden; }
 
 /* Quarter end: the quarter's results stay on screen through the review; teams sit in a strip below. */
 .st-review { grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 18px; }
+.qr-body { display: grid; grid-template-columns: minmax(0, 1fr) clamp(260px, 24vw, 380px); gap: 18px; min-height: 0; }
+.qr-news { min-height: 0; overflow: auto; display: grid; align-content: start; gap: 10px; padding: 14px 16px; border: var(--stroke) solid var(--ink); border-radius: var(--sk-b); background: var(--canvas); }
+.qr-news h2 { font-size: 22px; }
+.qr-news ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+.qr-news li { display: grid; gap: 3px; padding: 10px 12px; border-radius: var(--sk-c); background: var(--hl-soft, #fff3bf); }
+.qr-news small { font-weight: 700; font-size: 12px; letter-spacing: .06em; color: var(--ink-2); }
+.qr-news p { margin: 0; font-size: 14.5px; line-height: 1.4; }
+.qr-news-empty { margin: 0; color: var(--ink-2); }
 .qr-results { align-self: start; min-height: 0; max-height: 100%; overflow: auto; border: var(--stroke) solid var(--ink); border-radius: var(--sk-b); background: var(--canvas); }
 .qr-table { width: 100%; border-collapse: collapse; font-size: clamp(16px, 1.25vw, 22px); }
 .qr-table th { position: sticky; top: 0; padding: 14px 18px 10px; border-bottom: var(--stroke) solid var(--ink); background: var(--canvas); text-align: left; font: 700 12px/1 var(--font); font-variation-settings: var(--hand-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; }

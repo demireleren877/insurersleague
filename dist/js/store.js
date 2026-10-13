@@ -171,11 +171,15 @@ export const connectStage = pin => goOnline('stage', pin, { role: 'stage' });
 
 // Participant
 export const roomInfo = pin => api(`/api/rooms/${pin}`);
-export const savedPlayer = () => { try { return JSON.parse(sessionStorage.getItem(PLAYER_KEY)); } catch { return null; } };
+// The device's team identity outlives the tab: a closed tab, a reload or a browser restart reopens the same team.
+// This tab's own copy wins, so two tabs that joined different teams keep their own.
+const readPlayer = store => { try { return JSON.parse(store.getItem(PLAYER_KEY)); } catch { return null; } };
+export const savedPlayer = () => readPlayer(sessionStorage) || readPlayer(localStorage);
 export function connectPlayer(pin) {
   const saved = savedPlayer();
   const playerId = saved?.pin === pin ? saved.playerId : [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, '0')).join('');
-  try { sessionStorage.setItem(PLAYER_KEY, JSON.stringify({ pin, playerId })); } catch { /* ignore */ }
+  const value = JSON.stringify({ pin, playerId });
+  for (const store of [sessionStorage, localStorage]) { try { store.setItem(PLAYER_KEY, value); } catch { /* ignore */ } }
   goOnline('player', pin, { role: 'player', player: playerId }, playerId);
 }
 export function resumePlayer() {
@@ -185,7 +189,7 @@ export function resumePlayer() {
   return true;
 }
 export function forgetPlayer() {
-  try { sessionStorage.removeItem(PLAYER_KEY); sessionStorage.removeItem(STEP_KEY); } catch { /* ignore */ }
+  try { sessionStorage.removeItem(PLAYER_KEY); sessionStorage.removeItem(STEP_KEY); localStorage.removeItem(PLAYER_KEY); } catch { /* ignore */ }
   disconnect();
 }
 

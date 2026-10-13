@@ -34,8 +34,17 @@ export function teamPage() {
 
   const team = myTeam();
   if (!team) {
-    if (raceStarted()) return shell(`<h1 class="display">${t('The race has started', 'Yarış başladı')}</h1><p class="muted">${t('New teams can’t join now. Follow the race on the stage screen.', 'Artık yeni takım katılamaz. Yarışı sahne ekranından izle.')}</p>`, pin);
-    const waiting = s.teams.filter(team2 => !team2.owner && !team2.ai && team2.excel);
+    // Mid-race the form only takes a team back (a closed tab, another device); new teams can't join.
+    if (raceStarted()) return shell(`<p class="kicker amber">${t('Race in progress', 'Yarış sürüyor')}</p>
+      <h1 class="display">${t('Back to your team', 'Takımına geri dön')}</h1>
+      <p class="muted">${t('Type your team’s name exactly as it is on the stage. New teams can’t join now.', 'Takımının adını sahnedeki gibi yaz. Artık yeni takım katılamaz.')}</p>
+      <form class="join-form" data-form="team-join">
+        <label for="team-name">${t('Team name', 'Takım adı')}</label>
+        <input class="input join-name" id="team-name" name="name" maxlength="16" autocomplete="off" required>
+        ${s.teams.filter(t2 => !t2.ai && !t2.connected).length ? `<p class="join-others">${t('Teams without a device', 'Cihazı bağlı olmayan takımlar')}: ${s.teams.filter(t2 => !t2.ai && !t2.connected).map(t2 => `<button type="button" class="linklike" data-action="team-fill" data-name="${esc(t2.name)}">${esc(t2.name)}</button>`).join(', ')}</p>` : ''}
+        <button class="btn go lg" type="submit">${t('Back to the game', 'Oyuna dön')} ${icon('arrow', 18)}</button>
+      </form>`, pin);
+    const waiting = s.teams.filter(team2 => !team2.ai && team2.excel && !team2.connected);
     return shell(`<p class="kicker amber">${t('Step 1 of 2', 'Adım 1 / 2')}</p>
       <h1 class="display">${t('Name your team', 'Takımını kur')}</h1>
       <p class="muted">${t('If the moderator already added your team, type the same name to take it over.', 'Moderatör takımını zaten eklediyse aynı adı yaz; takım sana geçer.')}</p>

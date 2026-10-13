@@ -36,7 +36,7 @@ test('the game runs from the moderator screen: teams arrive by Excel, devices ca
 
   assert.ok(reduce(s, { type: 'phase', to: 'briefing' }, host(1_004)).changed);
   assert.ok(reduce(s, { type: 'phase', to: 'decisions' }, host(1_005)).changed);
-  assert.equal(s.deadline, 1_005 + 25 * 60_000, 'the decision window runs 25 minutes');
+  assert.equal(s.deadline, 1_005 + 20 * 60_000, 'the decision window runs 20 minutes');
   assert.ok(reduce(s, { type: 'start-race' }, host(1_006)).changed);
   assert.equal(s.results.length, 12);
 });
@@ -299,20 +299,48 @@ test('a team joins from its own device and hands in only its own workbook', () =
   assert.match(reduce(s, { type: 'excel-join', name: 'Late' }, player('ccc', 2_001)).error, /started/);
 });
 
-test('the decision window closes team uploads after 25 minutes; quarter reviews last 5 minutes', async () => {
-  const { EXCEL_REVIEW_MS } = await import('../dist/js/game.js');
-  assert.equal(EXCEL_REVIEW_MS, 5 * 60_000);
+test('the decision window closes team uploads after 20 minutes; quarter reviews last 15, 10 and 5 minutes', async () => {
+  const { EXCEL_REVIEW_MINUTES } = await import('../dist/js/game.js');
+  assert.deepEqual(EXCEL_REVIEW_MINUTES, { 2: 15, 5: 10, 8: 5 });
   const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  assert.equal(s.config.minutes, 20);
   reduce(s, { type: 'excel-join', name: 'Nova' }, player('p1', 1_001));
   reduce(s, { type: 'excel-add-team', name: 'Atlas' }, host(1_002));
   reduce(s, { type: 'phase', to: 'briefing' }, host(1_003));
   reduce(s, { type: 'phase', to: 'decisions' }, host(1_004));
   const nova = s.teams.find(t => t.name === 'Nova'), plan = { ...defaultStrategy('Nova', s.config), sentence: 'Plan.' };
-  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 24 * 60_000)).changed, 'in time');
-  assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 26 * 60_000)).error, /Time’s up/);
-  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 26 * 60_000)).changed, 'the moderator can still upload');
-  reduce(s, { type: 'extend' }, host(1_004 + 26 * 60_000));
-  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 28 * 60_000)).changed, 'added time reopens uploads');
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 19 * 60_000)).changed, 'in time');
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 21 * 60_000)).error, /Time’s up/);
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 21 * 60_000)).changed, 'the moderator can still upload');
+  reduce(s, { type: 'extend' }, host(1_004 + 21 * 60_000));
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 23 * 60_000)).changed, 'added time reopens uploads');
+  // The three reviews get 15, 10 and 5 minutes.
+  let now = 2_000_000;
+  reduce(s, { type: 'start-race' }, host(now));
+  const lengths = [];
+  for (let k = 0; k < 40 && lengths.length < 3; k++) {
+    reduce(s, { type: 'next-month' }, host(now));
+    const review = currentStrategyReview(s);
+    if (review) { lengths.push((review.closesAt - review.openedAt) / 60_000); reduce(s, { type: 'quarter-close' }, host(now)); }
+  }
+  assert.deepEqual(lengths, [15, 10, 5]);
+});
+
+test('a team whose tab was closed gets back in by its name, even mid-race; a connected team stays put', () => {
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  reduce(s, { type: 'excel-join', name: 'Nova' }, player('old', 1_001));
+  reduce(s, { type: 'excel-add-team', name: 'Atlas' }, host(1_002));
+  const nova = s.teams.find(t => t.name === 'Nova');
+  assert.match(reduce(s, { type: 'excel-join', name: 'nova' }, player('new', 1_003)).error, /still connected/);
+  reduce(s, { type: 'presence', connected: false }, { role: 'system', playerId: 'old', now: 1_004 }); // the tab closes
+  assert.ok(reduce(s, { type: 'excel-join', name: 'nova' }, player('new', 1_005)).changed);
+  assert.equal(nova.owner, 'new');
+  toRace(s, 1_006);
+  reduce(s, { type: 'presence', connected: false }, { role: 'system', playerId: 'new', now: 1_007 });
+  assert.ok(reduce(s, { type: 'excel-join', name: 'Nova' }, player('third', 1_008)).changed, 'mid-race too');
+  assert.equal(nova.owner, 'third');
+  assert.equal(s.teams.length, 2, 'no team was created or dropped');
+  assert.match(reduce(s, { type: 'excel-join', name: 'Brand New' }, player('fourth', 1_009)).error, /New teams can’t join/);
 });
 
 test('a brochure version is set only by the room server, never by a device action', () => {

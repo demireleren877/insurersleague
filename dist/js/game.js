@@ -16,7 +16,9 @@ export const REVEAL_MS = 10000;
 export const FINAL_DELAY_MS = 2500;
 export const STRATEGY_REVIEW_MONTHS = [2, 5, 8];
 export const STRATEGY_REVIEW_MS = 120000;
-export const EXCEL_REVIEW_MS = 300000; // quarter review: 5 minutes
+export const EXCEL_REVIEW_MS = 300000; // the last quarter review: 5 minutes
+// Workbook reviews shorten through the year: 15 minutes after March, 10 after June, 5 after September.
+export const EXCEL_REVIEW_MINUTES = { 2: 15, 5: 10, 8: 5 };
 export const TEAM_COLORS = ['#43C6FF', '#FFBE55', '#AB98F8', '#57D8B3', '#FF887C', '#6D9CFF', '#F58BD3', '#B8E06A', '#FF9F43', '#4FD1C5', '#E8D36B', '#C9A7FF'];
 export const EMBLEM_COUNT = 12;
 export const QUIZ_MODES = {
@@ -55,7 +57,7 @@ export function freshSession(now = Date.now(), { code = '000000', lang = 'en', p
     sound: false,
     reduce: false,
     quiz: { mode: 'off', duration: 20, bonus: 2, auto: true, order: 'shuffle', questions: structuredClone(questionsFor(lang, p)), rounds: [], current: null },
-    // Collecting revised workbooks takes longer than tapping a phone: the pause runs ten minutes (the moderator can close it early).
+    // Workbook reviews run 15, 10 and 5 minutes (EXCEL_REVIEW_MINUTES); the moderator can close one early.
     strategyReviews: { duration: EXCEL_REVIEW_MS / 1000, rounds: [], current: null },
     notice: null,
     updatedAt: now
@@ -302,7 +304,8 @@ function openStrategyReview(s, month, now) {
   if (!STRATEGY_REVIEW_MONTHS.includes(month) || reviews.rounds.some(r => r.month === month)) return false;
   const h = playhead(s, now);
   s.playback = { base: month, t0: h.start || now, running: false };
-  const review = { month, openedAt: now, closesAt: now + (reviews.duration || STRATEGY_REVIEW_MS / 1000) * 1000, submitted: {}, changed: {}, initialStrategies: {} };
+  const seconds = s.inputMode === 'excel' && EXCEL_REVIEW_MINUTES[month] ? EXCEL_REVIEW_MINUTES[month] * 60 : (reviews.duration || STRATEGY_REVIEW_MS / 1000);
+  const review = { month, openedAt: now, closesAt: now + seconds * 1000, submitted: {}, changed: {}, initialStrategies: {} };
   reviews.rounds.push(review);
   reviews.current = reviews.rounds.length - 1;
   for (const team of s.teams) {
@@ -562,11 +565,14 @@ function reduceAction(s, action, ctx) {
     case 'excel-join': {
       if (s.inputMode !== 'excel') return { error: M(cfg, 'Excel intake is not enabled for this game.', 'Bu oyunda Excel ile takım alımı açık değil.') };
       if (role !== 'player' || !ctx.playerId) return { error: M(cfg, 'A team joins from its own device.', 'Takım kendi cihazından katılır.') };
-      if (s.phase === 'race') return { error: M(cfg, 'The race has started. New teams can’t join.', 'Yarış başladı. Yeni takım katılamaz.') };
       const name = clean(action.name).slice(0, 16), key = upperOf(name, cfg.lang);
       if (name.length < 2) return { error: M(cfg, 'The team name must be at least 2 characters.', 'Takım adı en az 2 karakter olmalı.') };
       const same = s.teams.find(team => upperOf(team.name, cfg.lang) === key);
-      if (same && same !== mine && (same.owner || same.ai)) return { error: M(cfg, `“${name}” is taken. Pick another name.`, `“${name}” adı alınmış. Başka bir ad seç.`) };
+      // A team whose device is gone (a closed tab, a dead battery) can be taken back by typing its name, even mid-race.
+      // A team whose device is still connected stays with that device.
+      if (same && same !== mine && (same.ai || (same.owner && same.connected))) return { error: M(cfg, `“${name}” is taken and its device is still connected. Pick another name, or close the game on that device first.`, `“${name}” adı alınmış ve o takımın cihazı hâlâ bağlı. Başka bir ad seç ya da önce o cihazda oyunu kapat.`) };
+      if (s.phase === 'race' && mine && same !== mine) return { error: M(cfg, 'Your device already plays for a team.', 'Bu cihaz zaten bir takımda oynuyor.') };
+      if (s.phase === 'race' && !same) return { error: M(cfg, 'The race has started. New teams can’t join; type your team’s name to get back in.', 'Yarış başladı. Yeni takım katılamaz; takımına geri dönmek için takımının adını yaz.') };
       if (same && same !== mine) {
         if (mine) s.teams = s.teams.filter(team => team !== mine);
         same.owner = ctx.playerId; same.connected = true;
@@ -772,7 +778,7 @@ function reduceAction(s, action, ctx) {
       if (!order.includes(action.to) || s.phase === 'race') return { error: M(cfg, 'Can’t move to that phase.', 'Bu aşamaya geçilemez.') };
       if (action.to !== 'lobby' && s.teams.length < MIN_TEAMS) return { error: M(cfg, `At least ${MIN_TEAMS} teams are needed to start.`, `Başlamak için en az ${MIN_TEAMS} takım gerekli.`) };
       s.phase = action.to;
-      s.deadline = action.to === 'decisions' ? now + s.config.minutes * 60000 : null; // decision window: config.minutes (25 by default)
+      s.deadline = action.to === 'decisions' ? now + s.config.minutes * 60000 : null; // decision window: config.minutes (20 by default)
       return done;
     }
     case 'extend':

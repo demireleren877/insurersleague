@@ -405,7 +405,7 @@ export function mountStage(root) {
     reviewKey = key;
     const quarter = Math.floor(review.month / 3) + 1;
     reviewEl.innerHTML = `<header class="review-stage-head"><div><p class="kicker amber">${t(`Strategy review · quarter ${quarter} complete`, `Strateji molası · ${quarter}. çeyrek tamamlandı`)}</p><h1 class="display">${t(`Quarter ${quarter} results`, `${quarter}. çeyrek sonuçları`)}</h1><p>${s.inputMode === 'excel' ? t('Teams can upload their next-quarter plan now. Changes apply next month; completed months stay fixed.', 'Takımlar gelecek çeyrek planını şimdi yükleyebilir. Değişiklikler gelecek ay uygulanır; tamamlanan aylar sabit kalır.') : t('Teams can adjust the main lines of their plan. Every approved change takes effect next month.', 'Takımlar planlarının ana hatlarını güncelleyebilir. Onaylanan her değişiklik gelecek ay devreye girer.')}</p></div><div class="review-stage-clock"><b class="display num" data-quarter-clock>${clock(left)}</b><small>${t('remaining', 'kaldı')}</small></div></header>
-      ${quarterResults(review.month)}
+      <div class="qr-body">${quarterResults(review.month)}${reviewNews(s, review.month)}</div>
       <div class="qr-strip">${s.teams.map(team => reviewChip(team, { done: submitted.has(team.id), manage: isHost && !team.ai && s.inputMode === 'excel' })).join('')}</div>
       <footer class="review-stage-foot"><p><b class="num">${submitted.size}/${s.teams.length}</b> ${t('plans submitted', 'plan gönderildi')}</p>${isHost ? `<button class="btn go lg" data-action="quarter-close">${icon('play', 18)} ${t('Close review and continue', 'Değerlendirmeyi kapat ve devam et')}</button>` : ''}</footer>`;
   }
@@ -426,6 +426,14 @@ export function mountStage(root) {
         <td class="num r ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num r ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio, 0)}</td><td class="num r">${fmt(r.campaign?.total ?? 0)}</td>
       </tr>`; }).join('')}</tbody>
     </table></section>`;
+  }
+
+  // The market news so far stays readable through the review, next to the results it explains.
+  function reviewNews(s, month) {
+    const list = marketNews(s, month);
+    return `<aside class="qr-news" aria-label="${t('Market news', 'Piyasa haberleri')}"><h2 class="display">${t('Market news', 'Piyasa haberleri')}</h2>
+      ${list.length ? `<ol>${list.map(item => `<li><small>${item.when}</small><p><b>${esc(item.title)}</b> ${esc(item.description)}</p></li>`).join('')}</ol>` : `<p class="qr-news-empty">${t('No market events so far.', 'Şu ana kadar piyasa olayı yok.')}</p>`}
+    </aside>`;
   }
 
   // One team in the review strip: its brochure, whether its next-quarter plan is in, and (for the
