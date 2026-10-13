@@ -37,3 +37,27 @@ test('the calculation workbook carries every input and computes the rest with fo
   const calcRows = (files['xl/worksheets/sheet8.xml'].match(/<row /g) || []).length;
   assert.equal(calcRows, 1 + 12 * CASCO_MARKET.cells.length, 'one calculation row per month and market cell');
 });
+
+test('the policy file keeps the engine’s claims exactly and its policies to the rounding', async () => {
+  const { buildPortfolio, buildPortfolioWorkbook } = await import('../dist/js/portfolio.js');
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  ['Kartal', 'Nova', 'Atlas'].forEach((name, k) => {
+    reduce(s, { type: 'excel-add-team', name }, { role: 'host', now: 1_001 });
+    const strategy = defaultStrategy(name, s.config);
+    reduce(s, { type: 'excel-team-plan', teamId: s.teams.at(-1).id, strategy: { ...strategy, basePremium: strategy.basePremium * (0.9 + k * 0.1), sentence: 'Plan.' } }, { role: 'host', now: 1_002 });
+  });
+  const pf = buildPortfolio(s);
+  assert.equal(pf.checks.length, 3 * 12);
+  for (const { engine, file } of pf.checks) {
+    assert.equal(file.claims, engine.claims);
+    assert.ok(Math.abs(file.amount - engine.amount) < 0.01);
+    assert.ok(Math.abs(file.policies - engine.policies) <= 0.5 + 1e-9);
+    assert.ok(Math.abs(file.gwp - engine.gwp) <= engine.gwp * 0.001);
+  }
+  const claimsOnPolicies = pf.policies.reduce((a, p) => a + p[8], 0);
+  assert.equal(claimsOnPolicies, pf.claims.filter(c => c[1]).length);
+  assert.deepEqual(buildPortfolio(s).claims.slice(0, 50), pf.claims.slice(0, 50), 'same session, same file');
+  const files = parts(await buildPortfolioWorkbook(s, { lang: 'en' }));
+  assert.ok(files['xl/sharedStrings.xml'].includes('Reconciliation') || files['xl/workbook.xml'].includes('Reconciliation'));
+  assert.equal((files['xl/worksheets/sheet2.xml'].match(/<row>/g) || []).length, pf.policies.length + 1);
+});

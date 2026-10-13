@@ -11,12 +11,13 @@ import { resultsPage, setResultsCategory } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=65';
+import { stageMarkup, mountStage } from './views/stage.js?v=66';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=65';
-import { buildAuditWorkbook } from './audit.js?v=65';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=66';
+import { buildAuditWorkbook } from './audit.js?v=66';
+import { buildPortfolioWorkbook } from './portfolio.js?v=66';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -313,6 +314,22 @@ document.addEventListener('click', async e => {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
         toast(t('Calculation workbook downloaded. Its Score sheet matches the app.', 'Hesap dosyası indirildi. Puan sayfası uygulamayla aynı sonucu verir.'));
       } catch (err) { toast(t(`Couldn’t build the workbook: ${err.message}`, `Dosya hazırlanamadı: ${err.message}`)); }
+      finally { el.disabled = false; }
+      break;
+    }
+
+    case 'policy-file': {
+      if (el.disabled) break;
+      el.disabled = true;
+      toast(t('Building the policy file…', 'Poliçe dosyası hazırlanıyor…'));
+      try {
+        const bytes = await buildPortfolioWorkbook(getState(), { lang: getLang() });
+        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob), a = document.createElement('a');
+        a.href = url; a.download = `${t('insurers-league-policies', 'insurers-league-policeler')}-${getState().code}.xlsx`; a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        toast(t('Policy file downloaded. Its Reconciliation sheet ties it to the app.', 'Poliçe dosyası indirildi. Mutabakat sayfası uygulamayla bağlar.'));
+      } catch (err) { toast(t(`Couldn’t build the policy file: ${err.message}`, `Poliçe dosyası hazırlanamadı: ${err.message}`)); }
       finally { el.disabled = false; }
       break;
     }

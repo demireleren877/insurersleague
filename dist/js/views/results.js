@@ -9,7 +9,7 @@ import { planTable, giftMix } from './plan.js';
 import { hostPage as shell } from './host.js';
 import { t, getLang } from '../i18n.js';
 
-const hostPage = content => shell('results', content, `<button class="btn ghost sm" data-action="audit-workbook">${icon('sliders', 15)} ${t('Calculation workbook (.xlsx)', 'Hesap dosyası (.xlsx)')}</button><button class="btn ghost sm" data-action="export">${icon('file', 15)} ${t('Download results', 'Sonuçları indir')}</button><button class="btn gold sm" data-action="new-game">${icon('reset', 15)} ${t('New game, same teams', 'Aynı takımlarla yeni oyun')}</button>`);
+const hostPage = content => shell('results', content, `<button class="btn ghost sm" data-action="audit-workbook">${icon('sliders', 15)} ${t('Calculation workbook (.xlsx)', 'Hesap dosyası (.xlsx)')}</button><button class="btn ghost sm" data-action="policy-file">${icon('file', 15)} ${t('Policy data (.xlsx)', 'Poliçe verisi (.xlsx)')}</button><button class="btn ghost sm" data-action="export">${icon('file', 15)} ${t('Download results', 'Sonuçları indir')}</button><button class="btn gold sm" data-action="new-game">${icon('reset', 15)} ${t('New game, same teams', 'Aynı takımlarla yeni oyun')}</button>`);
 
 const pageHead = (kicker, title, lead, extra = '') => `<div class="page-head"><div><p class="kicker blue">${kicker}</p><h1 class="display">${title}</h1><p class="lead">${lead}</p></div>${extra ? `<div class="page-head-extra">${extra}</div>` : ''}</div>`;
 

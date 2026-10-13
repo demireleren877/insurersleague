@@ -207,7 +207,7 @@ export function marketingSpent(team, month) {
 // All luck comes from one table of uniform numbers drawn from the seed before anything else happens:
 // one per market cell per month (demand wobble) and two per team per month (claim count, claim amount).
 // The table never depends on decisions, so the audit workbook can carry it and reproduce every figure.
-function stream(seed) {
+export function stream(seed) {
   let a = seed >>> 0;
   // Nine decimals, strictly inside (0, 1): exact in a spreadsheet, safe for an inverse normal.
   return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return (Math.floor(((t ^ t >>> 14) >>> 0) / 4294967296 * 1e9) + 0.5) / 1e9; };

@@ -31,6 +31,7 @@ It runs on Cloudflare Workers:
 - `dist/js/store.js`: client connection.
 - `dist/js/sheet.js`: the decision workbook (template writer and reader, `CASE_CELLS`).
 - `dist/js/audit.js`: the audit workbook, the whole season as Excel formulas.
+- `dist/js/portfolio.js`: the policy file, the season as individual policies and claims (results page, "Policy data"). Claim counts and amounts equal the engine's per team-month; policies and premium differ only by rounding fractional counts.
 - `dist/js/views/*`: screens (`stage.js` is the projected moderator screen, `team.js` the team's device).
 - `dist/js/jev.js`: AI rivals.
 - `dist/js/balance.js`: balance test bots.

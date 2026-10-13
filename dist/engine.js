@@ -5,12 +5,12 @@
 import {
   DIMENSIONS, QUARTER_KEYS, NOMINAL_TEAMS, defaultCascoRules, cascoRulesOf, cascoAssumptions, cascoMoney, cascoSpend,
   defaultCascoStrategy, validateCasco, simulateCasco, strategyAt, planAt, monthlyMarketing, marketingSpent, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
-  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience, stream
 } from './casco.js';
 
 export {
   DIMENSIONS, QUARTER_KEYS, cascoMoney, cascoSpend, strategyAt, planAt, monthlyMarketing, marketingSpent, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
-  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience, stream
 };
 
 // Campaign gifts (Marketing_Input.xlsx), named per viewer.
@@ -168,6 +168,8 @@ export const defaultStrategy = config => defaultCascoStrategy(config);
 export const yearPlan = team => ({ ...strategyAt(team, 11), marketing: Math.round(marketingSpent(team, 12)) });
 export const validate = (team, config, lang) => validateCasco(team, config, lang);
 export const simulate = (teamList, config) => simulateCasco(teamList, config);
+// The same season with every team's policies per cell and month (market and campaign), for the policy file.
+export const simulateTraced = (teamList, config) => simulateCasco(teamList, config, { trace: true });
 
 export function rank(rows, metric = 'score') {
   const sorted = [...rows].sort((a, b) =>

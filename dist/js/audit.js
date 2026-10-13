@@ -10,7 +10,7 @@ import {
 
 const L = (lang, en, tr) => (lang === 'tr' ? tr : en);
 const col = i => { let s = ''; for (i++; i; i = Math.floor((i - 1) / 26)) s = String.fromCharCode(65 + (i - 1) % 26) + s; return s; };
-const xml = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+export const xml = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
 const QUARTERS = 4;
 
 // ——— A tiny sheet writer ———
@@ -34,14 +34,14 @@ function sheet() {
   return { put, toXml };
 }
 
-const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+export const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <numFmts count="3"><numFmt numFmtId="164" formatCode="#,##0"/><numFmt numFmtId="165" formatCode="0.0000"/><numFmt numFmtId="166" formatCode="0.00"/></numFmts>
 <fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="16"/><name val="Calibri"/></font><font><i/><sz val="10"/><color rgb="FF45474A"/><name val="Calibri"/></font></fonts>
 <fills count="5"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFD43B"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFF1F3F5"/></patternFill></fill><fill><patternFill patternType="solid"><fgColor rgb="FFFFF3BF"/></patternFill></fill></fills>
 <borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFADB5BD"/></left><right style="thin"><color rgb="FFADB5BD"/></right><top style="thin"><color rgb="FFADB5BD"/></top><bottom style="thin"><color rgb="FFADB5BD"/></bottom><diagonal/></border></borders>
 <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="10">
+<cellXfs count="11">
 <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
 <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment wrapText="1" vertical="center"/></xf>
 <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyFill="1" applyBorder="1"/>
@@ -52,9 +52,10 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <xf numFmtId="0" fontId="1" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>
 <xf numFmtId="166" fontId="1" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1"/>
 <xf numFmtId="165" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1"/>
+<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>
 </cellXfs></styleSheet>`;
-// 0 plain · 1 header · 2 input (yellow) · 3 integer · 4 four decimals · 5 title · 6 wrapped text · 7 section · 8 score · 9 input, 4 decimals
-const S = { plain: 0, head: 1, input: 2, int: 3, dec: 4, title: 5, text: 6, section: 7, score: 8, inputDec: 9 };
+// 0 plain · 1 header · 2 input (yellow) · 3 integer · 4 four decimals · 5 title · 6 wrapped text · 7 section · 8 score · 9 input, 4 decimals · 10 money
+export const S = { plain: 0, head: 1, input: 2, int: 3, dec: 4, title: 5, text: 6, section: 7, score: 8, inputDec: 9, money: 10 };
 
 // ——— Zip with deflate (the workbook is large; compression keeps it small) ———
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -63,11 +64,12 @@ async function deflate(bytes) {
   const out = await new Response(new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
   return new Uint8Array(out);
 }
-async function zip(files) {
+// A file is a string or, for very large sheets, an array of string chunks (never joined into one string).
+export async function zip(files) {
   const enc = new TextEncoder(), local = [], central = [];
   let offset = 0;
   for (const [name, text] of Object.entries(files)) {
-    const data = enc.encode(text), packed = await deflate(data), nameBytes = enc.encode(name), crc = crc32(data);
+    const data = Array.isArray(text) ? new Uint8Array(await new Blob(text).arrayBuffer()) : enc.encode(text), packed = await deflate(data), nameBytes = enc.encode(name), crc = crc32(data);
     const head = new DataView(new ArrayBuffer(30));
     head.setUint32(0, 0x04034b50, true); head.setUint16(4, 20, true); head.setUint16(6, 0x0800, true); head.setUint16(8, 8, true);
     head.setUint32(14, crc, true); head.setUint32(18, packed.length, true); head.setUint32(22, data.length, true); head.setUint16(26, nameBytes.length, true);
