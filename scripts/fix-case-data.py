@@ -150,7 +150,7 @@ ws.append(['Note', f'The data is a sample of {n_all:,} customers from the casco 
 game = json.loads(subprocess.run(['node', '--input-type=module', '-e', """
 import { scenario, cascoMoney, campaignRules, campaignAudience, offerName } from './dist/engine.js';
 const c = scenario('tr'), m = cascoMoney(c), R = c.rules, K = campaignRules(R);
-console.log(JSON.stringify({ budget: m.budget, audience: campaignAudience(R, m), K, names: K.offers.map(o => [offerName(o.id, 'en'), offerName(o.id, 'tr')]) }));
+console.log(JSON.stringify({ budget: m.budget, audience: campaignAudience(R, m), K, names: K.offers.map(o => [offerName(o.id, 'en'), offerName(o.id, 'tr')]), expenseRatio: m.expenseRatio, fixed: c.assumptions.fixedCost.value }));
 """], capture_output=True, text=True, check=True).stdout)
 KC = game['K']
 ws = part.create_sheet('MARKETING')
@@ -166,10 +166,12 @@ rows = [
     ('Media cost per 1,000 impressions (EUR)', KC['cpm'], '1.000 reklam gösteriminin maliyeti'),
     (f"Frequency bonus: seen more than {KC['frequency']} times", KC['frequencyBonus'], f"Reklamı ortalama {KC['frequency']} kereden fazla gören kitlede hit oranı bu kadar artar"),
     ('Price effect cap on conversion (×)', KC['priceCap'], 'Ucuz fiyat kampanya dönüşümünü en fazla bu kat artırır'),
+    ('Expense ratio (share of premium)', game['expenseRatio'], 'Gider oranı: her euro primin işletmeye (satış, poliçe yönetimi) giden payı'),
+    ('Fixed operating cost a year (EUR)', game['fixed'], 'Yıllık sabit işletme gideri (hasar yönetimi dahil)'),
 ]
 for r in rows:
     ws.append(list(r))
-for i, fmt in enumerate(['#,##0', '#,##0', PCT1, EUR0, '#,##0', EUR2, PCT1, '0.0'], start=2):
+for i, fmt in enumerate(['#,##0', '#,##0', PCT1, EUR0, '#,##0', EUR2, PCT1, '0.0', PCT1, EUR0], start=2):
     ws.cell(row=i, column=2).number_format = fmt
 ws.append([])
 ws.append(['Gift', 'Interest rate', 'Cost (EUR)', 'Click rate', 'Hit ratio', 'Hediye'])

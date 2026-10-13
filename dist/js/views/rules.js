@@ -20,7 +20,7 @@ export const rulesState = { open: new Set() };
 
 const weightLabels = () => [t('Profitability', 'Kârlılık'), t('Market share', 'Pazar payı')];
 const SCORING_KEYS = ['profitFloor', 'profitTarget', 'shareTarget'];
-const MONEY_KEYS = ['policies', 'budget', 'fixedCost'];
+const MONEY_KEYS = ['policies', 'budget', 'fixedCost', 'expenseRatio'];
 
 const within = prefixes => path => prefixes.some(p => path === p || path.startsWith(`${p}.`));
 const assumptionChanges = (s, keys) => { const d = assumptionsFor(s.config.lang); return keys.filter(k => s.config.assumptions[k] && s.config.assumptions[k].value !== d[k].value).length; };

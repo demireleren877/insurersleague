@@ -181,7 +181,7 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   const fmtDec = fmtDecOf(lang);
 
   // ——— Input ———
-  const input = caseSheet({ styles, widths: { A: 3.9, B: 5, C: 68.1, D: 74.7 }, heights: { 2: 39.8, 3: 24.8, 5: 30, 7: 24.8, 8: 24.8, 9: 24.8, 11: 30, 13: 21.8, 14: 21.8, 15: 21.8, 17: 30, 19: 24.8, 20: 24.8, 21: 24.8 }, tab: BLUE });
+  const input = caseSheet({ styles, widths: { A: 3.9, B: 5, C: 68.1, D: 74.7 }, heights: { 2: 39.8, 3: 24.8, 5: 30, 7: 24.8, 8: 24.8, 9: 24.8, 11: 30, 13: 21.8, 14: 21.8, 15: 21.8, 16: 21.8, 17: 30, 19: 24.8, 20: 24.8, 21: 24.8 }, tab: BLUE });
   input.set('B2', 'FINANCE DAY', 'inputTitle'); input.merge('B2:H2');
   input.set('B3', L(lang, 'Corporate Strategy and Simulation Parameters', 'Kurumsal Strateji ve Simülasyon Parametreleri'), 'subtitle'); input.merge('B3:H3');
   input.set('B5', L(lang, '📋 USER GUIDE', '📋 KULLANIM KILAVUZU'), 'section14'); input.merge('B5:H5');
@@ -192,7 +192,8 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   [L(lang, 'Coefficients, shares and choices are selected from dropdown lists.', 'Katsayılar, paylar ve seçimler açılır listelerden seçilir.'),
     L(lang, 'Media + offer must equal 100%; the gift weights must equal 100%.', 'Medya + hediye %100 olmalı; hediye ağırlıkları %100 olmalı.'),
     from ? L(lang, `The marketing budget is one wallet for the year: ${eur(spent)} is spent, at most ${eur(left)} is left for ${months[from]}–${months[11]}.`, `Pazarlama bütçesi yıllık tek cüzdandır: ${eur(spent)} harcandı, ${months[from]}–${months[11]} için en fazla ${eur(left)} kaldı.`)
-      : L(lang, `The marketing budget must stay within ${eur(money.budget)} for the year.`, `Pazarlama bütçesi yıl boyunca ${eur(money.budget)} tutarını aşmamalı.`)
+      : L(lang, `The marketing budget must stay within ${eur(money.budget)} for the year.`, `Pazarlama bütçesi yıl boyunca ${eur(money.budget)} tutarını aşmamalı.`),
+    L(lang, `Costs: claims, ${Math.round(money.expenseRatio * 100)}% of premium for running the business, a fixed ${eur(config.assumptions.fixedCost.value)} a year, and the marketing you actually spend.`, `Giderler: hasarlar, primin %${Math.round(money.expenseRatio * 100)}’i işletme gideri, yıllık ${eur(config.assumptions.fixedCost.value)} sabit gider ve gerçekten harcadığın pazarlama.`)
   ].forEach((text, i) => { input.set(`B${13 + i}`, '•', 'text'); input.set(`C${13 + i}`, text, 'text'); });
   input.set('B17', L(lang, '🏷️ TEAM', '🏷️ TAKIM'), 'section14'); input.merge('B17:H17');
   [[L(lang, 'Team name', 'Takım adı'), team?.name ?? ''], [L(lang, 'Product name (optional)', 'Ürün adı (isteğe bağlı)'), st.product ?? ''], [L(lang, 'Strategy in one sentence (optional)', 'Tek cümlede strateji (isteğe bağlı)'), st.sentence ?? '']]

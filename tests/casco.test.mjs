@@ -194,8 +194,8 @@ test('the marketing budget is one wallet: a quarter plan spends its amount over 
   const fixed = c.assumptions.fixedCost.value / 12;
   for (let m = 0; m < 12; m++) {
     const r = season[m].rows.find(x => x.id === 0), before = m ? season[m - 1].rows.find(x => x.id === 0).expenses : 0;
-    // Only what the money bought is a cost: the media and the gifts handed out.
-    assert.ok(Math.abs(r.expenses - before - fixed - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
+    // Expenses: fixed cost, 12% of the month's premium, and only what marketing bought (media + gifts handed out).
+    assert.ok(Math.abs(r.expenses - before - fixed - r.monthGwp * 0.12 - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
     assert.ok(r.campaign.giftsUsed <= r.campaign.giftBudget + 1e-6, 'never more gifts than their budget');
   }
   assert.ok(Math.abs(season[6].rows.find(x => x.id === 0).campaign.media - 50000 * t0.strategy.mediaShare / 100) < 1e-6, 'from July the media follows the new pace');

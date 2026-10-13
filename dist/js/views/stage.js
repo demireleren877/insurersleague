@@ -326,6 +326,7 @@ export function mountStage(root) {
         <div class="brief-head"><p class="kicker amber">${t('Market brief', 'Pazar dosyası')} · ${s.config.year} ${esc(localizedBranch(s.config, getLang()))}</p><h1 class="display">${t('Everyone starts under the same conditions.', 'Herkes aynı koşullarda başlar.')}</h1></div>
         <div class="brief-stats">
           <div><small>${t('Marketing budget', 'Pazarlama bütçesi')}</small><b class="num">${money(a.budget.value)}</b><span>${t('the digital campaign: media + gifts', 'dijital kampanya: medya + hediye')}</span></div>
+          <div><small>${t('Expense ratio', 'Gider oranı')}</small><b class="num">%${fmt((s.config.assumptions.expenseRatio?.value ?? 0.12) * 100)}</b><span>${t(`of premium · plus ${money(s.config.assumptions.fixedCost.value)} fixed a year`, `primin · ayrıca yıllık ${money(s.config.assumptions.fixedCost.value)} sabit`)}</span></div>
           <div><small>${t('Policies a year', 'Yıllık poliçe')}</small><b class="num">${fmt(policiesOf(s.config))}</b><span>${t('the whole market', 'tüm pazar')}</span></div>
           <div><small>${t('Customers a month', 'Aylık müşteri')}</small><b class="num">${fmt(market.pool)}</b><span>${t(`shared by ${n} teams and the rest of the market`, `${n} takım ve piyasanın geri kalanı paylaşıyor`)}</span></div>
         </div>

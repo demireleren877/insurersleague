@@ -110,9 +110,11 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
       'The most a team can spend on its digital campaign in the year.', 'Bir takımın yıl içinde dijital kampanyasına harcayabileceği en fazla tutar.'),
     fixedCost: A(k(0.052), 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
       'Yearly overhead every company carries, claims handling included.', 'Her şirketin taşıdığı yıllık genel gider; hasar yönetimi dahil.'),
+    expenseRatio: A(0.12, 0, 0.5, 'ratio', 'Expense ratio', 'Gider oranı',
+      'Share of every euro of premium spent on running the business (sales, policy administration). Told to the teams.', 'Her euro primin işletmeye (satış, poliçe yönetimi) giden payı. Takımlara açıklanır.'),
     profitFloor: A(0, -1, 0.5, 'ratio', 'Profitability floor', 'Kârlılık tabanı',
       'Profit as a share of a fair market slice (the market’s premium ÷ 6) that scores 0 profitability points.', 'Kârlılıktan 0 puan alınan kâr / adil pazar dilimi (piyasa primi ÷ 6) oranı.'),
-    profitTarget: A(0.2, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
+    profitTarget: A(0.1, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
       'Profit as a share of a fair market slice that scores full profitability points.', 'Kârlılıktan tam puan alınan kâr / adil pazar dilimi oranı.'),
     shareTarget: A(1.5, 0.5, 6, 'x', 'Market share target', 'Pazar payı hedefi',
       'Full share points at this multiple of a fair share (1 / teams).', 'Adil payın (1 / takım) bu katında tam pay puanı.')
@@ -125,7 +127,7 @@ export function cascoMoney(config) {
   const a = config?.assumptions?.budget ? config.assumptions : cascoAssumptions(config?.lang, R, policies);
   const slice = referenceMarket(R, policies).gwp / NOMINAL_TEAMS;
   return {
-    slice, budget: a.budget.value, fixedMonthly: a.fixedCost.value / 12,
+    slice, budget: a.budget.value, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.12,
     profitFloor: a.profitFloor.value, profitTarget: a.profitTarget.value, shareTarget: a.shareTarget.value
   };
 }
@@ -356,7 +358,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       // Marketing costs what it actually bought: the media and the gifts handed out. Gift money no customer
       // took stays with the company, like any part of the budget left unspent.
       const marketingCost = camp.media + camp.giftsUsed;
-      const monthExpenses = money.fixedMonthly + marketingCost;
+      const monthExpenses = money.fixedMonthly + gwp * money.expenseRatio + marketingCost;
       l.marketing += marketingCost;
       const profitBefore = l.profit;
       l.claims += claims; l.claimCount += count; l.expenses += monthExpenses;

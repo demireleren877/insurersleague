@@ -139,6 +139,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   section(L(lang, 'Money', 'Para'));
   param('Budget', L(lang, 'Marketing budget (EUR)', 'Pazarlama bütçesi (EUR)'), money.budget);
   param('FixedCost', L(lang, 'Fixed cost a year (EUR)', 'Yıllık sabit gider (EUR)'), config.assumptions.fixedCost.value);
+  param('ExpenseRatio', L(lang, 'Expense ratio (share of premium)', 'Gider oranı (primin payı)'), money.expenseRatio);
   section(L(lang, 'Scoring', 'Puanlama'));
   param('WProfit', L(lang, 'Weight: profitability %', 'Ağırlık: kârlılık %'), config.weights[0]);
   param('WShare', L(lang, 'Weight: market share %', 'Ağırlık: pazar payı %'), config.weights[1]);
@@ -394,7 +395,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
       ledger.put(row, 10, `=IF(G${row}>0,MAX(0,ROUND(G${row}+SQRT(G${row})*NORMSINV(I${row}),0)),0)`, S.int);
       ledger.put(row, 11, `=IF(G${row}>0,H${row}/G${row},BaseSev)`, S.dec);
       ledger.put(row, 12, `=IF(K${row}>0,MAX(0,K${row}*L${row}+L${row}*SQRT(K${row}/GammaShape)*NORMSINV(J${row})),0)`, S.dec);
-      ledger.put(row, 13, `=F${row}+FixedCost/12`, S.dec);
+      ledger.put(row, 13, `=F${row}+FixedCost/12+E${row}*ExpenseRatio`, S.dec);
       ledger.put(row, 14, `=SUM(E$${first}:E${row})`, S.dec);
       ledger.put(row, 15, `=SUM(M$${first}:M${row})`, S.dec);
       ledger.put(row, 16, `=SUM(N$${first}:N${row})`, S.dec);
@@ -457,7 +458,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     [L(lang, 'Accounts run on an underwriting-year basis: a month’s policies book their full premium and ultimate claims in that month.', 'Hesaplar poliçe yılı esasındadır: bir ayın poliçeleri tam primini ve nihai hasarını o ay yazar.')],
     [L(lang, 'λ = Σ policies × frequency (× event claims multiplier). Claim count N = max(0, round(λ + √λ × NORMSINV(u₁))) — Poisson in its normal form.', 'λ = Σ poliçe × frekans (× olay hasar çarpanı). Hasar adedi N = max(0, round(λ + √λ × NORMSINV(u₁))) — Poisson’un normal hali.')],
     [L(lang, 'Claims = max(0, N × s + s × √(N ÷ gamma shape) × NORMSINV(u₂)), s = the book’s mean severity — the sum of N Gamma claims in its normal form.', 'Hasar = max(0, N × s + s × √(N ÷ gamma şekli) × NORMSINV(u₂)), s = portföyün ortalama şiddeti — N adet Gamma hasarın toplamının normal hali.')],
-    [L(lang, 'Expenses a month = fixed cost ÷ 12 + the media bought + the gifts handed out. The marketing budget is one wallet for the year: a plan’s marketing is allocated evenly from its start month to December (marketing ÷ (13 − start month)) and a quarter revision can allocate only what is left. Gift money no customer took, like budget never allocated, stays in profit.', 'Aylık gider = sabit gider ÷ 12 + alınan medya + verilen hediyeler. Pazarlama bütçesi yıllık tek cüzdandır: bir planın pazarlaması başladığı aydan Aralık’a eşit ayrılır (pazarlama ÷ (13 − başlangıç ayı)); çeyrek revizyonu yalnızca kalanı ayırabilir. Hiçbir müşterinin almadığı hediye parası, hiç ayrılmamış bütçe gibi kârda kalır.')],
+    [L(lang, 'Expenses a month = fixed cost ÷ 12 + premium × expense ratio + the media bought + the gifts handed out. The marketing budget is one wallet for the year: a plan’s marketing is allocated evenly from its start month to December (marketing ÷ (13 − start month)) and a quarter revision can allocate only what is left. Gift money no customer took, like budget never allocated, stays in profit.', 'Aylık gider = sabit gider ÷ 12 + prim × gider oranı + alınan medya + verilen hediyeler. Pazarlama bütçesi yıllık tek cüzdandır: bir planın pazarlaması başladığı aydan Aralık’a eşit ayrılır (pazarlama ÷ (13 − başlangıç ayı)); çeyrek revizyonu yalnızca kalanı ayırabilir. Hiçbir müşterinin almadığı hediye parası, hiç ayrılmamış bütçe gibi kârda kalır.')],
     [L(lang, 'Profit = Σ premium − Σ claims − Σ expenses.', 'Kâr = Σ prim − Σ hasar − Σ gider.')],
     [L(lang, '4 · The score', '4 · Puan'), S.section],
     [L(lang, 'Profit points = clamp((profit ÷ fair slice − floor × m/12) ÷ ((target − floor) × m/12) × 100, 0, 100). Share points = clamp(premium share ÷ min(1, share target ÷ teams) × 100).', 'Kâr puanı = sınırla((kâr ÷ adil dilim − taban × a/12) ÷ ((hedef − taban) × a/12) × 100, 0, 100). Pay puanı = sınırla(prim payı ÷ min(1, pay hedefi ÷ takım sayısı) × 100).')],

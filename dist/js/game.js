@@ -1028,7 +1028,7 @@ function reduceAction(s, action, ctx) {
       const keys = Array.isArray(action.keys) ? action.keys : Object.keys(defaults);
       for (const k of keys) if (k in defaults) s.config.rules[k] = defaults[k];
       if (action.scoring) { s.config.weights = [50, 50]; const a = assumptionsFor(cfg?.lang); for (const k of ['profitFloor', 'profitTarget', 'shareTarget']) s.config.assumptions[k] = { ...a[k] }; }
-      if (action.market) { const a = assumptionsFor(cfg?.lang); for (const k of ['policies', 'budget', 'fixedCost']) s.config.assumptions[k] = { ...a[k] }; }
+      if (action.market) { const a = assumptionsFor(cfg?.lang); for (const k of ['policies', 'budget', 'fixedCost', 'expenseRatio']) s.config.assumptions[k] = { ...a[k] }; }
       if (action.events) s.config.events = scenario(cfg?.lang, cfg?.preset).events;
       return done;
     }
