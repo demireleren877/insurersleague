@@ -11,13 +11,13 @@ import { resultsPage, setResultsCategory } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=66';
+import { stageMarkup, mountStage } from './views/stage.js?v=67';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=66';
-import { buildAuditWorkbook } from './audit.js?v=66';
-import { buildPortfolioWorkbook } from './portfolio.js?v=66';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=67';
+import { buildAuditWorkbook } from './audit.js?v=67';
+import { buildPortfolioWorkbook } from './portfolio.js?v=67';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -55,7 +55,10 @@ function ensureConnection(r) {
     else if (sess.role !== 'player') store.resumePlayer();
     return;
   }
-  if (sess.role !== 'none' && r === 'home') store.disconnect();
+  if (r === 'home') {
+    if (sess.role !== 'none') store.disconnect();
+    store.checkSavedHost().then(() => { if (route() === 'home') render(); }).catch(() => {});
+  }
 }
 
 // ——— Rendering ———
@@ -212,7 +215,13 @@ document.addEventListener('click', async e => {
   switch (d.action) {
     // Home and joining
     case 'create-room': await startRoomFlow(el); break;
-    case 'resume-host': store.connectHost(); go('stage'); break;
+    case 'resume-host':
+      el.disabled = true;
+      try {
+        if (await store.resumeHost()) go('stage');
+        else { render(); toast(t('Your previous game is no longer available. Start a new game.', 'Önceki oyunun artık açık değil. Yeni bir oyun başlat.')); }
+      } catch (err) { toast(err.message); el.disabled = false; }
+      break;
     case 'excel-team-template': {
       const team = s.teams.find(t2 => t2.id === teamId);
       if (!team) break;

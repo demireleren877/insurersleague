@@ -49,7 +49,7 @@ export default {
     if (brochure) return env.ROOMS.get(env.ROOMS.idFromName(brochure[1])).fetch(new Request(`https://room/brochure/${brochure[2]}${url.search}`, request));
 
     const info = url.pathname.match(/^\/api\/rooms\/(\d{6})$/);
-    if (info) return env.ROOMS.get(env.ROOMS.idFromName(info[1])).fetch('https://room/info');
+    if (info) return env.ROOMS.get(env.ROOMS.idFromName(info[1])).fetch(new Request('https://room/info', request));
 
     // Session history: finished seasons, filed under the moderator device's private history code.
     const hist = url.pathname.match(/^\/api\/history\/([a-z0-9-]{16,64})(?:\/([a-z0-9-]{1,80}))?$/i);
@@ -92,6 +92,8 @@ export class Room extends DurableObject {
     }
     if (url.pathname === '/info') {
       if (!this.live()) return json({ error: 'No open game with this PIN. Check the PIN on stage.' }, 404);
+      const key = request.headers.get('x-host-key');
+      if (key !== null && key !== this.hostKey) return json({ error: 'Invalid moderator key.' }, 403);
       const s = this.state;
       return json({ pin: s.code, phase: s.phase, teams: s.teams.length, inputMode: 'excel' });
     }
