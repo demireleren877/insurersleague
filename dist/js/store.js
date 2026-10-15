@@ -107,11 +107,7 @@ function connect(params) {
       return;
     }
     if (msg.t === 'error') { emit('error', msg.message); return; }
-    if (msg.t === 'closed') {
-      clearInterval(pingTimer);
-      if (session.role === 'host') forgetHost();
-      session.connection = 'closed'; emit('connection', msg.message); return;
-    }
+    if (msg.t === 'closed') { session.connection = 'closed'; emit('connection', msg.message); return; }
     if (msg.t !== 'state') return;
     if (bestRtt === Infinity) offset = msg.serverNow - received;
     pending = pending.filter(p => p.seq > msg.ack);
@@ -151,13 +147,7 @@ async function api(path, options) {
   try { r = await fetch(path, { cache: 'no-store', ...options }); } catch { throw Error(t('Couldn\u2019t reach the server. Check your internet connection.', 'Sunucuya ulaşılamadı. İnternet bağlantını kontrol et.')); }
   const data = await r.json().catch(() => ({}));
   // The server's words are English; the device words the known cases in its own language.
-  if (r.status === 404 || r.status === 403) {
-    const error = Error(r.status === 404
-      ? t('No open game with this PIN. Check the PIN on stage.', 'Bu PIN ile açık bir oyun yok. Sahnedeki PIN’i kontrol et.')
-      : t('This game’s moderator key is invalid.', 'Bu oyunun moderatör anahtarı geçersiz.'));
-    error.status = r.status;
-    throw error;
-  }
+  if (r.status === 404) throw Error(t('No open game with this PIN. Check the PIN on stage.', 'Bu PIN ile açık bir oyun yok. Sahnedeki PIN’i kontrol et.'));
   if (r.status === 503) throw Error(t('Couldn\u2019t create a game. Try again.', 'Oyun kurulamadı. Tekrar dene.'));
   if (!r.ok) throw Error(t('Couldn\u2019t reach the server.', 'Sunucuya ulaşılamadı.'));
   return data;
@@ -166,24 +156,6 @@ async function api(path, options) {
 // Moderator
 export const savedHost = () => { try { return JSON.parse(localStorage.getItem(HOST_KEY)); } catch { return null; } };
 export function forgetHost() { try { localStorage.removeItem(HOST_KEY); } catch { /* ignore */ } }
-export async function checkSavedHost() {
-  const room = savedHost();
-  if (!room) return null;
-  try {
-    await api(`/api/rooms/${room.pin}`, { headers: { 'x-host-key': room.hostKey || '' } });
-    return room;
-  } catch (error) {
-    if (error.status !== 404 && error.status !== 403) throw error;
-    // An expired PIN can be reused; its new moderator must never inherit this browser's old key.
-    const current = savedHost();
-    if (current?.pin === room.pin && current?.hostKey === room.hostKey) forgetHost();
-    return null;
-  }
-}
-export async function resumeHost() {
-  const room = await checkSavedHost();
-  return room ? connectHost(room) : false;
-}
 export async function createRoom() {
   const room = await api('/api/rooms', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lang: getLang() }) });
   try { localStorage.setItem(HOST_KEY, JSON.stringify(room)); } catch { /* ignore */ }
