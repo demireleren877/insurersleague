@@ -29,10 +29,9 @@ const DECISIONS = [
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const economicDelta = (actual, counter) => ({ profitDelta: actual.profit - counter.profit, shareDelta: actual.share - counter.share, counterProfit: counter.profit, counterShare: counter.share });
 
-// Which score component moved most, and by how much. Lets the UI say what a decision actually
-// changed — profit or market share — not just that it changed something.
-function componentDelta(actual, counter, weights) {
-  const parts = actual.components.map((v, i) => (v - counter.components[i]) * weights[i] / 100);
+// Which score component moved most, and by how much: profit points or premium points (the score is their sum).
+function componentDelta(actual, counter) {
+  const parts = actual.components.map((v, i) => v - counter.components[i]);
   let top = 0;
   parts.forEach((v, i) => { if (Math.abs(v) > Math.abs(parts[top])) top = i; });
   return { parts, top, topDelta: parts[top] };
@@ -61,7 +60,6 @@ function compute(teams, config, teamId) {
   try { actual = finalRow(clone(teams), config, teamId); } catch { return null; }
   if (!actual) return null;
   const neutral = defaultStrategy(team.name, config);
-  const weights = config.weights;
 
   const decisions = [];
   for (const d of DECISIONS) {
@@ -75,7 +73,7 @@ function compute(teams, config, teamId) {
     }
     let counter;
     try { counter = finalRow(what, config, teamId); } catch { continue; } // can't be asked cleanly: don't guess
-    decisions.push({ key: d.key, delta: actual.score - counter.score, ...componentDelta(actual, counter, weights), ...economicDelta(actual, counter), counterScore: counter.score });
+    decisions.push({ key: d.key, delta: actual.score - counter.score, ...componentDelta(actual, counter), ...economicDelta(actual, counter), counterScore: counter.score });
   }
 
   const events = [];
@@ -89,7 +87,7 @@ function compute(teams, config, teamId) {
       title: e.title,
       scope: e.scope,
       delta: actual.score - counter.score,
-      ...componentDelta(actual, counter, weights), ...economicDelta(actual, counter)
+      ...componentDelta(actual, counter), ...economicDelta(actual, counter)
     });
   });
 

@@ -103,7 +103,7 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
       expenses: { fixed_per_year_eur: config.assumptions.fixedCost.value, share_of_premium: money.expenseRatio, channel_commission: Object.fromEntries(rules.dimensions.channel.map((lv, i) => [lv.id, commissionOf(rules)[i]])) },
       claim_model: { base_frequency: rules.model.frequency, base_severity_eur: rules.model.severity, base_loss_ratio: rules.model.lossRatio },
       digital_campaign: { cost_to_reach_100_people_eur: campaignRules(rules).reachCost, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), gifts: campaignRules(rules).offers, note: 'All marketing runs the campaign. The ads show each gift in proportion to its weight. Customers per gift = reach × weight × interest × click × hit, at most (gift budget × weight) ÷ gift cost.' },
-      scoring_weights: { profit: config.weights[0], market_share: config.weights[1] }
+      scoring: (m => ({ note: 'Profit points and premium points each run 50 (at the floor) to 100 (at the target); the score is their sum. A combined ratio above the bankruptcy line ranks a team last.', profit_eur: [m.profitFloor, m.profitTarget], gross_premium_eur: [m.premiumFloor, m.premiumTarget], bankrupt_above_combined_ratio: m.bankruptRatio }))(cascoMoney(config))
     },
     segments: Object.fromEntries(DIMENSIONS.map(dim => [dim, rules.dimensions[dim].map(lv => ({ level: lv.id, frequency_coef: lv.freq, severity_coef: lv.sev, market_premium_coef: lv.prem }))])),
     events: config.events.map(event => ({ month: event.month + 1, title: event.title, description: event.description, scope: event.scope })),

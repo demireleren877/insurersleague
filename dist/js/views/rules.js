@@ -18,8 +18,7 @@ import { t, getLang } from '../i18n.js';
 
 export const rulesState = { open: new Set() };
 
-const weightLabels = () => [t('Profitability', 'Kârlılık'), t('Market share', 'Pazar payı')];
-const SCORING_KEYS = ['profitFloor', 'profitTarget', 'shareTarget'];
+const SCORING_KEYS = ['profitFloor', 'profitTarget', 'premiumFloor', 'premiumTarget', 'bankruptRatio'];
 const MONEY_KEYS = ['policies', 'budget', 'fixedCost', 'expenseRatio'];
 
 const within = prefixes => path => prefixes.some(p => path === p || path.startsWith(`${p}.`));
@@ -30,7 +29,7 @@ const count = keys => (s, R) => changedCount(R, within(keys));
 // Sections: menu order, reset-to-default scope, and the change counter.
 export const SECTIONS = [
   { id: 'puanlama', get name() { return t('Scoring', 'Puanlama'); }, icon: 'cup', reset: { keys: [], scoring: true },
-    changes: s => assumptionChanges(s, SCORING_KEYS) + (sameJson(s.config.weights, [50, 50]) ? 0 : 1) },
+    changes: s => assumptionChanges(s, SCORING_KEYS) },
   { id: 'pazar', get name() { return t('Market & money', 'Pazar ve para'); }, icon: 'coins', reset: { keys: ['market', 'coef', 'commission'], market: true },
     changes: (s, R) => count(['market', 'coef', 'commission'])(s, R) + assumptionChanges(s, MONEY_KEYS) },
   { id: 'hasar', get name() { return t('Claims model', 'Hasar modeli'); }, icon: 'shield', reset: { keys: ['model'] }, changes: count(['model']) },
@@ -84,7 +83,7 @@ function block(title, lead, body, { aside = '' } = {}) {
 const formula = parts => `<p class="rb-formula" aria-label="${t('Formula', 'Formül')}">${parts.map(p => (p.op ? `<i>${p.op}</i>` : `<span>${p}</span>`)).join('')}</p>`;
 const insight = items => `<ul class="rb-insight">${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
 
-const RATIO_KEYS = ['profitFloor', 'profitTarget'];
+const RATIO_KEYS = ['bankruptRatio'];
 function assumptionField(key, { hint = '' } = {}) {
   const s = getState(), a = localizedAssumption(s.config, key, getLang()), def = assumptionsFor(s.config.lang)[key].value, changed = a.value !== def, locked = raceStarted();
   const isPct = RATIO_KEYS.includes(key), k = isPct ? 100 : 1;
@@ -108,27 +107,20 @@ function levelShares(dim) {
 
 // ——— Sections ———
 
-function scoringSection(s, R) {
-  const w = s.config.weights, total = w.reduce((a, b) => a + b, 0), locked = raceStarted();
-  const n = Math.max(s.teams.length, 2), market = scaledMarket(s.config, n), a = s.config.assumptions, slice = cascoMoney(s.config).slice;
-  const WEIGHT_LABELS = weightLabels();
-  return block(t('Score weights', 'Puan ağırlıkları'), t('The monthly score is a weighted average of two components. They must total 100%.', 'Aylık puan iki bileşenin ağırlıklı ortalamasıdır. Toplamları %100 olmalı.'), `
-      <div class="weights">
-        ${w.map((v, i) => `<label class="weight" style="--w:${Math.min(100, v)}%" for="weight-${i}"><span>${WEIGHT_LABELS[i]}</span><span class="weight-in"><input class="input" type="number" id="weight-${i}" data-weight="${i}" min="0" max="100" step="1" value="${v}" ${locked ? 'disabled' : ''}><em>%</em></span><i><b></b></i></label>`).join('')}
-      </div>
-      <div class="weights-foot ${total === 100 ? 'ok' : 'bad'}">
-        <span>${total === 100 ? icon('check', 15) : icon('info', 15)} ${t('Total', 'Toplam')} <b class="num">${fmt(total)}%</b>${total === 100 ? '' : ` · ${t('the race can’t start like this', 'yarış bu şekilde başlayamaz')}`}</span>
-        ${total === 100 ? '' : `<button class="btn sm" data-action="weights-normalize" ${locked ? 'disabled' : ''}>${t('Scale to 100%', '%100’e ölçekle')}</button>`}
-      </div>`, { aside: `<span class="chip ${total === 100 ? 'ok' : 'bad'}">${fmt(total)}%</span>` })
-    + block(t('Score thresholds', 'Puan eşikleri'), t('Each component is scored 0–100. The thresholds decide how many points a result earns.', 'Her bileşen 0–100 arası puanlanır. Eşikler bir sonucun kaç puan getireceğini belirler.'), `
+function scoringSection(s) {
+  const m = cascoMoney(s.config);
+  return block(t('Points and the trophy', 'Puan ve kupa'), t('Two components: no points below a floor, 50 from it, rising to 100 at the target (pro-rated during the year). The total is their sum, 0–200; the one trophy goes by it, ties by profit.', 'İki bileşen: alt sınırın altında puan yok, alt sınırdan itibaren 50, hedefte 100 (yıl içinde oranlanır). Toplam ikisinin toplamıdır, 0–200; tek kupa buna göre, eşitlikte kâra göre verilir.'), `
       <div class="rf-grid">
-        ${assumptionField('profitFloor', { hint: t(`At or below this at year end, 0 points (${money(a.profitFloor.value * slice, { signed: true })}).`, `Yıl sonunda bu orana eşit ya da altındaysa 0 puan (${money(a.profitFloor.value * slice, { signed: true })}).`) })}
-        ${assumptionField('profitTarget', { hint: t(`Reaching this earns full points (${money(a.profitTarget.value * slice)} profit). During the year thresholds are pro-rated.`, `Buna ulaşmak tam puan getirir (${money(a.profitTarget.value * slice)} kâr). Yıl içinde eşikler geçen aylara oranlanır.`) })}
-        ${assumptionField('shareTarget', { hint: t(`× a fair share. With ${n} teams now, ${pct(market.shareTarget)} premium share earns full points.`, `× adil pay. Şu an ${n} takımla ${pct(market.shareTarget)} prim payı tam puan getirir.`) })}
+        ${assumptionField('profitFloor')}
+        ${assumptionField('profitTarget')}
+        ${assumptionField('premiumFloor')}
+        ${assumptionField('premiumTarget')}
+        ${assumptionField('bankruptRatio')}
       </div>
       ${insight([
-        t(`${WEIGHT_LABELS[0]}: profit / fair market slice ${pct(a.profitFloor.value, 1)} → 0 points, ${pct(a.profitTarget.value, 1)} → 100 points. At most <b>${fmt(w[0])} points</b>.`, `${WEIGHT_LABELS[0]}: kâr / adil pazar dilimi ${pct(a.profitFloor.value, 1)} → 0 puan, ${pct(a.profitTarget.value, 1)} → 100 puan. En fazla <b>${fmt(w[0])} puan</b>.`),
-        t(`${WEIGHT_LABELS[1]}: ${pct(market.shareTarget)} premium share among the teams earns full points. At most <b>${fmt(w[1])} points</b>.`, `${WEIGHT_LABELS[1]}: takımlar arasında ${pct(market.shareTarget)} prim payı tam puan getirir. En fazla <b>${fmt(w[1])} puan</b>.`)
+        t(`Profit points: below ${money(m.profitFloor)} none, from it 50, ${money(m.profitTarget)} or more → 100.`, `Kâr puanı: ${money(m.profitFloor)} altı yok, ondan itibaren 50, ${money(m.profitTarget)} ve üstü → 100.`),
+        t(`Premium points: below ${money(m.premiumFloor)} none, from it 50, ${money(m.premiumTarget)} or more → 100.`, `Prim puanı: ${money(m.premiumFloor)} altı yok, ondan itibaren 50, ${money(m.premiumTarget)} ve üstü → 100.`),
+        t(`A combined ratio above ${pct(m.bankruptRatio, 0)} is bankruptcy: stamped and ranked last, no trophy.`, `Bileşik oran ${pct(m.bankruptRatio, 0)}’i aşarsa takım batar: damgalanır, en sona düşer, kupa alamaz.`)
       ])}`);
 }
 

@@ -98,10 +98,9 @@ export function scenario(lang = 'en') {
   };
 }
 
-// Market figures for briefings: customers per month and the share that earns full points.
-export function scaledMarket(config, n) {
-  const money = cascoMoney(config);
-  return { pool: policiesOf(config) / 12, shareTarget: Math.min(1, money.shareTarget / Math.max(1, n)) };
+// Market figures for briefings: customers per month.
+export function scaledMarket(config) {
+  return { pool: policiesOf(config) / 12 };
 }
 
 // ——— Display in the viewer's language ———
@@ -125,7 +124,8 @@ export function localizedTeamProduct(team, config, viewerLang) {
   return team.strategy.product === own ? `${team.name} ${presetName(DEFAULT_PRESET, viewerLang)}` : team.strategy.product;
 }
 export function localizedAssumption(config, key, viewerLang) {
-  const a = config.assumptions[key];
+  // Rooms from before a setting existed (e.g. the euro score thresholds) show its default.
+  const a = config.assumptions[key] ?? cascoAssumptions(config?.lang)[key];
   if (!config?.lang || config.lang === viewerLang) return a;
   const own = cascoAssumptions(config.lang)[key], target = cascoAssumptions(viewerLang)[key];
   return !own || a.label !== own.label ? a : { ...a, label: target.label, description: target.description };

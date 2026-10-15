@@ -191,10 +191,9 @@ test('rule studio: host edits validated rules that change the simulation; race l
   assert.ok(reduce(s, { type: 'rules-reset', keys: [], market: true }, host(5)).changed);
   assert.equal(s.config.assumptions.budget.value, freshSession(0).config.assumptions.budget.value);
 
-  reduce(s, { type: 'weight', index: 0, value: 70 }, host(6));
-  assert.match(toRace(s, 7).error, /Scoring/);
-  assert.ok(reduce(s, { type: 'weights-normalize' }, host(8)).changed);
-  assert.ok(reduce(s, { type: 'start-race' }, host(9)).changed);
+  assert.ok(reduce(s, { type: 'assumption', key: 'profitTarget', value: 1500000 }, host(6)).changed);
+  assert.equal(s.config.assumptions.profitTarget.value, 1500000);
+  assert.ok(!toRace(s, 7)?.error);
   assert.match(reduce(s, { type: 'rule', path: 'campaign.reachCost', value: 1 }, host(10)).error, /race/);
 });
 

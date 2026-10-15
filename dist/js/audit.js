@@ -144,16 +144,14 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
   R.dimensions.channel.forEach((_, i) => param(`Commission${i + 1}`, L(lang, `Commission · ${levelName('channel', i, lang)} (share of premium)`, `Komisyon · ${levelName('channel', i, lang)} (primin payı)`), commissionOf(R)[i]));
   names.T_commission = `${q(SH.rules)}!$C$${commissionFirst}:$C$${r - 1}`;
   section(L(lang, 'Scoring', 'Puanlama'));
-  param('WProfit', L(lang, 'Weight: profitability %', 'Ağırlık: kârlılık %'), config.weights[0]);
-  param('WShare', L(lang, 'Weight: market share %', 'Ağırlık: pazar payı %'), config.weights[1]);
-  param('ProfitFloor', L(lang, 'Profitability floor (profit / fair slice)', 'Kârlılık tabanı (kâr / adil dilim)'), money.profitFloor);
-  param('ProfitTarget', L(lang, 'Profitability target (profit / fair slice)', 'Kârlılık hedefi (kâr / adil dilim)'), money.profitTarget);
-  param('ShareTarget', L(lang, 'Share target (× fair share)', 'Pay hedefi (× adil pay)'), money.shareTarget);
+  param('ProfitFloor', L(lang, 'Profit floor (EUR, 50 points)', 'Kâr alt sınırı (EUR, 50 puan)'), money.profitFloor);
+  param('ProfitTarget', L(lang, 'Profit target (EUR, 100 points)', 'Kâr hedefi (EUR, 100 puan)'), money.profitTarget);
+  param('PremiumFloor', L(lang, 'Premium floor (EUR, 50 points)', 'Prim alt sınırı (EUR, 50 puan)'), money.premiumFloor);
+  param('PremiumTarget', L(lang, 'Premium target (EUR, 100 points)', 'Prim hedefi (EUR, 100 puan)'), money.premiumTarget);
+  param('BankruptRatio', L(lang, 'Bankruptcy line (combined ratio)', 'Batış sınırı (bileşik oran)'), money.bankruptRatio);
   rules.put(r + 1, 0, L(lang, 'Derived', 'Türetilen'), S.section);
   rules.put(r + 2, 0, L(lang, 'Number of teams', 'Takım sayısı')); rules.put(r + 2, 1, 'Teams'); rules.put(r + 2, 2, `=COUNTA(${q(SH.plans)}!$C$3:$${col(2 + n * PERIODS)}$3)`, S.int);
   names.Teams = `${q(SH.rules)}!$C$${r + 2}`;
-  rules.put(r + 3, 0, L(lang, 'Share that earns full points', 'Tam puan getiren pay')); rules.put(r + 3, 1, 'ShareFull'); rules.put(r + 3, 2, '=MIN(1,ShareTarget/Teams)', S.dec);
-  names.ShareFull = `${q(SH.rules)}!$C$${r + 3}`;
   rules.put(r + 4, 0, L(lang, 'Fair slice of the market (premium at market prices ÷ 6)', 'Adil pazar dilimi (piyasa fiyatlarıyla prim ÷ 6)')); rules.put(r + 4, 1, 'FairSlice');
   rules.put(r + 4, 2, `=SUMPRODUCT(${q(SH.market)}!$P$2:$P$${C + 1},${q(SH.market)}!$N$2:$N$${C + 1})/6`, S.int);
   names.FairSlice = `${q(SH.rules)}!$C$${r + 4}`;
@@ -381,7 +379,7 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     'λ = E[count]', 'E[cost]', 'u₁', 'u₂', L(lang, 'Claim count N', 'Hasar adedi N'), L(lang, 'Mean severity', 'Ortalama şiddet'), L(lang, 'Claims', 'Hasar'), L(lang, 'Expenses', 'Giderler'),
     L(lang, 'Σ premium', 'Σ prim'), L(lang, 'Σ claims', 'Σ hasar'), L(lang, 'Σ expenses', 'Σ gider'),
     L(lang, 'Profit', 'Kâr'), L(lang, 'Premium share', 'Prim payı'),
-    L(lang, 'Profit pts', 'Kâr puanı'), L(lang, 'Share pts', 'Pay puanı'), L(lang, 'Score', 'Puan'), L(lang, 'Loss ratio', 'Hasar oranı')];
+    L(lang, 'Profit pts', 'Kâr puanı'), L(lang, 'Premium pts', 'Prim puanı'), L(lang, 'Score', 'Puan'), L(lang, 'Loss ratio', 'Hasar oranı')];
   LH.forEach((h, c) => ledger.put(1, c, h, S.head));
   teams.forEach((team, ti) => {
     const kc = col(B + ti * TC + 5), prc = col(B + ti * TC + 6), ecc = col(B + ti * TC + 7), eco = col(B + ti * TC + 8), cmc = col(B + ti * TC + 9);
@@ -405,9 +403,9 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
       ledger.put(row, 16, `=SUM(N$${first}:N${row})`, S.dec);
       ledger.put(row, 17, `=O${row}-P${row}-Q${row}`, S.int);
       ledger.put(row, 18, `=O${row}/SUMIFS($O$${ledgerFirst}:$O$${ledgerFirst + n * 12 - 1},$B$${ledgerFirst}:$B$${ledgerFirst + n * 12 - 1},B${row})`, S.dec);
-      ledger.put(row, 19, `=MAX(0,MIN(100,(R${row}/FairSlice-ProfitFloor*B${row}/12)/((ProfitTarget-ProfitFloor)*B${row}/12)*100))`, S.dec);
-      ledger.put(row, 20, `=MAX(0,MIN(100,S${row}/ShareFull*100))`, S.dec);
-      ledger.put(row, 21, `=(T${row}*WProfit+U${row}*WShare)/100`, S.score);
+      ledger.put(row, 19, `=IF(R${row}<ProfitFloor*B${row}/12,0,50+50*MAX(0,MIN(1,(R${row}-ProfitFloor*B${row}/12)/MAX(1E-9,(ProfitTarget-ProfitFloor)*B${row}/12))))`, S.dec);
+      ledger.put(row, 20, `=IF(O${row}<PremiumFloor*B${row}/12,0,50+50*MAX(0,MIN(1,(O${row}-PremiumFloor*B${row}/12)/MAX(1E-9,(PremiumTarget-PremiumFloor)*B${row}/12))))`, S.dec);
+      ledger.put(row, 21, `=T${row}+U${row}`, S.score);
       ledger.put(row, 22, `=IF(O${row}>0,P${row}/O${row},0)`, S.dec);
     }
   });
@@ -465,8 +463,8 @@ export async function buildAuditWorkbook(state, { lang = 'en' } = {}) {
     [L(lang, 'Expenses a month = fixed cost ÷ 12 + premium × expense ratio + Σ premium × its channel’s commission + the media bought + the gifts handed out. Marketing has two budgets, each at most half of the yearly budget: January–June and July–December, each spent evenly over its six months (budget ÷ 6); nothing carries over. Gift money no customer took, like budget never allocated, stays in profit.', 'Aylık gider = sabit gider ÷ 12 + prim × gider oranı + Σ prim × kanalının komisyonu + alınan medya + verilen hediyeler. Pazarlamanın her biri yıllık bütçenin en fazla yarısı olan iki bütçesi vardır: Ocak–Haziran ve Temmuz–Aralık; her biri kendi altı ayına eşit harcanır (bütçe ÷ 6), devretmez. Hiçbir müşterinin almadığı hediye parası da, hiç ayrılmamış bütçe gibi kâra kalır.')],
     [L(lang, 'Profit = Σ premium − Σ claims − Σ expenses.', 'Kâr = Σ prim − Σ hasar − Σ gider.')],
     [L(lang, '4 · The score', '4 · Puan'), S.section],
-    [L(lang, 'Profit points = clamp((profit ÷ fair slice − floor × m/12) ÷ ((target − floor) × m/12) × 100, 0, 100). Share points = clamp(premium share ÷ min(1, share target ÷ teams) × 100).', 'Kâr puanı = sınırla((kâr ÷ adil dilim − taban × a/12) ÷ ((hedef − taban) × a/12) × 100, 0, 100). Pay puanı = sınırla(prim payı ÷ min(1, pay hedefi ÷ takım sayısı) × 100).')],
-    [L(lang, 'Score = (profit points × weight + share points × weight) ÷ 100. Ranking by score. The trophies themselves go by profit and by premium share.', 'Puan = (kâr puanı × ağırlık + pay puanı × ağırlık) ÷ 100. Sıralama puana göredir. Kupalar ise kâra ve prim payına göre verilir.')],
+    [L(lang, 'Profit points = 0 below floor × m/12; otherwise 50 + 50 × clamp((profit − floor × m/12) ÷ ((target − floor) × m/12), 0, 1). Premium points = the same with the gross premium and its floor and target.', 'Kâr puanı = alt sınır × a/12 altında 0; aksi halde 50 + 50 × sınırla((kâr − alt sınır × a/12) ÷ ((hedef − alt sınır) × a/12), 0, 1). Prim puanı = brüt prim ve onun sınırlarıyla aynısı.')],
+    [L(lang, 'Score = profit points + premium points (0–200). A combined ratio above the bankruptcy line is bankruptcy: the team is ranked last. Otherwise the ranking is by score, then by profit; the one trophy goes by it.', 'Puan = kâr puanı + prim puanı (0–200). Bileşik oran batış sınırını aşarsa takım batar ve en sona düşer. Aksi halde sıralama puana, eşitlikte kâra göredir; tek kupa buna göre verilir.')],
     [L(lang, '5 · Luck', '5 · Şans'), S.section],
     [L(lang, 'Luck is a table of numbers between 0 and 1 drawn from the game’s seed before any decision: one per cell per month (demand wobble) and two per team per month (claim count and amount). It never depends on decisions, which is why the same plan always gets the same result.', 'Şans, oyunun tohumundan kararlardan önce çekilen 0–1 arası sayılardan oluşan bir tablodur: her hücre için her ay bir tane (talep dalgası), her takım için her ay iki tane (hasar adedi ve tutarı). Kararlara bağlı değildir; aynı plan hep aynı sonucu bu yüzden alır.')],
     [L(lang, `Event scopes: ${scopes.slice(0, 1).map(x => x.name).join('')} = all; otherwise the dimension name and the level number in its table on the Rules sheet.`, `Olay kapsamı: ${scopes.slice(0, 1).map(x => x.name).join('')} = all; aksi halde boyut adı ve Kurallar sayfasındaki tablosunda seviye numarası.`)],

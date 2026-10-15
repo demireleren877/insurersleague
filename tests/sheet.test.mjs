@@ -112,7 +112,7 @@ test('quarter workbooks merge changes from separate team copies and ignore uncha
   const atlasCopy = structuredClone(roster);
   atlasCopy[0].strategy.basePremium = 24;
   const novaCopy = structuredClone(roster);
-  novaCopy[1].strategy.marketing2 = 28_000;
+  novaCopy[1].strategy.marketing = 28_000;
   const unchangedCopy = structuredClone(roster);
   // One workbook carries one team.
   const workbooks = [
@@ -226,8 +226,7 @@ test('the half-year workbook shows the first half as spent and opens the second 
   const bytes = buildTemplate(s, { lang: 'en', teams: [s.teams[0]] });
   const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const mkt = sheets.find(sh => sh.name === 'Marketing');
-  assert.equal(mkt.rows[13][3], 120000, 'January–June as spent');
-  assert.equal(mkt.rows[14][3], 200000, 'July–December as planned, open for changes');
+  assert.equal(mkt.rows[13][3], 200000, 'the one budget cell is July–December’s at the review');
   assert.match(String(mkt.rows[2][1]), /€120.000 spent/);
   const prem = sheets.find(sh => sh.name === 'Premium');
   assert.ok(prem.rows[4][2] > 0, 'the review copy keeps the current base premium');
@@ -242,7 +241,7 @@ test('a room team’s first template leaves the base premium empty, and an empty
   const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const prem = sheets.find(sh => sh.name === 'Premium'), mkt = sheets.find(sh => sh.name === 'Marketing');
   assert.equal(prem.rows[4]?.[2] ?? '', '');
-  assert.ok(mkt.rows[13][3] >= 0 && mkt.rows[14][3] >= 0, 'both half-year budgets are pre-filled');
+  assert.ok(mkt.rows[13][3] >= 0 && (mkt.rows[14]?.[3] ?? '') === '', 'one budget cell, pre-filled');
   const result = await readSheets([fileOf('atlas.xlsx', bytes)], s.config, 'en');
   assert.match(result.errors.join(' '), /base premium is empty/);
 });

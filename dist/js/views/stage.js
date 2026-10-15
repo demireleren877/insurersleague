@@ -8,7 +8,7 @@ import { MIN_TEAMS, MAX_TEAMS, quizModeName, questionOf, quizMonths } from '../g
 import { t, getLang, languageControl } from '../i18n.js';
 import { answerStylesFor, localizedQuestion } from '../quiz.js';
 import { esc, fmt, money, pct, pad, clamp, lerp, easeInOut, upper, lower, clock, short } from '../format.js';
-import { monthsOf, rank, scaledMarket, rulesOf, localizedBranch, localizedTeamProduct, localizedEventText, DIMENSIONS, dimensionName, levelName, marketCells, policiesOf, commissionOf } from '../../engine.js';
+import { monthsOf, rank, scaledMarket, rulesOf, localizedBranch, localizedTeamProduct, localizedEventText, DIMENSIONS, dimensionName, levelName, marketCells, policiesOf, commissionOf, cascoMoney } from '../../engine.js';
 import { monthDigest } from '../narrative.js';
 import { sfx } from '../audio.js';
 import { podium, AWARDS } from './results.js';
@@ -22,11 +22,11 @@ const phasesOf = () => [
   ['race', t('Race', 'Yarış')], ['final', t('Final', 'Final')]
 ];
 
-// The trophies the season hands out; no weights, no total score.
+// The trophy the season hands out and how it is scored.
 function awardsBrief(s, compact = false) {
   const R = rulesOf(s.config);
   return `<div class="${compact ? 'mobile-awards' : 'brief-awards'}">${AWARDS.map(a => `<article>${icon(a.icon, compact ? 18 : 22)}<div><b>${a.label}</b><small>${a.basis}</small></div></article>`).join('')}</div>
-    <p class="score-note">${icon('sliders', 16)} ${t('Two separate trophies. Teams can revise their prices and their campaign once, at the end of June.', 'İki ayrı kupa. Takımlar fiyatlarını ve kampanyalarını bir kez, Haziran sonunda güncelleyebilir.')}</p>`;
+    <p class="score-note">${icon('sliders', 16)} ${(() => { const m = cascoMoney(s.config); return t(`Profit points: below €0 none, €0 → 50, ${money(m.profitTarget)} → 100. Premium points: below ${money(m.premiumFloor)} none, from it 50, ${money(m.premiumTarget)} → 100. A combined ratio above ${pct(m.bankruptRatio, 0)} is bankruptcy. Teams can revise their plan once, at the end of June.`, `Kâr puanı: €0 altı yok, €0 → 50, ${money(m.profitTarget)} → 100. Prim puanı: ${money(m.premiumFloor)} altı yok, ondan itibaren 50, ${money(m.premiumTarget)} → 100. Bileşik oran ${pct(m.bankruptRatio, 0)}’i aşarsa takım batar. Takımlar planlarını bir kez, Haziran sonunda güncelleyebilir.`); })()}</p>`;
 }
 
 // The market events that have hit by `upTo`, newest first, in the viewer's language.
@@ -462,10 +462,11 @@ export function mountStage(root) {
   const clearCeremony = () => { ceremony.forEach(clearTimeout); ceremony = []; };
   function finalAwardMarkup(k, rows, teams) {
     const a = AWARDS[k], order = rows.filter(r => r.eligible).sort(a.sort);
-    const rest = order.slice(3);
-    return `<header class="final-one-head"><span class="award-icon">${icon(a.icon, 26)}</span><div><small>${t('Trophy', 'Kupa')} ${k + 1} / ${AWARDS.length}</small><h2 class="display">${a.label}</h2><p>${a.basis}</p></div></header>
+    const rest = order.slice(3), broke = rows.filter(r => r.bankrupt);
+    return `<header class="final-one-head"><span class="award-icon">${icon(a.icon, 26)}</span><div>${AWARDS.length > 1 ? `<small>${t('Trophy', 'Kupa')} ${k + 1} / ${AWARDS.length}</small>` : ''}<h2 class="display">${a.label}</h2><p>${a.basis}</p></div></header>
       ${podium(rows, teams, 'final-podium', a)}
-      ${rest.length ? `<ol class="final-rest" start="4">${rest.map((r, i) => { const t2 = byId(teams, r.id); return `<li style="--team:${t2.color}"><b class="num">${i + 4}.</b>${emblem(t2, 'sm')}<span>${short(t2.name)}</span><em class="num">${a.value(r)}</em></li>`; }).join('')}</ol>` : ''}`;
+      ${rest.length ? `<ol class="final-rest" start="4">${rest.map((r, i) => { const t2 = byId(teams, r.id); return `<li style="--team:${t2.color}"><b class="num">${i + 4}.</b>${emblem(t2, 'sm')}<span>${short(t2.name)}</span><em class="num">${a.value(r)}</em></li>`; }).join('')}</ol>` : ''}
+      ${broke.length ? `<p class="final-bankrupt"><span class="stamp-bankrupt">${t('BANKRUPT', 'BATTI')}</span> ${broke.map(r => short(byId(teams, r.id).name)).join(' · ')}</p>` : ''}`;
   }
   function renderFinal() {
     const s = getState();
@@ -474,9 +475,9 @@ export function mountStage(root) {
     clearCeremony();
     el.classList.remove('skip', 'done');
     el.innerHTML = `<canvas class="confetti" aria-hidden="true"></canvas>
-      <div class="final-intro"><p class="kicker amber">${t('Season finale', 'Sezon finali')} · ${s.config.year}</p><h1 class="display">${t(`12 months. ${rows.length} strategies.<br><em>${AWARDS.length} trophies.</em>`, `12 ay. ${rows.length} strateji.<br><em>${AWARDS.length} kupa.</em>`)}</h1></div>
+      <div class="final-intro"><p class="kicker amber">${t('Season finale', 'Sezon finali')} · ${s.config.year}</p><h1 class="display">${t(`12 months. ${rows.length} strategies.<br><em>${AWARDS.length > 1 ? `${AWARDS.length} trophies.` : 'One trophy.'}</em>`, `12 ay. ${rows.length} strateji.<br><em>${AWARDS.length > 1 ? `${AWARDS.length} kupa.` : 'Tek kupa.'}</em>`)}</h1></div>
       <p class="final-call" aria-live="polite"></p>
-      <nav class="final-tabs" aria-label="${t('Trophies', 'Kupalar')}">${AWARDS.map((a, k) => `<button data-action="final-award" data-award="${k}" ${host() ? '' : 'tabindex="-1"'}>${icon(a.icon, 15)} ${a.label}</button>`).join('')}</nav>
+      <nav class="final-tabs" ${AWARDS.length > 1 ? '' : 'hidden'} aria-label="${t('Trophies', 'Kupalar')}">${AWARDS.map((a, k) => `<button data-action="final-award" data-award="${k}" ${host() ? '' : 'tabindex="-1"'}>${icon(a.icon, 15)} ${a.label}</button>`).join('')}</nav>
       <div class="final-one" data-st="final-one"></div>
       ${host() ? `<div class="final-host"><button class="btn ghost" data-action="skip-final">${t('Skip the ceremony', 'Töreni atla')}</button><a class="btn" href="#/results">${icon('chart', 16)} ${t('Detailed results', 'Detaylı sonuçlar')}</a><button class="btn gold" data-action="new-game">${icon('reset', 16)} ${t('New game, same teams', 'Aynı takımlarla yeni oyun')}</button></div>` : ''}`;
     const calm = reduced(), sound = () => getState().sound;
@@ -568,7 +569,7 @@ export function mountStage(root) {
         <section class="mobile-stage-hero"><p class="kicker amber">${t(`Market brief · ${s.config.year}`, `Pazar dosyası · ${s.config.year}`)}</p><h1 class="display">${t('Everyone starts from the same market.', 'Herkes aynı koşullarda başlar.')}</h1><p>${s.inputMode === 'excel' ? t('The imported team strategies will compete in the same market under the same rules.', 'İçe alınan takım stratejileri aynı pazarda ve aynı kurallarla yarışacak.') : t('The teams choose their route; the market and the rules stay shared.', 'Takımlar kendi rotasını seçer; pazar ve kurallar ortaktır.')}</p></section>
         <section class="mobile-stat-grid">${stat(t('Marketing budget', 'Pazarlama bütçesi'), money(a.budget.value), t('the digital campaign: media + gifts', 'dijital kampanya: medya + hediye'))}${stat(t('Policies a year', 'Yıllık poliçe'), fmt(policiesOf(s.config)))}${stat(t('Customers a month', 'Aylık müşteri'), fmt(market.pool))}</section>
         <section class="mobile-stage-card"><p class="kicker">${t('The market', 'Pazar')}</p>${marketProfile(true)}</section>
-        <section class="mobile-stage-card"><p class="kicker">${t(`${AWARDS.length} trophies`, `${AWARDS.length} kupa`)}</p>${awardsBrief(s, true)}</section>
+        <section class="mobile-stage-card"><p class="kicker">${AWARDS.length > 1 ? t(`${AWARDS.length} trophies`, `${AWARDS.length} kupa`) : t('The trophy', 'Kupa')}</p>${awardsBrief(s, true)}</section>
         ${isHost ? `<button class="btn go lg mobile-primary" data-action="phase" data-to="decisions">${s.inputMode === 'excel' ? t('Collect the decisions', 'Kararları topla') : t(`Start decisions · ${s.config.minutes} min`, `Karar süresini başlat · ${s.config.minutes} dk`)} ${icon('arrow', 18)}</button>` : ''}`;
       return;
     }

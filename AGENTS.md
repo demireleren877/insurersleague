@@ -5,11 +5,11 @@ Read this first, then `GELISTIRICI.md` (the full model and architecture). The ow
 ## What this is
 A casco (motor own-damage) pricing workshop game. 2–12 teams compete for one shared market for 12 months. A team decides only two things:
 - **Price:** a base premium and 19 segment coefficients (0.50–2.50, step 0.05).
-- **Marketing:** two half-year budgets of up to €250k (January–June, July–December, nothing carried over) that run a digital campaign — a media/gift split and four gift weights. Media costs €10 per 100 contacts; reach saturates in the shared target group.
+- **Marketing:** one budget per half-year, up to €250k (the decision file has one cell; it runs January–June and again July–December unless the half-year review file changes it; nothing carried over) that run a digital campaign — a media/gift split and four gift weights. Media costs €10 per 100 contacts; reach saturates in the shared target group.
 
-There are two trophies, **profit** and **market share** (gross premium share among the teams). There is no NPS, no capital, no reinsurance and no claims operations. Teams revise their plan once, at the half-year review after June.
+There is one trophy, by total points: profit points (none below €0, 50 at €0, 100 at €1M) + premium points (none below €4M, 50 at €4M, 100 at €8M), ties by profit; a combined ratio above 135% is bankruptcy (ranked last, stamped). There is no NPS, no capital, no reinsurance and no claims operations. Teams revise their plan once, at the half-year review after June.
 
-Costs each month: claims + fixed cost/12 (€500k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near a 76% target loss ratio and a flat tariff loses. Composite score thresholds are `profitFloor` 0 and `profitTarget` 0.12.
+Costs each month: claims + fixed cost/12 (€500k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near a 76% target loss ratio and a flat tariff loses. Score thresholds are euro amounts in the assumptions (`profitFloor`, `profitTarget`, `premiumFloor`, `premiumTarget`, `bankruptRatio`).
 
 It runs on Cloudflare Workers:
 - `worker/index.js`, with Durable Objects `Room` (one per 6-digit PIN) and `Archive`.

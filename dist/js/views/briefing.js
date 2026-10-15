@@ -1,7 +1,7 @@
 import { getState } from '../store.js';
 import { icon } from '../ui.js';
 import { money, pct, fmt, esc, lower } from '../format.js';
-import { scaledMarket, localizeRules } from '../../engine.js';
+import { scaledMarket, localizeRules, cascoMoney } from '../../engine.js';
 import { quizModeName, quizMonths } from '../game.js';
 import { t, getLang } from '../i18n.js';
 
@@ -16,7 +16,7 @@ export const BRIEF_SECTIONS = () => [
 ];
 
 export function briefingContent({ nav = false } = {}) {
-  const s = getState(), a = s.config.assumptions, w = s.config.weights;
+  const s = getState(), a = s.config.assumptions, m = cascoMoney(s.config);
   const n = Math.max(2, s.teams.length), market = scaledMarket(s.config, n), rules = localizeRules(s.config, getLang());
   const sizeSum = rules.segments.reduce((sum, g) => sum + g.size, 0) || 1;
   const maxSens = Math.max(...rules.segments.map(g => g.priceSensitivity), 0.1), maxRisk = Math.max(...rules.segments.map(g => g.risk), 0.1);
@@ -60,19 +60,14 @@ export function briefingContent({ nav = false } = {}) {
     <div id="brief-score">
       <header><p class="kicker amber">${t('Scoring', 'Puanlama')}</p><h2 class="display">${t('What decides the champion?', 'Şampiyonu ne belirler?')}</h2></header>
       <div class="panel score-rules">
-        <div class="weight-bar">${[[t('Profitability', 'Kârlılık'), 'var(--comp-profit)'], [t('Market share', 'Pazar payı'), 'var(--comp-share)'], [t('Customer satisfaction', 'Müşteri memnuniyeti'), 'var(--comp-cx)']].map(([l, c], i) => `<i style="flex:${w[i]};background:${c}"><span>${l} ${w[i]}%</span></i>`).join('')}</div>
         <ul>
-          <li><b>${t('Profitability', 'Kârlılık')}</b> ${t(`Technical profit / capital. ${pct(a.profitFloor.value)} → 0 points, ${pct(a.profitTarget.value)} → 100 points.`, `Teknik kâr / sermaye. ${pct(a.profitFloor.value)} → 0 puan, ${pct(a.profitTarget.value)} → 100 puan.`)}</li>
-          <li><b>${t('Market share', 'Pazar payı')}</b> ${t(`Gross premium share at year end. 0% → 0 points, ${pct(market.shareTarget)} → 100 points (for ${n} teams).`, `Yıl sonu brüt prim payı. %0 → 0 puan, ${pct(market.shareTarget)} → 100 puan (${n} takım için).`)}</li>
-          <li><b>${t('Customer satisfaction', 'Müşteri memnuniyeti')}</b> ${t(`Annual average service score. 0 → 0 points, ${fmt(a.serviceTarget.value)} → 100 points.`, `Yıllık ortalama hizmet skoru. 0 → 0 puan, ${fmt(a.serviceTarget.value)} → 100 puan.`)}</li>
-          <li><b>${t('Interim ranking', 'Geçici sıralama')}</b> ${t('In the monthly score, profitability thresholds are pro-rated to the elapsed part of the year; December applies the full threshold.', 'Aylık puanda kârlılık eşikleri yılın geçen kısmına göre oranlanır; Aralık’ta tam eşik uygulanır.')}</li>
+          <li><b>${t('Profit points (0 or 50–100)', 'Kâr puanı (0 ya da 50–100)')}</b> ${t(`Year-end profit. below ${money(m.profitFloor)} no points, from it 50, ${money(m.profitTarget)} or more → 100 points.`, `Yıl sonu kârı. ${money(m.profitFloor)} altında puan yok, ondan itibaren 50, ${money(m.profitTarget)} ve üstü → 100 puan.`)}</li>
+          <li><b>${t('Premium points (0 or 50–100)', 'Prim puanı (0 ya da 50–100)')}</b> ${t(`Year-end gross premium. below ${money(m.premiumFloor)} no points, from it 50, ${money(m.premiumTarget)} or more → 100 points.`, `Yıl sonu brüt primi. ${money(m.premiumFloor)} altında puan yok, ondan itibaren 50, ${money(m.premiumTarget)} ve üstü → 100 puan.`)}</li>
+          <li><b>${t('Total points (0–200)', 'Toplam puan (0–200)')}</b> ${t('Profit points + premium points. The one trophy goes to the most points; ties are broken by profit.', 'Kâr puanı + prim puanı. Tek kupa en çok puanı alana gider; eşitlikte kâr belirler.')}</li>
+          <li><b>${t('Bankruptcy', 'Batış')}</b> ${t(`A combined ratio above ${pct(m.bankruptRatio, 0)} is bankruptcy: the team is stamped and ranked last.`, `Bileşik oran ${pct(m.bankruptRatio, 0)}’i aşarsa takım batar: damgalanır ve en sona düşer.`)}</li>
+          <li><b>${t('Interim ranking', 'Geçici sıralama')}</b> ${t('During the year the thresholds are pro-rated to the months played; December applies them in full.', 'Yıl içinde eşikler oynanan aylara göre oranlanır; Aralık’ta tam uygulanır.')}</li>
         </ul>
-        <div class="rule-chips">
-          ${rules.capitalRule ? `<span class="chip">${icon('x', 13)} ${t('A team whose equity goes negative can’t be champion', 'Özkaynağı negatife düşen şampiyon olamaz')}</span>` : ''}
-          <span class="chip">${t('Ties broken by: technical profit → market share', 'Eşitlikte: teknik kâr → pazar payı')}</span>
-        </div>
-        <p class="kicker" style="margin-top:6px">${t('Badges (don’t change the score)', 'Rozetler (puanı değiştirmez)')}</p>
-        <div class="rule-chips">${[t('Market Leader', 'Pazar Lideri'), t('Profit Master', 'Kârlılık Ustası'), t('Customer Champion', 'Müşteri Şampiyonu'), t('Biggest Comeback', 'En Güçlü Geri Dönüş')].map(b => `<span class="chip warn">${icon('cup', 13)} ${b}</span>`).join('')}</div>
+
       </div>
     </div>
   </section>

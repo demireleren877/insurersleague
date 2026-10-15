@@ -105,6 +105,7 @@ export function referenceMarket(R = DEFAULT_RULES, policies = DEFAULT_POLICIES) 
 // Moderator-facing numbers. Money is set for the default market size; changing the policy count rescales
 // it in proportion (see game.js).
 export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFAULT_POLICIES) {
+  const scaled = v => Math.round(v * policies / DEFAULT_POLICIES / 1000) * 1000;
   const A = (value, min, max, unit, en, tr, den, dtr) => ({ value, min, max, unit, label: L(lang, en, tr), description: L(lang, den, dtr) });
   return {
     policies: A(policies, 1000, 5000000, 'policies', 'Annual market size', 'Yıllık pazar büyüklüğü',
@@ -117,12 +118,17 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
       'Yearly overhead every company carries, claims handling included.', 'Her şirketin taşıdığı yıllık genel gider; hasar yönetimi dahil.'),
     expenseRatio: A(0.05, 0, 0.5, 'ratio', 'Expense ratio', 'Gider oranı',
       'Share of every euro of premium spent on running the business (sales, policy administration). Told to the teams.', 'Her euro primin işletmeye (satış, poliçe yönetimi) giden payı. Takımlara açıklanır.'),
-    profitFloor: A(0, -1, 0.5, 'ratio', 'Profitability floor', 'Kârlılık tabanı',
-      'Profit as a share of a fair market slice (the market’s premium ÷ 6) that scores 0 profitability points.', 'Kârlılıktan 0 puan alınan kâr / adil pazar dilimi (piyasa primi ÷ 6) oranı.'),
-    profitTarget: A(0.12, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
-      'Profit as a share of a fair market slice that scores full profitability points.', 'Kârlılıktan tam puan alınan kâr / adil pazar dilimi oranı.'),
-    shareTarget: A(1.5, 0.5, 6, 'x', 'Market share target', 'Pazar payı hedefi',
-      'Full share points at this multiple of a fair share (1 / teams).', 'Adil payın (1 / takım) bu katında tam pay puanı.')
+    // Scoring: no points below a component's floor; from it 50, rising to 100 at the target. The score is the sum.
+    profitFloor: A(scaled(0), -1e9, 1e9, 'EUR', 'Profit floor', 'Kâr alt sınırı',
+      'Year-end profit from which profit points start (50); below it, no profit points.', 'Kâr puanının başladığı yıl sonu kârı (50 puan); altında kâr puanı yok.'),
+    profitTarget: A(scaled(1000000), -1e9, 1e10, 'EUR', 'Profit target', 'Kâr hedefi',
+      'Year-end profit that earns the full 100 profit points.', 'Tam 100 kâr puanı getiren yıl sonu kârı.'),
+    premiumFloor: A(scaled(4000000), 0, 1e10, 'EUR', 'Premium floor', 'Prim alt sınırı',
+      'Year-end gross premium from which premium points start (50); below it, no premium points.', 'Prim puanının başladığı yıl sonu brüt primi (50 puan); altında prim puanı yok.'),
+    premiumTarget: A(scaled(8000000), 0, 1e10, 'EUR', 'Premium target', 'Prim hedefi',
+      'Year-end gross premium that earns the full 100 premium points.', 'Tam 100 prim puanı getiren yıl sonu brüt primi.'),
+    bankruptRatio: A(1.35, 1, 5, 'ratio', 'Bankruptcy line', 'Batış sınırı',
+      'A combined ratio above this is bankruptcy: the team is stamped and ranked last.', 'Bileşik oran bunu aşarsa takım batar: damgalanır ve en sona düşer.')
   };
 }
 
@@ -131,9 +137,12 @@ export function cascoMoney(config) {
   const R = cascoRulesOf(config), policies = policiesOf(config);
   const a = config?.assumptions?.budget ? config.assumptions : cascoAssumptions(config?.lang, R, policies);
   const slice = referenceMarket(R, policies).gwp / NOMINAL_TEAMS;
+  // Rooms from before the euro thresholds carry ratio thresholds; they score with the defaults.
+  const sc = a.premiumTarget ? a : cascoAssumptions(config?.lang, R, policies);
   return {
     slice, budget: a.budget.value, half: a.budget.value / 2, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.05,
-    profitFloor: a.profitFloor.value, profitTarget: a.profitTarget.value, shareTarget: a.shareTarget.value
+    profitFloor: sc.profitFloor.value, profitTarget: sc.profitTarget.value, premiumFloor: sc.premiumFloor.value, premiumTarget: sc.premiumTarget.value,
+    bankruptRatio: sc.bankruptRatio?.value ?? 1.35
   };
 }
 
@@ -280,7 +289,6 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
   for (const t of teamList) if (marketingSpent(t, HALF_MONTHS) > money.half + 1 || marketingSpent(t, 12) - marketingSpent(t, HALF_MONTHS) > money.half + 1)
     errors.push(L(config.lang, `${t.name}: marketing in a half-year exceeds its budget.`, `${t.name}: bir yarıyılın pazarlama harcaması bütçesini aşıyor.`));
   if (errors.length) throw Error([...new Set(errors)].join(' '));
-  if (config.weights.reduce((a, b) => a + b, 0) !== 100) throw Error(L(config.lang, 'Score weights must total 100%.', 'Puan ağırlıkları toplamı %100 olmalı.'));
 
   const events = config.events || [], K = campaignRules(R), commissionRate = commissionOf(R);
   // Campaign target cells: the campaign channel's cells, weighted by their share of the sample.
@@ -382,7 +390,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
         expenses: l.expenses, marketing: l.marketing, commission: l.commission, monthCommission: commission, profit, monthProfit: profit - profitBefore, claimCount: l.claimCount,
         grossLossRatio: l.gwp ? l.claims / l.gwp : 0,
         lossRatio: l.gwp ? l.claims / l.gwp : 0, combinedRatio: l.gwp ? (l.claims + l.expenses) / l.gwp : 0,
-        monthLossRatio: gwp ? claims / gwp : 0, eligible: true, // every team competes for every trophy (kept so saved sessions still read)
+        monthLossRatio: gwp ? claims / gwp : 0, eligible: true, bankrupt: false, // set with the score below
         segments: [...l.persona], channels: [...l.channel], monthSegments: byPersona, monthGwp: gwp, monthClaims: claims,
         expectedLossRatio: l.gwp ? l.expectedCost / l.gwp : 0,
         campaign: { ...camp, audience, total: l.campaignCustomers },
@@ -393,17 +401,16 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
 
     const totalGwp = rows.reduce((v, x) => v + x.gwp, 0), totalPolicies = rows.reduce((v, x) => v + x.policies, 0);
     const monthGwp = rows.reduce((v, x) => v + x.monthGwp, 0);
-    const pace = (m + 1) / 12, shareTarget = Math.min(1, money.shareTarget / n);
+    const pace = (m + 1) / 12;
     for (const r of rows) {
       r.share = totalGwp ? r.gwp / totalGwp : 0;
       r.unitShare = totalPolicies ? r.policies / totalPolicies : 0;
       r.monthShare = monthGwp ? r.monthGwp / monthGwp : 0;
-      const ratio = r.profit / money.slice;
-      r.components = [
-        clamp((ratio - money.profitFloor * pace) / ((money.profitTarget - money.profitFloor) * pace) * 100, 0, 100),
-        clamp(r.share / shareTarget * 100, 0, 100)
-      ];
-      r.score = r.components.reduce((sum, v, k) => sum + v * config.weights[k] / 100, 0);
+      // No points below the floor, 50 at it, 100 at the target (both pro-rated to the months played); the score is the sum.
+      r.components = [points(r.profit, money.profitFloor, money.profitTarget, pace), points(r.gwp, money.premiumFloor, money.premiumTarget, pace)];
+      r.score = r.components[0] + r.components[1];
+      r.bankrupt = r.combinedRatio > money.bankruptRatio;
+      r.eligible = !r.bankrupt;
     }
     // Market-wide indices for the stage: effects of events that hit the whole market this month.
     const wide = live.filter(e => !e.scope || e.scope === 'all');
@@ -414,7 +421,10 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
   return months;
 }
 
-// Eligible teams first, then score, profit and share; equal results share a place.
+// Component points: none below the floor; from the floor 50, rising in a straight line to 100 at the target.
+const points = (value, floor, target, pace) => (value < floor * pace ? 0 : 50 + 50 * clamp((value - floor * pace) / Math.max(1e-9, (target - floor) * pace), 0, 1));
+
+// Teams still standing first (bankrupt ones last), then score, then profit; equal results share a place.
 function rankRows(rows) {
   const sorted = [...rows].sort((a, b) => Number(b.eligible) - Number(a.eligible) || b.score - a.score || b.profit - a.profit || b.share - a.share);
   let place = 1;
