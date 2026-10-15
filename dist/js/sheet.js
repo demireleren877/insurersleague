@@ -31,8 +31,8 @@ function rowSpec(config, lang) {
   rows.push({ section: L(lang, `Marketing: the digital campaign (at most ${fmtMoney(money.half)} EUR in each half-year)`, `Pazarlama: dijital kampanya (her yarıyıl en fazla ${fmtMoney(money.half)} EUR)`) });
   rows.push({ key: 'marketing', kind: 'money', min: 0, max: money.half, label: L(lang, 'Marketing budget, January–June (EUR)', 'Pazarlama bütçesi, Ocak–Haziran (EUR)'), note: L(lang, 'Spent evenly over the six months; nothing carries over.', 'Altı aya eşit dağıtılır; devretmez.') });
   rows.push({ key: 'marketing2', kind: 'money', min: 0, max: money.half, label: L(lang, 'Marketing budget, July–December (EUR)', 'Pazarlama bütçesi, Temmuz–Aralık (EUR)'), note: L(lang, 'Can be changed at the half-year review.', 'Yarıyıl molasında değiştirilebilir.') });
-  rows.push({ key: 'mediaShare', kind: 'pct', min: 0, max: 100, label: L(lang, 'Media share % (of marketing)', 'Medya payı % (pazarlamanın)'), note: L(lang, `Steps of 5. Media reaches 100 people of the target group for ${K.reachCost} EUR; the rest buys gifts.`, `5’er adım. Medya hedef kitleden 100 kişiye ${K.reachCost} EUR’ya ulaşır; kalanı hediyeye gider.`) });
-  K.offers.forEach((o, i) => rows.push({ key: `offers.${i}`, kind: 'pct', min: 0, max: 100, label: L(lang, `Gift weight %: ${offerName(o.id, lang)}`, `Hediye ağırlığı %: ${offerName(o.id, lang)}`), note: L(lang, 'Steps of 5; the four weights total 100.', '5’er adım; dört ağırlığın toplamı 100.') }));
+  rows.push({ key: 'mediaShare', kind: 'pct', min: 0, max: 100, label: L(lang, 'Media share % (of marketing)', 'Medya payı % (pazarlamanın)'), note: L(lang, `Any percentage. Media reaches 100 people of the target group for ${K.reachCost} EUR; the rest buys gifts.`, `Herhangi bir yüzde. Medya hedef kitleden 100 kişiye ${K.reachCost} EUR’ya ulaşır; kalanı hediyeye gider.`) });
+  K.offers.forEach((o, i) => rows.push({ key: `offers.${i}`, kind: 'pct', min: 0, max: 100, label: L(lang, `Gift weight %: ${offerName(o.id, lang)}`, `Hediye ağırlığı %: ${offerName(o.id, lang)}`), note: L(lang, 'Any percentage; the four weights total 100.', 'Herhangi bir yüzde; dört ağırlığın toplamı 100.') }));
   return rows;
 }
 
@@ -193,7 +193,7 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
     ['2️⃣', L(lang, 'MARKETING', 'PAZARLAMA'), L(lang, 'Set the two half-year marketing budgets, split them among media & offer (total must = 100%) and weight the gifts (total must = 100%)', 'İki yarıyıl pazarlama bütçesini belirle, medya ve hediye arasında böl (toplam = %100) ve hediyeleri ağırlıklandır (toplam = %100)')]
   ].forEach(([n, label, text], i) => { input.set(`B${7 + i}`, n, 'emoji'); input.set(`C${7 + i}`, label, 'guideLabel'); input.set(`D${7 + i}`, text, 'text'); });
   input.set('B11', L(lang, '⚠️ IMPORTANT NOTES', '⚠️ ÖNEMLİ NOTLAR'), 'notesBanner'); input.merge('B11:H11');
-  [L(lang, 'Coefficients, shares and choices are selected from dropdown lists.', 'Katsayılar, paylar ve seçimler açılır listelerden seçilir.'),
+  [L(lang, 'Coefficients are picked from dropdown lists; shares are typed in as percentages (any value from 0% to 100%).', 'Katsayılar açılır listelerden seçilir; paylar yüzde olarak yazılır (%0 ile %100 arası her değer).'),
     L(lang, 'Media + offer must equal 100%; the gift weights must equal 100%.', 'Medya + hediye %100 olmalı; hediye ağırlıkları %100 olmalı.'),
     from ? L(lang, `${firstHalf} is done: ${eur(spent)} of marketing was spent. ${secondHalf} has its own budget of up to ${eur(half)}; nothing carries over.`, `${firstHalf} bitti: ${eur(spent)} pazarlama harcandı. ${secondHalf} için ayrı bütçe en fazla ${eur(half)}; devretmez.`)
       : L(lang, `Marketing has two budgets of up to ${eur(half)} each: ${firstHalf} and ${secondHalf}. Each is spent evenly over its six months; what is not spent stays in profit, nothing carries over.`, `Pazarlamanın her biri en fazla ${eur(half)} olan iki bütçesi var: ${firstHalf} ve ${secondHalf}. Her biri kendi altı ayına eşit dağıtılır; harcanmayan kâra kalır, devretmez.`),
@@ -248,10 +248,7 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   const lastOffer = 15 + K.offers.length;
   mkt.set('F20', L(lang, '*You need to give at least one gift to all acquired customers', '*Kazandığın her müşteriye en az bir hediye vermelisin'), 'mktSub'); ['G', 'H', 'I', 'J'].forEach(cl => mkt.set(`${cl}20`, '', 'mktSub')); mkt.merge('F20:J20');
   mkt.set('K20', `=SUM(K16:K${lastOffer})`, 'totalPct');
-  const pctList = Array.from({ length: 21 }, (_, i) => i * 5 / 100);
-  pctList.forEach((v, i) => mkt.set(`XFB${i + 1}`, v, 'listCell'));
-  const pickPct = L(lang, 'Pick a share from the list (steps of 5%).', 'Listeden bir pay seç (%5 adım).');
-  mkt.list(`D11:D12 K16:K${lastOffer}`, 'PercentageList', pickPct);
+  mkt.decimal(`D11:D12 K16:K${lastOffer}`, 0, 1, L(lang, 'Enter a percentage from 0% to 100%.', '%0 ile %100 arasında bir yüzde gir.'));
   const enterHalf = L(lang, `Enter 0 to ${Math.floor(half)}.`, `0 ile ${Math.floor(half)} arasında gir.`);
   if (!from) mkt.decimal('D14', 0, Math.floor(half), enterHalf);
   mkt.decimal('D15', 0, Math.floor(half), enterHalf);
@@ -260,7 +257,6 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   const sheets = [['Input', input], ['Premium', prem], ['Marketing', mkt]];
   const definedNames = [
     `<definedName name="CoefficientList">Premium!$XFD$1:$XFD$${coefList.length}</definedName>`,
-    `<definedName name="PercentageList">Marketing!$XFB$1:$XFB$${pctList.length}</definedName>`
   ].join('');
   const n = sheets.length;
   const files = {

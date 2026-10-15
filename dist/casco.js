@@ -178,10 +178,11 @@ export function validateCasco(team, config, lang = config?.lang) {
       errors.push(m(`${DIM_EN[dim][0].toUpperCase()}${DIM_EN[dim].slice(1)} coefficients go in steps of ${R.coef.step} (e.g. 0.95, 1.00, 1.05).`, `${DIM_TR[dim][0].toLocaleUpperCase('tr-TR')}${DIM_TR[dim].slice(1)} katsayıları ${String(R.coef.step).replace('.', ',')} adımlarla girilir (örn. 0,95 · 1,00 · 1,05).`));
   }
   const K = campaignRules(R), c = campaignOf(s);
-  const pct5 = v => Number.isFinite(v) && v >= 0 && v <= 100 && onStep(v, 5);
-  if (!pct5(c.media)) errors.push(m('The media share of marketing goes from 0 to 100% in steps of 5.', 'Medya payı (pazarlamanın) %0–100 arasında, 5’er adımla girilir.'));
-  if (c.weights.length !== K.offers.length || c.weights.some(v => !pct5(v)))
-    errors.push(m('Every gift weight goes from 0 to 100% in steps of 5.', 'Her hediye ağırlığı %0–100 arasında, 5’er adımla girilir.'));
+  // Shares are plain percentages: any value from 0 to 100.
+  const pct = v => Number.isFinite(v) && v >= 0 && v <= 100;
+  if (!pct(c.media)) errors.push(m('The media share of marketing goes from 0 to 100%.', 'Medya payı (pazarlamanın) %0–100 arasında olmalı.'));
+  if (c.weights.length !== K.offers.length || c.weights.some(v => !pct(v)))
+    errors.push(m('Every gift weight goes from 0 to 100%.', 'Her hediye ağırlığı %0–100 arasında olmalı.'));
   else if (Math.abs(c.weights.reduce((a, b) => a + b, 0) - 100) > 0.01)
     errors.push(m(`The gift weights must total 100% (currently ${c.weights.reduce((a, b) => a + b, 0)}%).`, `Hediye ağırlıklarının toplamı %100 olmalı (şu an %${c.weights.reduce((a, b) => a + b, 0)}).`));
   const eur = v => `€${Math.round(v).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}`;

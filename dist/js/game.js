@@ -103,12 +103,12 @@ export function teamStatus(s, team, now, lang) {
   if (review) {
     if (review.submitted?.[team.id]) return { id: 'locked', label: m('Half-year plan submitted', 'Yarıyıl planı hazır') };
     if (team.ai) return { id: 'revision', label: m('Jev is revising', 'Jev revizyonda') };
-    if (team.excel) return { id: 'revision', label: m('Waiting for Excel update', 'Excel güncellemesi bekleniyor') };
+    if (team.excel) return { id: 'revision', label: m('Waiting for the second-half plan', 'Yarıyıl planı bekleniyor') };
     return { id: 'revision', label: m('Reviewing the plan', 'Planı gözden geçiriyor') };
   }
   if (team.ai) return { id: team.locked ? 'locked' : 'ready', label: m('Jev AI rival', 'Jev AI rakibi') };
-  if (team.excel && !team.locked) return { id: 'draft', label: m('Waiting for the workbook', 'Dosya bekleniyor') };
-  if (team.excel) return { id: 'locked', label: m('Plan received', 'Plan alındı') };
+  if (team.excel && !team.locked) return { id: 'draft', label: m('Waiting for the strategy', 'Strateji bekleniyor') };
+  if (team.excel) return { id: 'locked', label: m('Strategy received', 'Strateji alındı') };
   if (!team.connected) return { id: 'offline', label: m('Disconnected', 'Bağlantı yok') };
   if (team.locked) return { id: 'locked', label: m('Locked in', 'Kilitledi') };
   if (s.phase === 'lobby' || s.phase === 'briefing') return { id: 'ready', label: m('Ready', 'Hazır') };
@@ -222,17 +222,17 @@ export function repairStrategy(team, config) {
     const fixed = Array.from({ length: n }, (_, i) => Math.min(R.coef.max, Math.max(R.coef.min, Number.isFinite(list[i]) ? list[i] : 1)));
     if (fixed.some((v, i) => v !== list[i])) { st.coef[dim] = fixed; fixes.push(M(config, `${dim} coefficients`, `${dim} katsayıları`)); }
   }
-  // Gift weights: whole steps of 5 summing to 100 (all on the first gift when nothing usable is there).
+  // Gift weights: percentages summing to 100 (all on the first gift when nothing usable is there).
   const c = campaignOf(st), n = campaignRules(R).offers.length;
-  const arr = Array.from({ length: n }, (_, i) => Math.max(0, Math.round((Number(c.weights[i]) || 0) / 5) * 5)), sum = arr.reduce((a, b) => a + b, 0);
-  if (!Array.isArray(st.offers) || st.offers.length !== n || sum !== 100 || st.offers.some((v, i) => v !== arr[i])) {
-    const scaled = sum ? arr.map(v => Math.floor(v / sum * 20) * 5) : arr.map((_, i) => (i ? 0 : 100));
-    scaled[scaled.indexOf(Math.max(...scaled))] += 100 - scaled.reduce((a, b) => a + b, 0);
-    if (Array.isArray(st.offers) && st.offers.length === n && sum !== 100) fixes.push(M(config, 'gift weights', 'hediye ağırlıkları'));
+  const arr = Array.from({ length: n }, (_, i) => Math.max(0, Number(c.weights[i]) || 0)), sum = arr.reduce((a, b) => a + b, 0);
+  if (!Array.isArray(st.offers) || st.offers.length !== n || Math.abs(sum - 100) > 0.01 || st.offers.some((v, i) => v !== arr[i])) {
+    const scaled = sum ? arr.map(v => Math.round(v / sum * 10000) / 100) : arr.map((_, i) => (i ? 0 : 100));
+    scaled[scaled.indexOf(Math.max(...scaled))] += Math.round((100 - scaled.reduce((a, b) => a + b, 0)) * 100) / 100;
+    if (Array.isArray(st.offers) && st.offers.length === n && Math.abs(sum - 100) > 0.01) fixes.push(M(config, 'gift weights', 'hediye ağırlıkları'));
     st.offers = scaled;
   }
-  const media = Math.round((Number.isFinite(c.media) ? c.media : 50) / 5) * 5;
-  if (st.mediaShare !== Math.min(100, Math.max(0, media))) { st.mediaShare = Math.min(100, Math.max(0, media)); fixes.push(M(config, 'media share', 'medya payı')); }
+  const media = Math.min(100, Math.max(0, Number.isFinite(c.media) ? c.media : 50));
+  if (st.mediaShare !== media) { st.mediaShare = media; fixes.push(M(config, 'media share', 'medya payı')); }
   if (st.marketing2 === undefined) st.marketing2 = st.marketing;
   for (const key of ['marketing', 'marketing2']) {
     if (!Number.isFinite(st[key]) || st[key] < 0) { st[key] = 0; fixes.push(M(config, 'marketing budget', 'pazarlama bütçesi')); }

@@ -62,7 +62,7 @@ test('strategy workbook template round-trips localized Excel decisions', async (
   // The case file's design: its sheets and its named dropdown lists. No Claim sheet any more.
   for (const sheet of ['Input', 'Premium', 'Marketing']) assert.match(workbookXml, new RegExp(`<sheet name="${sheet}"`));
   assert.doesNotMatch(workbookXml, /<sheet name="Claim"/);
-  for (const list of ['CoefficientList', 'PercentageList']) assert.match(workbookXml, new RegExp(`<definedName name="${list}">`));
+  assert.match(workbookXml, /<definedName name="CoefficientList">/);
   assert.match(archiveText, /<formula1>CoefficientList<\/formula1>/);
   assert.match(archiveText, /<tabColor rgb="FF004FA3"\/>/);
   const result = await readSheets([fileOf('atlas.xlsx', bytes)], state.config, 'tr');

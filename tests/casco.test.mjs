@@ -122,14 +122,16 @@ test('the model is calibrated to the data: portfolio frequency 10% and the dataâ
   assert.ok(lr > 0.55 && lr < 0.65, `market loss ratio ${lr}`);
 });
 
-test('coefficients go on a 0.05 grid and gift weights on steps of 5', () => {
+test('coefficients go on a 0.05 grid; media share and gift weights are any percentage', () => {
   const c = config(), money = cascoMoney(c);
   const ok = team(0, act, 0.6);
   assert.deepEqual(validateCasco(ok, c), []);
   const off = structuredClone(ok); off.strategy.coef.city[0] = 1.03;
   assert.match(validateCasco(off, c).join(' '), /steps of 0.05/);
-  const odd = structuredClone(ok); odd.strategy.offers = [52, 48, 0, 0];
-  assert.match(validateCasco(odd, c).join(' '), /steps of 5/);
+  const odd = structuredClone(ok); odd.strategy.offers = [52.5, 47.5, 0, 0]; odd.strategy.mediaShare = 17;
+  assert.deepEqual(validateCasco(odd, c), []);
+  const over = structuredClone(ok); over.strategy.mediaShare = 120;
+  assert.match(validateCasco(over, c).join(' '), /0 to 100%/);
   const huge = structuredClone(ok); huge.strategy.basePremium = 5e7;
   assert.match(validateCasco(huge, c).join(' '), /at most 10,000,000/);
   assert.ok(money.budget > 0);
