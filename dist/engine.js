@@ -72,16 +72,16 @@ export const EVENT_SCOPES = eventScopesFor('en');
 
 // cost: claims multiplier in scope · demand: customers coming to market in scope · duration in months.
 const EVENT_TEXT = [
-  { month: 2, duration: 6, cost: 1.05, demand: 1, scope: 'all',
-    en: ['Spare-parts prices jump', 'The currency slide lifts imported parts prices; for six months every claim costs about 5% more.'],
-    tr: ['Yedek parça fiyatları sıçradı', 'Kur artışı ithal parça fiyatlarını yükseltti; altı ay boyunca her hasar yaklaşık %5 daha pahalı.'] },
-  { month: 5, duration: 1, cost: 1.4, demand: 1, scope: 'city:0',
-    en: ['Hailstorm over Istanbul', 'A severe hailstorm hits Istanbul: claims from Istanbul policies written this month run 40% higher.'],
-    tr: ['İstanbul’da dolu fırtınası', 'İstanbul’u sert bir dolu vurdu: bu ay yazılan İstanbul poliçelerinde hasar %40 yüksek.'] },
+  { month: 2, duration: 6, cost: 1.12, demand: 1, scope: 'all',
+    en: ['Rapid Currency Depreciation', 'The free fall in the Turkish lira has stoked fears of an economic fallout. (12% FX shock)'],
+    tr: ['Hızlı kur değer kaybı', 'Türk lirasındaki serbest düşüş ekonomik çöküş endişelerini körükledi. (%12 kur şoku)'] },
+  { month: 5, duration: 1, cost: 1.3, demand: 1, scope: 'city:0',
+    en: ['Hailstorm over Istanbul', 'A severe hailstorm hits Istanbul: claims from Istanbul policies written this month run 30% higher.'],
+    tr: ['İstanbul’da dolu fırtınası', 'İstanbul’u sert bir dolu vurdu: bu ay yazılan İstanbul poliçelerinde hasar %30 yüksek.'] },
   { month: 6, duration: 2, cost: 1, demand: 1.3, scope: 'vehicle:0',
     en: ['New-car loan campaign', 'Cheap auto loans bring 30% more new-vehicle buyers to market for two months.'],
     tr: ['Sıfır araç kredi kampanyası', 'Ucuz taşıt kredisi iki ay boyunca pazara %30 daha fazla sıfır araç sahibi getiriyor.'] },
-  { month: 8, duration: 1, cost: 1.06, demand: 1, scope: 'all',
+  { month: 8, duration: 1, cost: 1.03, demand: 1, scope: 'all',
     en: ['Holiday traffic', 'Long-weekend traffic lifts claim frequency across the market this month.'],
     tr: ['Bayram trafiği', 'Uzun bayram tatili trafiği bu ay tüm pazarda hasar sıklığını artırıyor.'] },
   { month: 9, duration: 2, cost: 1, demand: 0.8, scope: 'channel:2',

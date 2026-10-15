@@ -222,7 +222,7 @@ test('switching the room language translates untouched content and keeps edited 
   s.config.events[1].description = 'Our own note';
   assert.ok(reduce(s, { type: 'config', key: 'lang', value: 'tr' }, host(1)).changed);
   assert.equal(s.config.lang, 'tr');
-  assert.equal(s.config.events[0].title, 'Yedek parça fiyatları sıçradı');
+  assert.equal(s.config.events[0].title, 'Hızlı kur değer kaybı');
   assert.equal(s.config.events[1].description, 'Our own note');
   assert.equal(s.config.branch, 'Kasko');
 });

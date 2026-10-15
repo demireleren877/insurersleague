@@ -9,7 +9,7 @@ A casco (motor own-damage) pricing workshop game. 2–12 teams compete for one s
 
 There are two trophies, **profit** and **market share** (gross premium share among the teams). There is no NPS, no capital, no reinsurance and no claims operations. Teams revise their plan once, at the half-year review after June.
 
-Costs each month: claims + fixed cost/12 (€500k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near a 78% target loss ratio and a flat tariff loses. Composite score thresholds are `profitFloor` 0 and `profitTarget` 0.12.
+Costs each month: claims + fixed cost/12 (€500k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near a 76% target loss ratio and a flat tariff loses. Composite score thresholds are `profitFloor` 0 and `profitTarget` 0.12.
 
 It runs on Cloudflare Workers:
 - `worker/index.js`, with Durable Objects `Room` (one per 6-digit PIN) and `Archive`.
