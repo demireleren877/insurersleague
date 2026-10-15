@@ -45,6 +45,8 @@ Teams run casco (motor own-damage) insurers in one shared market. Only the moder
 5. **Half-year review** (after June, 15 minutes; `STRATEGY_REVIEW_MONTHS` = [5]): *Download the half-year file*, collect revised copies and import them. Only the base premium, coefficients, the July–December budget, media share and gift weights change. The stage shows the first half's results table through the pause, with the teams' plan status and communication assets in a strip below; unsubmitted teams keep their plan when the moderator closes it.
 6. **Final:** podium, then *Detailed results* (decision attribution, the full plan, the book each team actually won) and *Past sessions*.
 
+In **Detailed results**, a team name opens its analysis dialog: the annual profit bridge and actual policy mix, monthly profit/share charts and accounts, campaign costs and gift performance, the plans applied in each half, and isolated decision/event contributions in euros and premium-share percentage points. `dist/js/team-analysis.js` derives the accounts from published monthly results; it never simulates hidden plans. Counterfactual attribution runs only on demand with complete plans and is shown only when the replay matches the published result. Contributions interact and must not be added together.
+
 The workbook is vertical: one decision per row, one team per column; hidden column A holds machine keys so translated labels never break an import. It opens in Excel, Google Sheets, Numbers and LibreOffice.
 
 
@@ -63,6 +65,7 @@ Stage shortcuts: Space/Enter play/pause or close the half-year review · → nex
 - `dist/js/sheet.js` — writes the `.xlsx` templates and reads filled workbooks without a spreadsheet library.
 - `dist/js/views/` — `home`, `stage`, `settings`, `rules` (rule studio), `results`, `history`, `balance`, `plan`, `impact`.
 - `dist/js/attribution.js` — re-runs the seeded season with one decision or event reset to measure what it was worth.
+- `dist/js/team-analysis.js` — reconciled monthly, half-year, campaign and portfolio summaries; `dist/js/views/team-analysis.js` — the results-page analysis dialog.
 - `worker/index.js` — rooms (`Room` Durable Object per PIN) and session history (`Archive`). The moderator, view-only stage screens and team devices (`role=player`, a 24-hex device id) connect.
 - `dist/js/jev.js` — Jev AI rivals choose a pricing view, target loss ratio, how much of the marketing budget to spend and a campaign mix (media share, gift weights) from finite options; the engine computes every result.
 

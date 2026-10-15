@@ -6,8 +6,8 @@
 // focal team's final score. The difference IS that decision's contribution. Events work the same way:
 // re-run the season with the event neutralised and see what the team loses or keeps.
 //
-// Deltas are model score only (the quiz bonus is unaffected by either), so they are directly
-// comparable with the score on screen.
+// Score deltas exclude the quiz bonus. Profit and premium-share deltas also let the results
+// explain the two trophies directly, without replacing them with the composite score.
 import { simulate, rank, DIMENSIONS, campaignOf } from '../engine.js';
 import { defaultStrategy } from './game.js';
 
@@ -27,6 +27,7 @@ const DECISIONS = [
 ];
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const economicDelta = (actual, counter) => ({ profitDelta: actual.profit - counter.profit, shareDelta: actual.share - counter.share, counterProfit: counter.profit, counterShare: counter.share });
 
 // Which score component moved most, and by how much. Lets the UI say what a decision actually
 // changed — profit or market share — not just that it changed something.
@@ -44,6 +45,7 @@ const memo = new Map();
 const memoKey = (teams, config, teamId) => JSON.stringify([teamId, teams.map(t => [t.id, t.strategy, t.strategyHistory]), config.rules, config.assumptions, config.weights, config.events, config.seed]);
 
 export function attribution(teams, config, teamId) {
+  if (teams.some(team => !team.strategy || team.strategy._hidden || team.strategyHistory?.some(entry => !entry.strategy || entry.strategy._hidden))) return null;
   const key = memoKey(teams, config, teamId);
   if (memo.has(key)) return memo.get(key);
   const value = compute(teams, config, teamId);
@@ -73,7 +75,7 @@ function compute(teams, config, teamId) {
     }
     let counter;
     try { counter = finalRow(what, config, teamId); } catch { continue; } // can't be asked cleanly: don't guess
-    decisions.push({ key: d.key, delta: actual.score - counter.score, ...componentDelta(actual, counter, weights), counterScore: counter.score });
+    decisions.push({ key: d.key, delta: actual.score - counter.score, ...componentDelta(actual, counter, weights), ...economicDelta(actual, counter), counterScore: counter.score });
   }
 
   const events = [];
@@ -87,10 +89,10 @@ function compute(teams, config, teamId) {
       title: e.title,
       scope: e.scope,
       delta: actual.score - counter.score,
-      ...componentDelta(actual, counter, weights)
+      ...componentDelta(actual, counter, weights), ...economicDelta(actual, counter)
     });
   });
 
   const bySize = (a, b) => Math.abs(b.delta) - Math.abs(a.delta);
-  return { score: actual.score, decisions: decisions.sort(bySize), events: events.sort(bySize) };
+  return { score: actual.score, profit: actual.profit, share: actual.share, decisions: decisions.sort(bySize), events: events.sort(bySize) };
 }

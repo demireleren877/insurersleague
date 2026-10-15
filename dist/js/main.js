@@ -7,17 +7,18 @@ import { home } from './views/home.js';
 import { teamPage } from './views/team.js';
 import { prepareBrochure } from './brochure.js';
 import { briefingContent } from './views/briefing.js';
-import { resultsPage } from './views/results.js';
+import { resultsPage } from './views/results.js?v=78';
+import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=78';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=75';
+import { stageMarkup, mountStage } from './views/stage.js?v=78';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=75';
-import { buildAuditWorkbook } from './audit.js?v=75';
-import { buildPortfolioWorkbook } from './portfolio.js?v=75';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=78';
+import { buildAuditWorkbook } from './audit.js?v=78';
+import { buildPortfolioWorkbook } from './portfolio.js?v=78';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -37,6 +38,7 @@ const hashParam = key => new URLSearchParams(location.hash.split('?')[1] || '').
 const go = (r, query = '') => { const target = `#/${r === 'home' ? '' : r}${query}`; if (location.hash === target) render(); else location.hash = target; window.scrollTo(0, 0); };
 
 let stage = null, renderedRoute = null, renderedHtml = '', modalFn = null, pointerActive = false, pendingRender = false;
+let analysisTab = 'overview';
 
 // ——— Route ↔ connection ———
 function ensureConnection(r) {
@@ -126,17 +128,22 @@ document.addEventListener('focusout', () => { if (pendingRender && !pointerActiv
 function renderModal() {
   let dlg = document.getElementById('modal');
   if (!modalFn) { if (dlg?.open) dlg.close(); dlg?.remove(); return; }
-  const { title, body, kind = 'modal' } = modalFn();
+  const { title, body, kind = 'modal', focusReturn = '' } = modalFn();
   if (!dlg) {
     dlg = document.createElement('dialog');
     dlg.id = 'modal';
     dlg.setAttribute('aria-labelledby', 'modal-title');
-    dlg.addEventListener('close', () => { modalFn = null; dlg.remove(); });
+    dlg.addEventListener('close', () => {
+      const target = dlg.dataset.focusReturn ? app.querySelector(dlg.dataset.focusReturn) : null;
+      modalFn = null; dlg.remove();
+      target?.focus({ preventScroll: true });
+    });
     dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
     document.body.append(dlg);
   }
   dlg.className = kind;
-  const html = `<header class="modal-head"><h2 id="modal-title">${title}</h2><button class="icon-btn" data-action="close-modal" aria-label="${t('Close', 'Kapat')}">${icon('x', 18)}</button></header><div class="modal-body">${body}</div>`;
+  dlg.dataset.focusReturn = focusReturn;
+  const html = `<header class="modal-head"><h2 id="modal-title">${title}</h2><button class="icon-btn" data-action="close-modal" aria-label="${t('Close', 'Kapat')}">${icon('x', 18)}</button></header><div class="modal-body"${kind.includes('team-analysis') ? ' tabindex="-1"' : ''}>${body}</div>`;
   if (dlg.dataset.html !== html) {
     const focus = dlg.contains(document.activeElement) ? captureFocus() : null;
     const scroll = dlg.querySelector('.modal-body')?.scrollTop || 0;
@@ -265,6 +272,20 @@ document.addEventListener('click', async e => {
     // Balance test
     case 'balance-run': runBalanceTest(getState().config, render); break;
     case 'open-brief': openModal(() => ({ title: t('Market brief', 'Pazar dosyası'), body: briefingContent({ nav: true }), kind: 'sheet' })); break;
+    case 'team-analysis':
+      if (route() !== 'results' || !store.seasonDone() || !s.teams.some(team => team.id === teamId)) break;
+      analysisTab = 'overview';
+      openModal(() => ({ ...teamAnalysisModal(teamId, analysisTab), focusReturn: `[data-action="team-analysis"][data-team="${teamId}"]` }));
+      break;
+    case 'team-analysis-tab': {
+      const dialog = document.querySelector('dialog.team-analysis');
+      if (!dialog || !TEAM_ANALYSIS_TABS.includes(d.tab)) break;
+      analysisTab = d.tab;
+      renderModal();
+      dialog.querySelector('.modal-body').scrollTop = 0;
+      dialog.querySelector(`[role="tab"][data-tab="${analysisTab}"]`)?.focus({ preventScroll: true });
+      break;
+    }
     case 'brief-jump': document.getElementById(d.target)?.scrollIntoView({ block: 'start', behavior: s.reduce ? 'auto' : 'smooth' }); break;
     case 'close-modal': closeModal(); break;
     case 'close-modal-nav': closeModal(); break;
@@ -523,6 +544,25 @@ document.addEventListener('keydown', e => {
 });
 
 document.addEventListener('keydown', e => {
+  const dialog = document.querySelector('dialog.team-analysis[open]');
+  if (!dialog) return;
+  if (e.key === 'Tab') {
+    const focusable = [...dialog.querySelectorAll('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])')].filter(el => el.tabIndex >= 0 && el.getClientRects().length);
+    const first = focusable[0], last = focusable.at(-1), current = document.activeElement;
+    if ((!e.shiftKey && current === last) || !dialog.contains(current)) { e.preventDefault(); first?.focus(); }
+    else if (e.shiftKey && current === first) { e.preventDefault(); last?.focus(); }
+    return;
+  }
+  const tab = e.target.closest('dialog.team-analysis [role="tab"]');
+  if (!tab || e.metaKey || e.ctrlKey || e.altKey) return;
+  const tabs = [...tab.closest('[role="tablist"]').querySelectorAll('[role="tab"]')];
+  const current = tabs.indexOf(tab);
+  const next = e.key === 'ArrowRight' ? (current + 1) % tabs.length : e.key === 'ArrowLeft' ? (current - 1 + tabs.length) % tabs.length : e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : null;
+  if (next === null) return;
+  e.preventDefault(); tabs[next].click();
+});
+
+document.addEventListener('keydown', e => {
   if (route() !== 'stage' || !store.isHost() || document.getElementById('modal') || e.target.closest('input, select, textarea') || e.metaKey || e.ctrlKey || e.altKey) return;
   const round = store.currentRound();
   if (e.key === ' ' || e.key === 'Enter') {
@@ -538,6 +578,7 @@ document.addEventListener('keydown', e => {
 let lastHash = location.hash;
 window.addEventListener('hashchange', () => {
   const sameRoute = route() === renderedRoute;
+  if (route() !== 'results' && document.querySelector('dialog.team-analysis')) closeModal();
   ensureConnection(route()); render();
   if (sameRoute && location.hash !== lastHash) window.scrollTo(0, 0);
   lastHash = location.hash;
