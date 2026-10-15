@@ -14,7 +14,7 @@ const FIRST_TEAM_COL = 3; // D
 // ——— Rows ———
 function rowSpec(config, lang) {
   const R = rulesOf(config), money = cascoMoney(config);
-  const fmtMoney = v => Math.round(v).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US');
+  const fmtMoney = v => Math.round(v).toLocaleString('tr-TR');
   const rows = [
     { key: 'name', kind: 'text', label: L(lang, 'Team name', 'Takım adı'), note: L(lang, 'Columns without a team name are skipped.', 'Takım adı boş sütunlar alınmaz.') },
     { key: 'product', kind: 'text', label: L(lang, 'Product name', 'Ürün adı'), note: L(lang, 'Optional.', 'İsteğe bağlı.') },
@@ -178,10 +178,10 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   // A room team that has not handed in a plan yet gets an empty base premium: it sets its own price level.
   const blankPrice = !from && !!team && state.teams.includes(team) && !team.locked;
   const months = monthsOf(lang), firstHalf = `${months[0]}–${months[HALF_MONTHS - 1]}`, secondHalf = `${months[HALF_MONTHS]}–${months[11]}`;
-  const commission = commissionOf(R), pctOf = v => `${Math.round(v * 1000) / 10}%`.replace('.', lang === 'tr' ? ',' : '.');
+  const commission = commissionOf(R), pctOf = v => `${Math.round(v * 1000) / 10}%`.replace('.', ',');
   const commissionText = R.dimensions.channel.map((_, i) => `${levelName('channel', i, lang)} ${lang === 'tr' ? `%${pctOf(commission[i]).slice(0, -1)}` : pctOf(commission[i])}`).join(', ');
   const styles = styleRegistry();
-  const eur = v => `€${Math.round(v).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}`;
+  const eur = v => `€${Math.round(v).toLocaleString('tr-TR')}`;
   const fmtDec = fmtDecOf(lang);
 
   // ——— Input ———
@@ -273,7 +273,7 @@ export function buildTemplate(state, { lang = 'en', teams = null } = {}) {
   files['xl/styles.xml'] = styles.toXml(); // after the sheets: it holds every style they used
   return zip(files);
 }
-const fmtDecOf = lang => v => (lang === 'tr' ? Number(v).toFixed(2).replace('.', ',') : Number(v).toFixed(2));
+const fmtDecOf = () => v => Number(v).toFixed(2).replace('.', ',');
 
 
 // ——— Zip (stored, no compression) ———

@@ -185,7 +185,7 @@ export function validateCasco(team, config, lang = config?.lang) {
     errors.push(m('Every gift weight goes from 0 to 100%.', 'Her hediye ağırlığı %0–100 arasında olmalı.'));
   else if (Math.abs(c.weights.reduce((a, b) => a + b, 0) - 100) > 0.01)
     errors.push(m(`The gift weights must total 100% (currently ${c.weights.reduce((a, b) => a + b, 0)}%).`, `Hediye ağırlıklarının toplamı %100 olmalı (şu an %${c.weights.reduce((a, b) => a + b, 0)}).`));
-  const eur = v => `€${Math.round(v).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}`;
+  const eur = v => `€${Math.round(v).toLocaleString('tr-TR')}`;
   [[s.marketing, 'first', 'İlk'], [s.marketing2 ?? s.marketing, 'second', 'İkinci']].forEach(([v, en, tr]) => {
     if (!(Number(v) >= 0)) errors.push(m(`The ${en} half-year marketing budget must be zero or positive.`, `${tr} yarıyıl pazarlama bütçesi sıfır veya pozitif olmalı.`));
     else if (Number(v) > money.half + 0.5) errors.push(m(`The ${en} half-year marketing budget can be at most ${eur(money.half)}.`, `${tr} yarıyıl pazarlama bütçesi en fazla ${eur(money.half)} olabilir.`));

@@ -228,7 +228,7 @@ test('the half-year workbook shows the first half as spent and opens the second 
   const mkt = sheets.find(sh => sh.name === 'Marketing');
   assert.equal(mkt.rows[13][3], 120000, 'January–June as spent');
   assert.equal(mkt.rows[14][3], 200000, 'July–December as planned, open for changes');
-  assert.match(String(mkt.rows[2][1]), /€120,000 spent/);
+  assert.match(String(mkt.rows[2][1]), /€120.000 spent/);
   const prem = sheets.find(sh => sh.name === 'Premium');
   assert.ok(prem.rows[4][2] > 0, 'the review copy keeps the current base premium');
 });

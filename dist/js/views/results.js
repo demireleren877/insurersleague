@@ -46,14 +46,25 @@ export function resultsPage() {
   const content = `
   ${pageHead(t(`Season finale · ${s.config.year}`, `Sezon finali · ${s.config.year}`), t('Detailed results', 'Ayrıntılı sonuçlar'), t('The shared casco market’s results after twelve months.', 'Ortak kasko pazarının on iki ay sonundaki sonuçları.'), '')}
   <section class="panel standings">
-    <div class="table-wrap"><table>
-      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="sorted">${t('Market share', 'Pazar payı')}</th><th>${t('Gross premium', 'Brüt prim')}</th><th>${t('Policies', 'Poliçe adedi')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Loss ratio', 'Hasar oranı')}</th><th>${t('Marketing budget', 'Pazarlama bütçesi')}</th><th>${t('Customers from marketing', 'Pazarlamadan gelen müşteri')}</th></tr></thead>
-      <tbody>${rows.map((r, i) => { const t2 = byId(s.teams, r.id); return `<tr style="--team:${t2.color}">
+    <header><span class="faint small">${t('Each team’s premium is spent on claims, commission, running costs and marketing; what is left is the profit margin. A combined ratio above 100% is a loss.', 'Her takımın primi hasara, komisyona, işletme giderine ve pazarlamaya gider; kalanı kâr marjıdır. Bileşik oran %100’ü geçerse zarar edilir.')}</span></header>
+    <div class="table-wrap"><table class="results-table">
+      <thead>
+        <tr><th colspan="8"></th><th colspan="6" class="group">${t('As a share of gross premium', 'Brüt primin yüzdesi olarak')}</th></tr>
+        <tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="sorted">${t('Market share', 'Pazar payı')}</th><th>${t('Gross premium', 'Brüt prim')}</th><th>${t('Policies', 'Poliçe adedi')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Marketing budget', 'Pazarlama bütçesi')}</th><th>${t('Customers from marketing', 'Pazarlamadan gelen müşteri')}</th>
+          <th class="group-start">${t('Loss ratio', 'Hasar oranı')}</th><th>${t('Commission', 'Komisyon')}</th><th>${t('Running costs', 'İşletme gideri')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Combined ratio', 'Bileşik oran')}</th><th>${t('Profit margin', 'Kâr marjı')}</th></tr>
+      </thead>
+      <tbody>${rows.map((r, i) => {
+        const t2 = byId(s.teams, r.id), g = r.gwp || 1;
+        const claims = r.claims / g, commission = (r.commission ?? 0) / g, marketing = (r.marketing ?? 0) / g;
+        const running = (r.expenses - (r.commission ?? 0) - (r.marketing ?? 0)) / g, combined = claims + commission + running + marketing;
+        return `<tr style="--team:${t2.color}">
         <td class="num rank">${String(i + 1).padStart(2, '0')}</td>
         <td><span class="team-link">${emblem(t2, 'sm')}<b>${short(t2.name)}</b></span></td>
         <td class="num strong sorted">${pct(r.share)}</td><td class="num">${money(r.gwp)}</td><td class="num">${fmt(r.policies)}</td>
-        <td class="num ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio)}</td>
+        <td class="num ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td>
         <td class="num">${money(yearPlan(t2).marketing)}</td><td class="num">${fmt(r.campaign?.total ?? 0)}</td>
+        <td class="num group-start ${claims > 1 ? 'down' : ''}">${pct(claims)}</td><td class="num">${pct(commission)}</td><td class="num">${pct(running)}</td><td class="num">${pct(marketing)}</td>
+        <td class="num strong ${combined > 1 ? 'down' : ''}">${pct(combined)}</td><td class="num strong ${1 - combined < 0 ? 'down' : 'up'}">${pct(1 - combined)}</td>
         </tr>`; }).join('')}</tbody>
     </table></div>
   </section>

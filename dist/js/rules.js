@@ -46,7 +46,7 @@ export function checkRule(rules, path, raw, lang = 'en') {
   const v = Number(raw);
   if (!Number.isFinite(v)) return { error: em('Enter a number.', 'Bir sayı girin.', lang) };
   if (v < spec.min || v > spec.max) {
-    const loc = lang === 'tr' ? 'tr-TR' : 'en-US';
+    const loc = 'tr-TR'; // one number format in both languages (see format.js)
     const show = n => (spec.format === 'pct' ? `${Number((n * 100).toFixed(2)).toLocaleString(loc)}%` : Number(n).toLocaleString(loc));
     return { error: em(`Value must be between ${show(spec.min)} and ${show(spec.max)}.`, `Değer ${show(spec.min)} ile ${show(spec.max)} arasında olmalı.`, lang) };
   }

@@ -1,11 +1,14 @@
 import { locale, t } from './i18n.js';
 
+// One number format in both languages: 1.234.567,8 (dots group thousands, a comma marks decimals),
+// so €1,2M and €17.100 never mix the two separators. Only the words (K/M, bin/mn) follow the language.
+export const NUMBER_LOCALE = 'tr-TR';
 export const fmt = (n, digits = 0) =>
-  Number(n).toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  Number(n).toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
 const sign = (n, signed) => (n < 0 ? '−' : signed && n > 0 ? '+' : '');
 
-// $12.4M · $1.24B · $850K · $17,100  /  ₺12,4 mn · ₺1,24 mr · ₺850 bin · ₺17.100
+// €12,4M · €1,24B · €850,0K · €17.100  /  €12,4 mn · €1,24 mr · €850,0 bin · €17.100
 export function money(n, { signed = false, exact = false } = {}) {
   const a = Math.abs(n), symbol = '€';
   if (exact || a < 1e5) return `${sign(n, signed)}${symbol}${fmt(a)}`;
