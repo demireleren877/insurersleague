@@ -11,13 +11,13 @@ import { resultsPage, setResultsCategory } from './views/results.js';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=67';
+import { stageMarkup, mountStage } from './views/stage.js?v=68';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=67';
-import { buildAuditWorkbook } from './audit.js?v=67';
-import { buildPortfolioWorkbook } from './portfolio.js?v=67';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=68';
+import { buildAuditWorkbook } from './audit.js?v=68';
+import { buildPortfolioWorkbook } from './portfolio.js?v=68';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -231,7 +231,7 @@ document.addEventListener('click', async e => {
       const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob), a = document.createElement('a');
       const slug = team.name.toLocaleLowerCase(getLang() === 'tr' ? 'tr-TR' : 'en-US').replace(/\s+/g, '-');
-      a.href = url; a.download = quarter ? `${slug}-${t('quarter', 'ceyrek')}-${Math.floor((store.currentStrategyReview()?.month ?? 0) / 3) + 1}.xlsx` : `${slug}-${t('decisions', 'kararlar')}.xlsx`; a.click();
+      a.href = url; a.download = quarter ? `${slug}-${t('second-half', 'ikinci-yariyil')}.xlsx` : `${slug}-${t('decisions', 'kararlar')}.xlsx`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       break;
     }
@@ -248,9 +248,9 @@ document.addEventListener('click', async e => {
       const bytes = buildTemplate(state, { lang: getLang(), quarter });
       const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = URL.createObjectURL(blob), a = document.createElement('a');
-      a.href = url; a.download = quarter ? `insurers-league-quarter-${Math.floor((store.currentStrategyReview()?.month ?? 0) / 3) + 1}.xlsx` : `insurers-league-strategies-${state.config.year}.xlsx`; a.click();
+      a.href = url; a.download = quarter ? `insurers-league-second-half.xlsx` : `insurers-league-strategies-${state.config.year}.xlsx`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-      toast(quarter ? t('Quarter workbook downloaded.', 'Çeyrek strateji dosyası indirildi.') : t('Strategy template downloaded.', 'Strateji şablonu indirildi.'));
+      toast(quarter ? t('Half-year strategy file downloaded.', 'Yarıyıl strateji dosyası indirildi.') : t('Strategy template downloaded.', 'Strateji şablonu indirildi.'));
       break;
     }
 
@@ -416,11 +416,11 @@ document.addEventListener('change', async e => {
   const el = e.target, d = el.dataset;
   if (d.brochureUpload !== undefined && el.files?.length) {
     try {
-      toast(t('Preparing the brochure…', 'Broşür hazırlanıyor…'));
+      toast(t('Preparing the communication asset…', 'İletişim materyali hazırlanıyor…'));
       const { blob, w, h } = await prepareBrochure(el.files[0]);
       await store.sendBrochure(Number(d.brochureUpload), blob, w, h);
-      toast(t('Brochure uploaded.', 'Broşür yüklendi.'));
-    } catch (err) { toast(t(`Brochure not uploaded: ${err.message}`, `Broşür yüklenmedi: ${err.message}`)); }
+      toast(t('Communication asset uploaded.', 'İletişim materyali yüklendi.'));
+    } catch (err) { toast(t(`Communication asset not uploaded: ${err.message}`, `İletişim materyali yüklenmedi: ${err.message}`)); }
     finally { el.value = ''; }
     return;
   }
@@ -487,25 +487,25 @@ document.addEventListener('change', async e => {
     try {
       const file = el.files[0];
       if (!team) throw Error(t('That team is no longer in the game.', 'Bu takım artık oyunda değil.'));
-      if (file.size > 3_000_000) throw Error(t('The workbook must be under 3 MB.', 'Dosya 3 MB’tan küçük olmalı.'));
+      if (file.size > 3_000_000) throw Error(t('The strategy file must be under 3 MB.', 'Strateji dosyası 3 MB’tan küçük olmalı.'));
       const result = await readTeamSheet(file, team, state.config, getLang());
       if (result.errors.length) throw Error(`${result.errors.slice(0, 2).join(' ')}${result.errors.length > 2 ? ` ${t(`And ${result.errors.length - 2} more issue(s).`, `Ayrıca ${result.errors.length - 2} sorun daha var.`)}` : ''}`);
       if (!act({ type: 'excel-team-plan', teamId: team.id, strategy: result.strategy })?.error) {
         const renamed = result.fileName && result.fileName.toLocaleLowerCase() !== team.name.toLocaleLowerCase();
         toast(d.quarter === 'true'
-          ? t(`${team.name}’s next-quarter plan received.`, `${team.name} takımının gelecek çeyrek planı alındı.`)
+          ? t(`${team.name}’s second-half plan received.`, `${team.name} takımının ikinci yarıyıl planı alındı.`)
           : t(`${team.name}’s plan received.${renamed ? ` (The file said “${result.fileName}”.)` : ''}`, `${team.name} takımının planı alındı.${renamed ? ` (Dosyada “${result.fileName}” yazıyordu.)` : ''}`));
       }
-    } catch (err) { toast(t(`Workbook not taken: ${err.message}`, `Dosya alınmadı: ${err.message}`)); }
+    } catch (err) { toast(t(`Strategy not taken: ${err.message}`, `Strateji alınmadı: ${err.message}`)); }
     finally { el.value = ''; }
     return;
   }
   if (d.sheetImport && el.files?.length) {
     try {
       const files = [...el.files], quarter = d.sheetImport === 'quarter';
-      if (files.length > 12) throw Error(t('Upload no more than 12 workbooks at a time.', 'Tek seferde en fazla 12 çalışma kitabı yükleyin.'));
+      if (files.length > 12) throw Error(t('Upload no more than 12 strategy files at a time.', 'Tek seferde en fazla 12 strateji dosyası yükleyin.'));
       const total = files.reduce((sum, file) => sum + file.size, 0);
-      if (total > 12_000_000 || files.some(file => file.size > 3_000_000)) throw Error(t('The selected workbooks are too large. Each file must be under 3 MB and the total under 12 MB.', 'Seçilen dosyalar çok büyük. Her dosya 3 MB, toplamları 12 MB altında olmalı.'));
+      if (total > 12_000_000 || files.some(file => file.size > 3_000_000)) throw Error(t('The selected strategy files are too large. Each file must be under 3 MB and the total under 12 MB.', 'Seçilen dosyalar çok büyük. Her dosya 3 MB, toplamları 12 MB altında olmalı.'));
       const state = getState();
       const review = quarter ? store.currentStrategyReview() : null;
       const currentTeams = quarter ? state.teams.filter(team => team.excel && !team.ai).map(team => ({
@@ -520,9 +520,9 @@ document.addEventListener('change', async e => {
       const action = quarter ? 'excel-quarter-submit' : 'excel-import-teams';
       const applied = act({ type: action, teams: result.teams });
       if (!applied?.error) toast(quarter
-        ? t(`${result.teams.length} quarterly plan${result.teams.length === 1 ? '' : 's'} updated.`, `${result.teams.length} çeyrek planı güncellendi.`)
+        ? t(`${result.teams.length} half-year plan${result.teams.length === 1 ? '' : 's'} updated.`, `${result.teams.length} yarıyıl planı güncellendi.`)
         : t(`${result.teams.length} team strateg${result.teams.length === 1 ? 'y' : 'ies'} imported.`, `${result.teams.length} takım stratejisi alındı.`));
-    } catch (err) { toast(t(`Workbook not imported: ${err.message}`, `Çalışma kitabı alınmadı: ${err.message}`)); }
+    } catch (err) { toast(t(`Strategy not imported: ${err.message}`, `Strateji alınmadı: ${err.message}`)); }
     finally { el.value = ''; }
   }
 });

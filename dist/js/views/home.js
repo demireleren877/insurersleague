@@ -6,7 +6,7 @@ import { t, getLang, languageControl } from '../i18n.js';
 // A filled-in example of what teams hand in (built by scripts/build-samples.mjs).
 // The case data teams analyse: 50,000 customers with corrected claims, a column dictionary and the marketing inputs.
 // Versioned like the other assets, so a stale cached answer from right after a deploy can't stick.
-export const CASE_DATA = 'data/katilimci-verisi.xlsx?v=67';
+export const CASE_DATA = 'data/katilimci-verisi.xlsx?v=68';
 export const sampleWorkbook = () => (getLang() === 'tr' ? 'samples/kasko-karar-ornegi.xlsx' : 'samples/casco-decision-sample.xlsx');
 
 // Everyone watches the moderator's screen; the home page is where the moderator starts or resumes a game.
@@ -14,8 +14,8 @@ export function home() {
   const host = savedHost();
   const steps = [
     ['file', t('Hand out the data', 'Veriyi dağıt'), t('Teams get the casco sample and the claims model, and work out which segments pay.', 'Takımlar kasko örneklemini ve hasar modelini alır; hangi segmentin kazandırdığını çıkarır.')],
-    ['sliders', t('Collect the workbooks', 'Dosyaları topla'), t('Each team sets a base premium, 19 segment coefficients and its digital campaign in the Excel template.', 'Her takım Excel şablonunda baz primini, 19 segment katsayısını ve dijital kampanyasını belirler.')],
-    ['flag', t('Race the market', 'Pazarda yarıştır'), t('Upload the files; twelve months play out on this screen, with a strategy review every quarter.', 'Dosyaları yükle; on iki ay bu ekranda oynanır, her çeyrek bir strateji molası verilir.')]
+    ['sliders', t('Collect the strategies', 'Stratejileri topla'), t('Each team sets a base premium, 19 segment coefficients and its digital campaign in the Excel template.', 'Her takım Excel şablonunda baz primini, 19 segment katsayısını ve dijital kampanyasını belirler.')],
+    ['flag', t('Race the market', 'Pazarda yarıştır'), t('Upload the strategies; twelve months play out on this screen, with one strategy review at the half-year.', 'Stratejileri yükle; on iki ay bu ekranda oynanır, yarıyılda bir strateji molası verilir.')]
   ];
   return `<div class="home">
     <header class="home-brand"><span class="brand-mark">${icon('bolt', 22)}</span><strong class="display">Insurers<b>League</b></strong>${languageControl()}</header>
@@ -28,11 +28,11 @@ export function home() {
       <section class="home-cards">
         <div class="home-card host">
           <h2 class="display">${t('Run a session', 'Oturum yönet')}</h2>
-          <p class="muted">${t('This is the screen you project. Teams hand in their workbooks from their own device.', 'Yansıtacağın ekran budur. Takımlar dosyalarını kendi cihazlarından teslim eder.')}</p>
+          <p class="muted">${t('This is the screen you project. Teams hand in their strategies from their own device.', 'Yansıtacağın ekran budur. Takımlar stratejilerini kendi cihazlarından teslim eder.')}</p>
           <ol class="home-steps">${steps.map(([ic, title, text], i) => `<li><span class="home-step-no num">${i + 1}</span><span><b>${icon(ic, 15)} ${title}</b><small>${text}</small></span></li>`).join('')}</ol>
           ${host ? `<button class="btn gold lg" data-action="resume-host">${icon('play', 18)} ${t('Back to your game', 'Oyununa dön')} · PIN ${esc(host.pin)}</button>` : ''}
           <button class="btn ${host ? 'ghost' : 'gold'} lg" data-action="create-room">${icon('plus', 18)} ${t('Start a new game', 'Yeni oyun başlat')}</button>
-          <a class="home-join" href="#/team"><b>${icon('users', 16)} ${t('Joining as a team?', 'Takım olarak mı katılıyorsun?')}</b><small>${t('Enter the PIN on the moderator’s screen and upload your own workbook.', 'Moderatör ekranındaki PIN’i gir ve kendi dosyanı yükle.')}</small></a>
+          <a class="home-join" href="#/team"><b>${icon('users', 16)} ${t('Joining as a team?', 'Takım olarak mı katılıyorsun?')}</b><small>${t('Enter the PIN on the moderator’s screen and upload your own strategy.', 'Moderatör ekranındaki PIN’i gir ve kendi stratejini yükle.')}</small></a>
         </div>
       </section>
     </main>

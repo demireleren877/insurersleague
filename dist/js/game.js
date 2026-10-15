@@ -4,7 +4,8 @@
 // Session content (segment names, events, quiz questions, and every message below) is bilingual, chosen once
 // per room via `lang` on session.config ('en' | 'tr'). UI chrome (buttons, hints) is a separate per-device
 // toggle handled by dist/js/i18n.js.
-import { scenario, simulate, validate, rank, EVENT_SCOPES, defaultRules, rulesOf, presetName, presetOf, defaultStrategy as engineStrategy, cascoMoney, DIMENSIONS, QUARTER_KEYS, assumptionsFor, campaignOf, campaignRules, marketingSpent } from '../engine.js';
+import { scenario, simulate, validate, rank, EVENT_SCOPES, defaultRules, rulesOf, presetName, presetOf, defaultStrategy as engineStrategy, cascoMoney, DIMENSIONS, QUARTER_KEYS, assumptionsFor, campaignOf, campaignRules, NAME_MAX, PRODUCT_MAX, SENTENCE_MAX } from '../engine.js';
+export { NAME_MAX, PRODUCT_MAX, SENTENCE_MAX };
 import { QUESTIONS, questionsFor } from './quiz.js';
 import { checkRule, setPath, sanitizeRules } from './rules.js';
 
@@ -14,11 +15,11 @@ export const MAX_TEAMS = 12;
 export const COUNTDOWN_MS = 4000; // 3 · 2 · 1 · GO, a second each
 export const REVEAL_MS = 10000;
 export const FINAL_DELAY_MS = 2500;
-export const STRATEGY_REVIEW_MONTHS = [2, 5, 8];
+// One strategy review, at the half-year: after June, for July–December.
+export const STRATEGY_REVIEW_MONTHS = [5];
 export const STRATEGY_REVIEW_MS = 120000;
-export const EXCEL_REVIEW_MS = 300000; // the last quarter review: 5 minutes
-// Workbook reviews shorten through the year: 15 minutes after March, 10 after June, 5 after September.
-export const EXCEL_REVIEW_MINUTES = { 2: 15, 5: 10, 8: 5 };
+export const EXCEL_REVIEW_MS = 900000; // the half-year review: 15 minutes
+export const EXCEL_REVIEW_MINUTES = { 5: 15 };
 export const TEAM_COLORS = ['#43C6FF', '#FFBE55', '#AB98F8', '#57D8B3', '#FF887C', '#6D9CFF', '#F58BD3', '#B8E06A', '#FF9F43', '#4FD1C5', '#E8D36B', '#C9A7FF'];
 export const EMBLEM_COUNT = 12;
 export const QUIZ_MODES = {
@@ -57,7 +58,7 @@ export function freshSession(now = Date.now(), { code = '000000', lang = 'en', p
     sound: false,
     reduce: false,
     quiz: { mode: 'off', duration: 20, bonus: 2, auto: true, order: 'shuffle', questions: structuredClone(questionsFor(lang, p)), rounds: [], current: null },
-    // Workbook reviews run 15, 10 and 5 minutes (EXCEL_REVIEW_MINUTES); the moderator can close one early.
+    // The half-year review runs 15 minutes (EXCEL_REVIEW_MINUTES); the moderator can close it early.
     strategyReviews: { duration: EXCEL_REVIEW_MS / 1000, rounds: [], current: null },
     notice: null,
     updatedAt: now
@@ -100,7 +101,7 @@ export function teamStatus(s, team, now, lang) {
   const m = (en, tr) => M(s.config, en, tr, lang);
   const review = currentStrategyReview(s);
   if (review) {
-    if (review.submitted?.[team.id]) return { id: 'locked', label: m('Quarter plan submitted', 'Çeyrek planı hazır') };
+    if (review.submitted?.[team.id]) return { id: 'locked', label: m('Half-year plan submitted', 'Yarıyıl planı hazır') };
     if (team.ai) return { id: 'revision', label: m('Jev is revising', 'Jev revizyonda') };
     if (team.excel) return { id: 'revision', label: m('Waiting for Excel update', 'Excel güncellemesi bekleniyor') };
     return { id: 'revision', label: m('Reviewing the plan', 'Planı gözden geçiriyor') };
@@ -232,8 +233,11 @@ export function repairStrategy(team, config) {
   }
   const media = Math.round((Number.isFinite(c.media) ? c.media : 50) / 5) * 5;
   if (st.mediaShare !== Math.min(100, Math.max(0, media))) { st.mediaShare = Math.min(100, Math.max(0, media)); fixes.push(M(config, 'media share', 'medya payı')); }
-  if (!Number.isFinite(st.marketing) || st.marketing < 0) { st.marketing = 0; fixes.push(M(config, 'marketing budget', 'pazarlama bütçesi')); }
-  if (st.marketing > money.budget) { st.marketing = money.budget; fixes.push(M(config, 'budget', 'bütçe')); }
+  if (st.marketing2 === undefined) st.marketing2 = st.marketing;
+  for (const key of ['marketing', 'marketing2']) {
+    if (!Number.isFinite(st[key]) || st[key] < 0) { st[key] = 0; fixes.push(M(config, 'marketing budget', 'pazarlama bütçesi')); }
+    if (st[key] > money.half) { st[key] = money.half; fixes.push(M(config, 'budget', 'bütçe')); }
+  }
   for (const key of ['channelFocus', 'claimsOps', 'reinsurance', 'campaign', 'offer']) delete st[key];
   return fixes;
 }
@@ -317,24 +321,10 @@ function openStrategyReview(s, month, now) {
   return true;
 }
 
-// What a team can still spend on marketing from `month` to December.
-export function marketingLeft(s, team, month) {
-  return Math.max(0, cascoMoney(s.config).budget - marketingSpent(team, month));
-}
-
-// One wallet for the year: the rest of the year can spend only what the months so far left.
-function marketingOver(s, team, strategy, review) {
-  const left = marketingLeft(s, team, review.month + 1), spent = cascoMoney(s.config).budget - left;
-  const eur = v => `€${Math.round(v).toLocaleString(s.config.lang === 'tr' ? 'tr-TR' : 'en-US')}`;
-  return strategy.marketing > left + 0.5 ? M(s.config, `Marketing for the rest of the year can be at most ${eur(left)} (${eur(spent)} already spent).`, `Yılın kalanı için pazarlama en fazla ${eur(left)} olabilir (${eur(spent)} harcandı).`) : null;
-}
-
 function commitQuarterStrategy(s, team, strategy, review, now) {
   const draftTeam = { ...team, strategy };
   const errors = validate(draftTeam, s.config, msgLang ?? undefined);
   if (errors.length) return { error: errors[0] };
-  const over = marketingOver(s, team, strategy, review);
-  if (over) return { error: over };
   const before = JSON.stringify(team.strategy);
   const previous = structuredClone(team.strategy);
   if (!Array.isArray(team.strategyHistory) || !team.strategyHistory.length) team.strategyHistory = [{ effectiveMonth: 0, strategy: previous }];
@@ -445,16 +435,17 @@ function strategyFrom(source, base, cfg) {
   const num = v => (v === '' || v === null || v === undefined ? NaN : Number(v));
   const out = {
     ...structuredClone(base),
-    product: clean(src.product).slice(0, 32) || base.product,
-    sentence: clean(src.sentence).slice(0, 90) || base.sentence || M(cfg, 'Our strategy speaks in the race.', 'Stratejimiz yarışta konuşacak.', cfg.lang),
+    product: clean(src.product).slice(0, PRODUCT_MAX) || base.product,
+    sentence: clean(src.sentence).slice(0, SENTENCE_MAX) || base.sentence || M(cfg, 'Our strategy speaks in the race.', 'Stratejimiz yarışta konuşacak.', cfg.lang),
     basePremium: num(src.basePremium ?? base.basePremium),
     marketing: num(src.marketing ?? base.marketing),
+    marketing2: num(src.marketing2 ?? base.marketing2 ?? src.marketing ?? base.marketing),
     coef: Object.fromEntries(DIMENSIONS.map(dim => [dim, Array.isArray(src.coef?.[dim]) ? src.coef[dim].slice(0, R.dimensions[dim].length).map(num) : base.coef[dim]])),
     mediaShare: num(src.mediaShare ?? campaignOf(base).media),
     offers: (Array.isArray(src.offers) ? src.offers : campaignOf(base).weights).slice(0, gifts).map(num)
   };
   for (const key of ['channelFocus', 'claimsOps', 'reinsurance', 'campaign', 'offer']) delete out[key];
-  const numbers = [out.basePremium, out.marketing, out.mediaShare, ...out.offers, ...DIMENSIONS.flatMap(dim => out.coef[dim])];
+  const numbers = [out.basePremium, out.marketing, out.marketing2, out.mediaShare, ...out.offers, ...DIMENSIONS.flatMap(dim => out.coef[dim])];
   if (numbers.some(v => !Number.isFinite(v)) || out.offers.length !== gifts || DIMENSIONS.some(dim => out.coef[dim].length !== R.dimensions[dim].length))
     return { error: M(cfg, 'a decision is missing or not a number.', 'eksik ya da sayısal olmayan bir karar var.') };
   return out;
@@ -488,7 +479,7 @@ function reduceAction(s, action, ctx) {
     case 'create-team': {
       if (s.inputMode === 'excel') return { error: M(cfg, 'This game is managed by the moderator. Teams submit strategies in the Excel template.', 'Bu oyunu moderatör yönetiyor. Takımlar stratejilerini Excel şablonuyla iletir.') };
       if (role !== 'player' || !ctx.playerId) return { error: M(cfg, 'A team can only be created from a participant device.', 'Takım yalnızca katılımcı cihazından kurulur.') };
-      const name = clean(action.name).slice(0, 16);
+      const name = clean(action.name).slice(0, NAME_MAX);
       const emblem = Number(action.emblem);
       if (name.length < 2) return { error: M(cfg, 'The team name must be at least 2 characters.', 'Takım adı en az 2 karakter olmalı.') };
       if (!Number.isInteger(emblem) || emblem < 0 || emblem >= EMBLEM_COUNT) return { error: M(cfg, 'Pick a logo.', 'Bir logo seç.') };
@@ -513,12 +504,12 @@ function reduceAction(s, action, ctx) {
     }
     case 'excel-import-teams': {
       if (s.inputMode !== 'excel') return { error: M(cfg, 'Excel intake is not enabled for this game.', 'Bu oyunda Excel ile takım alımı açık değil.') };
-      if (s.phase === 'race') return { error: M(cfg, 'The race has started. Strategies can only change at a quarter review.', 'Yarış başladı. Stratejiler yalnızca çeyrek molasında değişebilir.') };
+      if (s.phase === 'race') return { error: M(cfg, 'The race has started. Strategies can only change at the half-year review.', 'Yarış başladı. Stratejiler yalnızca yarıyıl molasında değişebilir.') };
       if (!Array.isArray(action.teams) || action.teams.length < 1 || action.teams.length > MAX_TEAMS) return { error: M(cfg, `Upload between 1 and ${MAX_TEAMS} teams.`, `1–${MAX_TEAMS} takım yükleyin.`) };
 
       const imported = [], names = new Set();
       for (const item of action.teams) {
-        const name = clean(item?.name).slice(0, 16), key = upperOf(name, cfg.lang);
+        const name = clean(item?.name).slice(0, NAME_MAX), key = upperOf(name, cfg.lang);
         if (name.length < 2) return { error: M(cfg, 'Every team name must be 2–16 characters.', 'Her takım adı 2–16 karakter olmalı.') };
         if (names.has(key)) return { error: M(cfg, `“${name}” appears more than once in the upload.`, `“${name}” yüklemede birden fazla kez var.`) };
         names.add(key);
@@ -550,7 +541,7 @@ function reduceAction(s, action, ctx) {
       if (s.inputMode !== 'excel') return { error: M(cfg, 'Excel intake is not enabled for this game.', 'Bu oyunda Excel ile takım alımı açık değil.') };
       if (s.phase === 'race') return { error: M(cfg, 'The race has started. New teams can’t join.', 'Yarış başladı. Yeni takım katılamaz.') };
       if (s.teams.length >= MAX_TEAMS) return { error: M(cfg, `A game can have at most ${MAX_TEAMS} teams.`, `Oyunda en fazla ${MAX_TEAMS} takım olabilir.`) };
-      const name = clean(action.name).slice(0, 16);
+      const name = clean(action.name).slice(0, NAME_MAX);
       if (name.length < 2) return { error: M(cfg, 'The team name must be at least 2 characters.', 'Takım adı en az 2 karakter olmalı.') };
       if (s.teams.some(team => upperOf(team.name, cfg.lang) === upperOf(name, cfg.lang))) return { error: M(cfg, `“${name}” is taken. Pick another name.`, `“${name}” adı alınmış. Başka bir ad seç.`) };
       const used = new Set(s.teams.map(team => team.color)), usedEmblems = new Set(s.teams.map(team => team.emblem));
@@ -565,7 +556,7 @@ function reduceAction(s, action, ctx) {
     case 'excel-join': {
       if (s.inputMode !== 'excel') return { error: M(cfg, 'Excel intake is not enabled for this game.', 'Bu oyunda Excel ile takım alımı açık değil.') };
       if (role !== 'player' || !ctx.playerId) return { error: M(cfg, 'A team joins from its own device.', 'Takım kendi cihazından katılır.') };
-      const name = clean(action.name).slice(0, 16), key = upperOf(name, cfg.lang);
+      const name = clean(action.name).slice(0, NAME_MAX), key = upperOf(name, cfg.lang);
       if (name.length < 2) return { error: M(cfg, 'The team name must be at least 2 characters.', 'Takım adı en az 2 karakter olmalı.') };
       const same = s.teams.find(team => upperOf(team.name, cfg.lang) === key);
       // A team whose device is gone (a closed tab, a dead battery) can be taken back by typing its name, even mid-race.
@@ -591,14 +582,14 @@ function reduceAction(s, action, ctx) {
       if (s.inputMode !== 'excel') return { error: M(cfg, 'Excel intake is not enabled for this game.', 'Bu oyunda Excel ile takım alımı açık değil.') };
       const team = s.teams.find(candidate => candidate.id === Number(action.teamId) && candidate.excel && !candidate.ai);
       if (!team) return { error: M(cfg, 'That team is not in this game.', 'Bu takım oyunda yok.') };
-      if (role !== 'host' && (role !== 'player' || team !== mine)) return { error: M(cfg, 'A team can only hand in its own workbook.', 'Takım yalnızca kendi dosyasını teslim edebilir.') };
+      if (role !== 'host' && (role !== 'player' || team !== mine)) return { error: M(cfg, 'A team can only hand in its own strategy.', 'Takım yalnızca kendi stratejisini teslim edebilir.') };
       const review = currentStrategyReview(s);
-      if (s.phase === 'race' && !review) return { error: M(cfg, 'Plans can change only before the race or at a quarter review.', 'Planlar yalnızca yarıştan önce ya da çeyrek molasında değişebilir.') };
+      if (s.phase === 'race' && !review) return { error: M(cfg, 'Plans can change only before the race or at the half-year review.', 'Planlar yalnızca yarıştan önce ya da yarıyıl molasında değişebilir.') };
       // Before the race, workbooks are handed in during the decision window only (lobby and briefing just prepare).
-      if (s.phase !== 'race' && s.phase !== 'decisions') return { error: M(cfg, 'Workbooks are handed in once the decision window opens.', 'Dosyalar karar aşaması başlayınca yüklenir.') };
+      if (s.phase !== 'race' && s.phase !== 'decisions') return { error: M(cfg, 'Strategies are handed in once the decision window opens.', 'Stratejiler karar aşaması başlayınca yüklenir.') };
       // Once the decision window runs out, teams can't hand in from their own devices; the moderator still can (or adds time).
       if (role === 'player' && s.phase === 'decisions' && s.deadline && now > s.deadline) return { error: M(cfg, 'Time’s up for the decisions. Ask the moderator to add time.', 'Karar süresi doldu. Moderatörden süre eklemesini iste.') };
-      if (role === 'player' && review && now > review.closesAt) return { error: M(cfg, 'The quarterly strategy review is closed.', 'Çeyrek strateji değerlendirmesi kapandı.') };
+      if (role === 'player' && review && now > review.closesAt) return { error: M(cfg, 'The half-year strategy review is closed.', 'Yarıyıl strateji molası kapandı.') };
       const incoming = strategyFrom(action.strategy, team.strategy, cfg);
       if (incoming.error) return { error: M(cfg, `“${team.name}”: ${incoming.error}`, `“${team.name}”: ${incoming.error}`) };
       const strategy = review ? { ...structuredClone(team.strategy), ...Object.fromEntries(QUARTER_KEYS.map(key => [key, structuredClone(incoming[key])])) } : incoming;
@@ -611,8 +602,8 @@ function reduceAction(s, action, ctx) {
     case 'excel-quarter-submit': {
       if (s.inputMode !== 'excel') return { error: M(cfg, 'Excel intake is not enabled for this game.', 'Bu oyunda Excel ile takım alımı açık değil.') };
       const review = currentStrategyReview(s);
-      if (!review || now > review.closesAt) return { error: M(cfg, 'The quarterly strategy review is closed.', 'Çeyrek strateji değerlendirmesi kapandı.') };
-      if (!Array.isArray(action.teams) || !action.teams.length || action.teams.length > MAX_TEAMS) return { error: M(cfg, 'No team strategies were found in the workbook.', 'Çalışma kitabında takım stratejisi bulunamadı.') };
+      if (!review || now > review.closesAt) return { error: M(cfg, 'The half-year strategy review is closed.', 'Yarıyıl strateji molası kapandı.') };
+      if (!Array.isArray(action.teams) || !action.teams.length || action.teams.length > MAX_TEAMS) return { error: M(cfg, 'No team strategies were found in the strategy file.', 'Strateji dosyasında takım stratejisi bulunamadı.') };
       const proposals = [], seen = new Set();
       for (const item of action.teams) {
         const name = clean(item?.name), key = upperOf(name, cfg.lang);
@@ -627,8 +618,6 @@ function reduceAction(s, action, ctx) {
         for (const field of QUARTER_KEYS) strategy[field] = structuredClone(incoming[field]);
         const errors = validate({ ...team, strategy }, cfg, msgLang ?? undefined);
         if (errors.length) return { error: M(cfg, `“${team.name}”: ${errors[0]}`, `“${team.name}”: ${errors[0]}`) };
-        const over = marketingOver(s, team, strategy, review);
-        if (over) return { error: M(cfg, `“${team.name}”: ${over}`, `“${team.name}”: ${over}`) };
         proposals.push({ team, strategy });
       }
       for (const proposal of proposals) commitQuarterStrategy(s, proposal.team, proposal.strategy, review, now);
@@ -642,7 +631,7 @@ function reduceAction(s, action, ctx) {
       if (role !== 'system') return { error: M(cfg, 'AI teams can only be created by the game server.', 'AI takımları yalnızca oyun sunucusu tarafından oluşturulabilir.') };
       if (s.phase === 'race') return { error: M(cfg, 'The race has started. New teams can’t join.', 'Yarış başladı. Yeni takım katılamaz.') };
       if (s.teams.length >= MAX_TEAMS) return { error: M(cfg, `Room full: ${MAX_TEAMS} teams max.`, `Oda dolu: en fazla ${MAX_TEAMS} takım.`) };
-      let name = clean(action.name).slice(0, 16) || 'Jev AI';
+      let name = clean(action.name).slice(0, NAME_MAX) || 'Jev AI';
       const base = name;
       let suffix = 2;
       while (s.teams.some(team => upperOf(team.name, cfg.lang) === upperOf(name, cfg.lang))) name = `${base.slice(0, 13)} ${suffix++}`;
@@ -665,7 +654,7 @@ function reduceAction(s, action, ctx) {
     }
     // The room server stores the image; the state only says which version each team has.
     case 'brochure-set': {
-      if (role !== 'system') return { error: M(cfg, 'Brochures are uploaded through the room server.', 'Broşürler oda sunucusu üzerinden yüklenir.') };
+      if (role !== 'system') return { error: M(cfg, 'Communication assets are uploaded through the room server.', 'İletişim materyalleri oda sunucusu üzerinden yüklenir.') };
       const team = s.teams.find(t => t.id === Number(action.teamId));
       if (!team) return { changed: false };
       team.brochure = action.brochure ? { v: Number(action.brochure.v), w: Number(action.brochure.w), h: Number(action.brochure.h) } : null;
@@ -723,11 +712,11 @@ function reduceAction(s, action, ctx) {
     }
     case 'quarter-strategy': {
       const review = currentStrategyReview(s);
-      if (role !== 'player' || !mine || !review) return { error: M(cfg, 'The quarterly strategy review is not open.', 'Çeyrek strateji değerlendirmesi açık değil.') };
-      if (!canEditTeam(s, mine, now)) return { error: M(cfg, 'Your quarterly plan has already been submitted.', 'Çeyrek planın zaten gönderildi.') };
+      if (role !== 'player' || !mine || !review) return { error: M(cfg, 'The half-year strategy review is not open.', 'Yarıyıl strateji molası açık değil.') };
+      if (!canEditTeam(s, mine, now)) return { error: M(cfg, 'Your half-year plan has already been submitted.', 'Yarıyıl planın zaten gönderildi.') };
       const key = action.key;
       const allowed = ['primary', 'secondary', 'price', 'coverage', 'risk', 'marketing', 'service', 'reinsurance'];
-      if (!allowed.includes(key)) return { error: M(cfg, 'This decision stays fixed during the quarterly review.', 'Bu karar çeyrek değerlendirmesinde sabit kalır.') };
+      if (!allowed.includes(key)) return { error: M(cfg, 'This decision stays fixed during the half-year review.', 'Bu karar yarıyıl molasında sabit kalır.') };
       let value = action.value;
       if (['price', 'marketing', 'service'].includes(key)) value = value === '' || value === null ? NaN : Number(value);
       if (key === 'reinsurance') value = !!value;
@@ -738,8 +727,8 @@ function reduceAction(s, action, ctx) {
     }
     case 'quarter-submit': {
       const review = currentStrategyReview(s);
-      if (role !== 'player' || !mine || !review || !mine.quarterDraft) return { error: M(cfg, 'There is no quarterly plan to submit.', 'Gönderilecek bir çeyrek planı yok.') };
-      if (review.submitted?.[mine.id]) return { error: M(cfg, 'Your quarterly plan has already been submitted.', 'Çeyrek planın zaten gönderildi.') };
+      if (role !== 'player' || !mine || !review || !mine.quarterDraft) return { error: M(cfg, 'There is no half-year plan to submit.', 'Gönderilecek bir yarıyıl planı yok.') };
+      if (review.submitted?.[mine.id]) return { error: M(cfg, 'Your half-year plan has already been submitted.', 'Yarıyıl planın zaten gönderildi.') };
       const result = commitQuarterStrategy(s, mine, mine.quarterDraft, review, now);
       if (result.error) return result;
       if (allReviewTeamsSubmitted(s, review)) closeStrategyReview(s, now);
@@ -754,8 +743,6 @@ function reduceAction(s, action, ctx) {
       const strategy = structuredClone(team.strategy);
       for (const key of QUARTER_KEYS) strategy[key] = structuredClone(incoming[key]);
       repairStrategy({ ...team, strategy }, cfg);
-      // Jev picks a yearly pace; the rest of the year gets that pace for the months left, within what is left.
-      strategy.marketing = Math.min(marketingLeft(s, team, review.month + 1), Math.round(strategy.marketing * (11 - review.month) / 12 / 1000) * 1000);
       const result = commitQuarterStrategy(s, team, strategy, review, now);
       if (result.error) return result;
       team.ai.decidedAt = now;
@@ -924,7 +911,7 @@ function reduceAction(s, action, ctx) {
       if (action.key === 'policies' && def.value > 0) {
         const k = v / def.value;
         for (const key of ['budget', 'fixedCost']) if (s.config.assumptions[key]) s.config.assumptions[key].value = Math.round(s.config.assumptions[key].value * k / 1000) * 1000;
-        for (const team of s.teams) if (team.excel || team.ai) team.strategy.marketing = Math.round(team.strategy.marketing * k);
+        for (const team of s.teams) if (team.excel || team.ai) for (const key of ['marketing', 'marketing2']) if (Number.isFinite(team.strategy[key])) team.strategy[key] = Math.round(team.strategy[key] * k);
       }
       s.config.assumptions[action.key].value = v;
       return done;
@@ -1016,6 +1003,8 @@ function reduceAction(s, action, ctx) {
       if (s.phase === 'race') return { error: M(cfg, 'Rules can’t change while the race is running.', 'Yarış sürerken kurallar değiştirilemez.') };
       if (!s.config.rules) s.config.rules = defaultRules(cfg?.lang, cfg?.preset);
       if (!s.config.rules.campaign) s.config.rules.campaign = defaultRules(cfg?.lang, cfg?.preset).campaign; // rooms from before the campaign
+      if (!s.config.rules.commission) s.config.rules.commission = defaultRules(cfg?.lang, cfg?.preset).commission; // rooms from before commissions
+      if (!s.config.rules.campaign.reachCost) s.config.rules.campaign.reachCost = campaignRules(s.config.rules).reachCost;
       const checked = checkRule(s.config.rules, action.path, action.value, cfg?.lang);
       if (checked.error) return checked;
       setPath(s.config.rules, action.path, checked.value);

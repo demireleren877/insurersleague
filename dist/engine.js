@@ -5,12 +5,14 @@
 import {
   DIMENSIONS, QUARTER_KEYS, NOMINAL_TEAMS, defaultCascoRules, cascoRulesOf, cascoAssumptions, cascoMoney, cascoSpend,
   defaultCascoStrategy, validateCasco, simulateCasco, strategyAt, planAt, monthlyMarketing, marketingSpent, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
-  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience, stream
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience, stream,
+  HALF_MONTHS, halvesOf, commissionOf
 } from './casco.js';
 
 export {
   DIMENSIONS, QUARTER_KEYS, cascoMoney, cascoSpend, strategyAt, planAt, monthlyMarketing, marketingSpent, inScope, referenceMarket, policiesOf, cellRisk, offerFor,
-  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience, stream
+  marketCells, actuarialCoefficients, actuarialBase, bookProfile, drawsFor, normInv, snapCoef, campaignRules, campaignOf, campaignAudience, stream,
+  HALF_MONTHS, halvesOf, commissionOf
 };
 
 // Campaign gifts (Marketing_Input.xlsx), named per viewer.
@@ -21,6 +23,8 @@ const OFFER_NAMES = {
 export const offerName = (id, lang = 'en') => (OFFER_NAMES[id] ? (lang === 'tr' ? OFFER_NAMES[id][1] : OFFER_NAMES[id][0]) : String(id));
 
 export const BASE_TEAMS = NOMINAL_TEAMS;
+// Generous caps, only so a pasted paragraph can't break the stage; screens shorten long names with "…".
+export const NAME_MAX = 40, PRODUCT_MAX = 60, SENTENCE_MAX = 300;
 export const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 export const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 export const monthsOf = lang => (lang === 'tr' ? MONTHS_TR : MONTHS_EN);
@@ -68,16 +72,16 @@ export const EVENT_SCOPES = eventScopesFor('en');
 
 // cost: claims multiplier in scope · demand: customers coming to market in scope · duration in months.
 const EVENT_TEXT = [
-  { month: 2, duration: 10, cost: 1.08, demand: 1, scope: 'all',
-    en: ['Spare-parts prices jump', 'The currency slide lifts imported parts prices; every claim costs about 8% more for the rest of the year.'],
-    tr: ['Yedek parça fiyatları sıçradı', 'Kur artışı ithal parça fiyatlarını yükseltti; yıl sonuna kadar her hasar yaklaşık %8 daha pahalı.'] },
-  { month: 5, duration: 1, cost: 1.6, demand: 1, scope: 'city:0',
-    en: ['Hailstorm over Istanbul', 'A severe hailstorm hits Istanbul: claims from Istanbul policies written this month run 60% higher.'],
-    tr: ['İstanbul’da dolu fırtınası', 'İstanbul’u sert bir dolu vurdu: bu ay yazılan İstanbul poliçelerinde hasar %60 yüksek.'] },
+  { month: 2, duration: 6, cost: 1.05, demand: 1, scope: 'all',
+    en: ['Spare-parts prices jump', 'The currency slide lifts imported parts prices; for six months every claim costs about 5% more.'],
+    tr: ['Yedek parça fiyatları sıçradı', 'Kur artışı ithal parça fiyatlarını yükseltti; altı ay boyunca her hasar yaklaşık %5 daha pahalı.'] },
+  { month: 5, duration: 1, cost: 1.4, demand: 1, scope: 'city:0',
+    en: ['Hailstorm over Istanbul', 'A severe hailstorm hits Istanbul: claims from Istanbul policies written this month run 40% higher.'],
+    tr: ['İstanbul’da dolu fırtınası', 'İstanbul’u sert bir dolu vurdu: bu ay yazılan İstanbul poliçelerinde hasar %40 yüksek.'] },
   { month: 6, duration: 2, cost: 1, demand: 1.3, scope: 'vehicle:0',
     en: ['New-car loan campaign', 'Cheap auto loans bring 30% more new-vehicle buyers to market for two months.'],
     tr: ['Sıfır araç kredi kampanyası', 'Ucuz taşıt kredisi iki ay boyunca pazara %30 daha fazla sıfır araç sahibi getiriyor.'] },
-  { month: 8, duration: 1, cost: 1.12, demand: 1, scope: 'all',
+  { month: 8, duration: 1, cost: 1.06, demand: 1, scope: 'all',
     en: ['Holiday traffic', 'Long-weekend traffic lifts claim frequency across the market this month.'],
     tr: ['Bayram trafiği', 'Uzun bayram tatili trafiği bu ay tüm pazarda hasar sıklığını artırıyor.'] },
   { month: 9, duration: 2, cost: 1, demand: 0.8, scope: 'channel:2',
@@ -143,14 +147,16 @@ export function sampleStrategies(config) {
   const act = actuarialCoefficients(R), flat = Object.fromEntries(DIMENSIONS.map(d => [d, act[d].map(() => 1)]));
   const tilt = (coef, dim, factors) => ({ ...coef, [dim]: coef[dim].map((v, i) => snapCoef(v * factors[i], R)) });
   const k = v => Math.round(v / 1000) * 1000;
-  const base = { product: '', sentence: '', marketing: k(B * 0.5), mediaShare: 50, offers: [40, 30, 20, 10] };
+  // Marketing as a share of the year's budget, split evenly over the two halves.
+  const mk = f => ({ marketing: k(B * f / 2), marketing2: k(B * f / 2) });
+  const base = { product: '', sentence: '', ...mk(0.5), mediaShare: 50, offers: [40, 30, 20, 10] };
   return [
     { id: 'actuary', ...base, coef: act, basePremium: actuarialBase(act, 0.62, R) },
     { id: 'flat', ...base, coef: flat, basePremium: actuarialBase(flat, 0.62, R) },
-    { id: 'volume', ...base, coef: act, basePremium: actuarialBase(act, 0.75, R), marketing: k(B * 0.9), offers: [25, 25, 25, 25] },
-    { id: 'margin', ...base, coef: act, basePremium: actuarialBase(act, 0.52, R), marketing: k(B * 0.25) },
-    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), marketing: k(B * 0.8), mediaShare: 25, offers: [0, 20, 60, 20] },
-    { id: 'gifts', ...base, coef: act, basePremium: actuarialBase(act, 0.6, R), marketing: k(B * 0.7), mediaShare: 30, offers: [10, 10, 0, 80] }
+    { id: 'volume', ...base, coef: act, basePremium: actuarialBase(act, 0.75, R), ...mk(0.9), offers: [25, 25, 25, 25] },
+    { id: 'margin', ...base, coef: act, basePremium: actuarialBase(act, 0.52, R), ...mk(0.25) },
+    { id: 'digital', ...base, coef: tilt(act, 'channel', [1.05, 1.05, 0.9, 1.1]), basePremium: actuarialBase(act, 0.62, R), ...mk(0.8), mediaShare: 25, offers: [0, 20, 60, 20] },
+    { id: 'gifts', ...base, coef: act, basePremium: actuarialBase(act, 0.6, R), ...mk(0.7), mediaShare: 30, offers: [10, 10, 0, 80] }
   ];
 }
 export function teams(lang = 'en', config = scenario(lang)) {
@@ -164,8 +170,9 @@ export function teams(lang = 'en', config = scenario(lang)) {
 export const find = (list, id) => list.find(x => String(x.id) === String(id));
 export const spend = s => cascoSpend(s);
 export const defaultStrategy = config => defaultCascoStrategy(config);
-// The plan as the year saw it: the final prices and campaign, with marketing as the year's total spend.
-export const yearPlan = team => ({ ...strategyAt(team, 11), marketing: Math.round(marketingSpent(team, 12)) });
+// The plan as the year saw it: the final prices and campaign, with marketing as the year's total spend
+// (`marketing2` 0, so the total is not counted twice).
+export const yearPlan = team => ({ ...strategyAt(team, 11), marketing: Math.round(marketingSpent(team, 12)), marketing2: 0 });
 export const validate = (team, config, lang) => validateCasco(team, config, lang);
 export const simulate = (teamList, config) => simulateCasco(teamList, config);
 // The same season with every team's policies per cell and month (market and campaign), for the policy file.

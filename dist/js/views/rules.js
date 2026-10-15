@@ -31,8 +31,8 @@ const count = keys => (s, R) => changedCount(R, within(keys));
 export const SECTIONS = [
   { id: 'puanlama', get name() { return t('Scoring', 'Puanlama'); }, icon: 'cup', reset: { keys: [], scoring: true },
     changes: s => assumptionChanges(s, SCORING_KEYS) + (sameJson(s.config.weights, [50, 50]) ? 0 : 1) },
-  { id: 'pazar', get name() { return t('Market & money', 'Pazar ve para'); }, icon: 'coins', reset: { keys: ['market', 'coef'], market: true },
-    changes: (s, R) => count(['market', 'coef'])(s, R) + assumptionChanges(s, MONEY_KEYS) },
+  { id: 'pazar', get name() { return t('Market & money', 'Pazar ve para'); }, icon: 'coins', reset: { keys: ['market', 'coef', 'commission'], market: true },
+    changes: (s, R) => count(['market', 'coef', 'commission'])(s, R) + assumptionChanges(s, MONEY_KEYS) },
   { id: 'hasar', get name() { return t('Claims model', 'Hasar modeli'); }, icon: 'shield', reset: { keys: ['model'] }, changes: count(['model']) },
   { id: 'segmentler', get name() { return t('Segment coefficients', 'Segment katsayıları'); }, icon: 'users', reset: { keys: ['dimensions'] }, changes: count(['dimensions']) },
   { id: 'davranis', get name() { return t('Customer behaviour', 'Müşteri davranışı'); }, icon: 'eye', reset: { keys: ['behavior', 'commercialPrice'] }, changes: count(['behavior', 'commercialPrice']) },
@@ -136,6 +136,7 @@ function marketSection(s) {
   const locked = raceStarted(), R = rulesOf(s.config), ref = referenceMarket(R, policiesOf(s.config)), m = cascoMoney(s.config);
   return block(t('Market size & money', 'Pazar büyüklüğü ve para'), t('The case-study data is a sample; set how many policies the whole market buys in a year. Its profile always matches the sample. Changing the size rescales the budget and costs in proportion.', 'Vaka verisi bir örneklemdir; tüm pazarın yılda kaç poliçe aldığını belirle. Profili her zaman örneklemle aynıdır. Büyüklüğü değiştirmek bütçeyi ve giderleri orantılı ölçekler.'), `
       <div class="rf-grid">${MONEY_KEYS.map(k => assumptionField(k)).join('')}</div>
+      <div class="rf-grid">${R.dimensions.channel.map((_, i) => ruleField(`commission.${i}`, t(`${levelName('channel', i, getLang())} commission`, `${levelName('channel', i, getLang())} komisyonu`), t('Share of the premium sold through this channel. Told to the teams.', 'Bu kanaldan satılan primin payı. Takımlara açıklanır.'))).join('')}</div>
       ${insight([
         t(`At the market’s own prices the year is worth <b>${money(ref.gwp)}</b> of premium and <b>${money(ref.claims)}</b> of expected claims.`, `Piyasanın kendi fiyatlarıyla yıl <b>${money(ref.gwp)}</b> prim ve <b>${money(ref.claims)}</b> beklenen hasar eder.`),
         t(`A fair slice for one of ${6} teams is about ${money(m.slice)} of premium; the marketing budget is ${pct(m.budget / m.slice)} of it.`, `${6} takımdan birinin adil payı yaklaşık ${money(m.slice)} primdir; pazarlama bütçesi bunun ${pct(m.budget / m.slice)} kadarıdır.`)
@@ -200,18 +201,16 @@ function behaviorSection(s, R) {
 function campaignSection(s, R) {
   const m = cascoMoney(s.config), K = campaignRules(R), perTeam = campaignAudience(R, m) / 12;
   const offers = `<div class="rt-wrap"><table class="rt"><thead><tr><th>${t('Gift', 'Hediye')}</th><th>${t('Interest', 'İlgi')}</th><th>${t('Click', 'Tıklama')}</th><th>Hit</th><th>${t('Cost', 'Maliyet')}</th><th>${t('Customers per 1,000 reached', '1.000 erişimde müşteri')}</th></tr></thead><tbody>${K.offers.map((o, i) => `<tr><th>${esc(offerName(o.id, getLang()))}</th><td>${numCell(`campaign.offers.${i}.interest`, `${offerName(o.id, getLang())} · ${t('interest', 'ilgi')}`)}</td><td>${numCell(`campaign.offers.${i}.click`, `${offerName(o.id, getLang())} · ${t('click', 'tıklama')}`)}</td><td>${numCell(`campaign.offers.${i}.hit`, `${offerName(o.id, getLang())} · hit`)}</td><td>${numCell(`campaign.offers.${i}.cost`, `${offerName(o.id, getLang())} · ${t('cost', 'maliyet')}`)}</td><td class="num">${fmt(o.interest * o.click * o.hit * 1000, 1)}</td></tr>`).join('')}</tbody></table></div>`;
-  return block(t('Digital acquisition campaign', 'Dijital müşteri kazanma kampanyası'), t('All of a team’s marketing runs here: media buys impressions in a shared target group; the ads show each gift by its weight; interest × click × hit turns reach into customers; each one costs a gift.', 'Takımın bütün pazarlaması buradan yürür: medya ortak bir hedef kitlede gösterim alır; reklamlar her hediyeyi ağırlığı kadar gösterir; ilgi × tıklama × hit erişimi müşteriye çevirir; her müşteri bir hediyeye mal olur.'), `
+  return block(t('Digital acquisition campaign', 'Dijital müşteri kazanma kampanyası'), t('All of a team’s marketing runs here: media buys reach in a shared target group; the ads show each gift by its weight; interest × click × hit turns reach into customers; each one costs a gift.', 'Takımın bütün pazarlaması buradan yürür: medya ortak bir hedef kitlede erişim alır; reklamlar her hediyeyi ağırlığı kadar gösterir; ilgi × tıklama × hit erişimi müşteriye çevirir; her müşteri bir hediyeye mal olur.'), `
       <div class="rf-grid">
-        ${ruleField('campaign.cpm', t('Media cost per 1,000 impressions', '1.000 gösterim maliyeti'), t('CPM.', 'CPM.'))}
+        ${ruleField('campaign.reachCost', t('Cost of reaching 100 people', '100 kişiye ulaşma maliyeti'), t('What media pays per 100 people of the target group reached.', 'Medyanın hedef kitleden ulaştığı her 100 kişi için ödediği.'))}
         ${ruleField('campaign.digitalUsers', t('Digital users (case)', 'Dijital kullanıcı (vaka)'), t('18–55 digital users in the case.', 'Vakadaki 18–55 yaş dijital kullanıcı.'))}
         ${ruleField('campaign.targetShare', t('Target group share', 'Hedef kitle payı'), t('“Joyful Disregarders” among them.', 'İçlerinde “Joyful Disregarders”.'))}
         ${ruleField('campaign.referenceBudget', t('Case campaign budget', 'Vakadaki kampanya bütçesi'), t('Keeps the case’s people per euro: the audience scales with the marketing budget.', 'Vakadaki euro başına kişiyi korur: kitle pazarlama bütçesiyle ölçeklenir.'))}
-        ${ruleField('campaign.frequency', t('Frequency threshold', 'Frekans eşiği'), t('Average views above this raise the hit ratio.', 'Ortalama görüntüleme bunu aşarsa hit oranı artar.'))}
-        ${ruleField('campaign.frequencyBonus', t('Hit ratio bonus', 'Hit oranı artışı'))}
         ${ruleField('campaign.priceCap', t('Price effect cap', 'Fiyat etkisi tavanı'), t('A cheap price can raise conversion at most this many times.', 'Ucuz fiyat dönüşümü en fazla bu kat artırabilir.'))}
       </div>
       ${offers}
-      ${insight([t(`In this game the target group is about ${fmt(perTeam)} people a month per team (${fmt(perTeam * s.teams.length || perTeam)} with ${Math.max(1, s.teams.length)} teams). Reaching all of them once costs ${money(perTeam * K.cpm / 1000)} a month per team.`, `Bu oyunda hedef kitle takım başına ayda yaklaşık ${fmt(perTeam)} kişi (${Math.max(1, s.teams.length)} takımla ${fmt(perTeam * s.teams.length || perTeam)}). Hepsine bir kez ulaşmak takım başına ayda ${money(perTeam * K.cpm / 1000)}.`)])}`);
+      ${insight([t(`In this game the target group is about ${fmt(perTeam)} people a month per team (${fmt(perTeam * s.teams.length || perTeam)} with ${Math.max(1, s.teams.length)} teams). Reaching all of them costs ${money(perTeam * K.reachCost / 100)} a month per team.`, `Bu oyunda hedef kitle takım başına ayda yaklaşık ${fmt(perTeam)} kişi (${Math.max(1, s.teams.length)} takımla ${fmt(perTeam * s.teams.length || perTeam)}). Hepsine ulaşmak takım başına ayda ${money(perTeam * K.reachCost / 100)}.`)])}`);
 }
 
 function eventsSection(s) {

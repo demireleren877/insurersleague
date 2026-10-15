@@ -70,7 +70,7 @@ test('home resume follows the persisted Room lifecycle and preserves valid games
       room.send({ deserializeAttachment: () => ({ role: 'host' }), send: raw => sockets.at(-1).onmessage({ data: raw }) });
       assert.equal(store.getState().phase, room.state.phase);
     }
-    // Finish the same season, revisiting home at every quarter and after the last month.
+    // Finish the same season, revisiting home at the half-year review and after the last month.
     let reviews = 0;
     for (let k = 0; k < 40 && playhead(room.state, Date.now()).month < 11; k++) {
       action({ type: 'next-month' });
@@ -79,11 +79,11 @@ test('home resume follows the persisted Room lifecycle and preserves valid games
         await room.persist();
         await reloadRoom();
         store.disconnect();
-        assert.equal(await store.resumeHost(), true, 'quarter review');
+        assert.equal(await store.resumeHost(), true, 'half-year review');
         action({ type: 'quarter-close' });
       }
     }
-    assert.equal(reviews, 3);
+    assert.equal(reviews, 1);
     assert.equal(playhead(room.state, Date.now()).month, 11);
     action({ type: 'show-final' });
     assert.equal(room.state.stageLayer, 'final');

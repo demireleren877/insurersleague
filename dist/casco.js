@@ -16,7 +16,10 @@
 import { CASCO_MARKET } from './data/casco-market.js';
 
 export const DIMENSIONS = ['city', 'channel', 'vehicle', 'persona', 'type'];
-export const QUARTER_KEYS = ['basePremium', 'coef', 'marketing', 'mediaShare', 'offers'];
+// The levers a team may change at the half-year review. The first half's budget (`marketing`) is spent by
+// then and stays; `marketing2` is July–December.
+export const QUARTER_KEYS = ['basePremium', 'coef', 'marketing2', 'mediaShare', 'offers'];
+export const HALF_MONTHS = 6;
 export const NOMINAL_TEAMS = 6;
 const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
 const L = (lang, en, tr) => (lang === 'tr' ? tr : en);
@@ -36,19 +39,19 @@ export function defaultCascoRules() {
     ],
     commercialPrice: 0.8,
     market: { outside: 1.2, seasonality: 0.06 },
+    // Channel commission on written premium, told to the teams: Agency, Bank, Digital, Broker.
+    commission: [0.05, 0.1, 0.02, 0.1],
     coef: { min: 0.5, max: 2.5, step: 0.05 },
     // The digital acquisition campaign (Marketing_Input.xlsx): the whole marketing budget runs it. Media buys
-    // impressions in the target group; the ads show each gift in proportion to its weight, reached people go
+    // reach in the target group; the ads show each gift in proportion to its weight, reached people go
     // through that gift's interest → click → hit, and every acquired customer gets the gift.
     // The case's audience-per-euro is kept: the target group grows with the decision budget and the teams.
     campaign: {
       channel: 2,                 // campaign customers buy through this channel (Digital)
-      cpm: 10,                    // EUR per 1,000 impressions
+      reachCost: 10,              // EUR per 100 people reached while the target group is still fresh
       digitalUsers: 43000000,     // 18–55 digital users in the case
       targetShare: 0.21,          // the target group's share of them
-      referenceBudget: 5000000,   // the case's campaign budget for that audience
-      frequency: 5,               // seen more than this many times on average →
-      frequencyBonus: 0.1,        // … the hit ratio rises by this much
+      referenceBudget: 7500000,   // campaign budget that reaches that audience (the case's €5m, ×1.5 so reach fills up within the budget)
       priceCap: 2,                // a cheap price can at most double the hit ratio
       offers: [
         { id: 'concert', interest: 0.5, cost: 50, click: 0.35, hit: 0.1 },
@@ -62,7 +65,9 @@ export function defaultCascoRules() {
 const DEFAULT_RULES = defaultCascoRules();
 export const cascoRulesOf = config => (config?.rules?.model ? config.rules : DEFAULT_RULES);
 // Rooms created before the campaign existed carry no campaign rules; they get the defaults.
-export const campaignRules = R => R?.campaign ?? DEFAULT_RULES.campaign;
+// Rooms from before reach was priced per 100 people carry a cost per 1,000 impressions; it reads as the same euros.
+export const campaignRules = R => { const K = R?.campaign ?? DEFAULT_RULES.campaign; return K.reachCost ? K : { ...K, reachCost: (K.cpm ?? 10) / 10 }; };
+export const commissionOf = R => R?.commission ?? DEFAULT_RULES.commission;
 const OFFER_IDS = DEFAULT_RULES.campaign.offers.map(o => o.id);
 // A plan's campaign decisions: media share of marketing and one weight per gift (summing to 100).
 // Plans written before gift weights existed put all of it on their single chosen gift.
@@ -97,24 +102,24 @@ export function referenceMarket(R = DEFAULT_RULES, policies = DEFAULT_POLICIES) 
   return { gwp, claims, policies };
 }
 
-// Moderator-facing numbers. Money defaults to shares of one team's fair slice of the reference market
-// (with NOMINAL_TEAMS teams); changing the policy count rescales the money in proportion (see game.js).
+// Moderator-facing numbers. Money is set for the default market size; changing the policy count rescales
+// it in proportion (see game.js).
 export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFAULT_POLICIES) {
-  const slice = referenceMarket(R, policies).gwp / NOMINAL_TEAMS, k = v => Math.round(slice * v / 1000) * 1000;
   const A = (value, min, max, unit, en, tr, den, dtr) => ({ value, min, max, unit, label: L(lang, en, tr), description: L(lang, den, dtr) });
   return {
     policies: A(policies, 1000, 5000000, 'policies', 'Annual market size', 'Yıllık pazar büyüklüğü',
       'Policies the whole market buys in a year. Its profile matches the sample exactly.', 'Tüm pazarın bir yılda aldığı poliçe. Profili örneklemle birebir aynı.'),
     // €500k per team at the default market size; it scales with the policy count like the other money.
     budget: A(Math.round(500000 * policies / DEFAULT_POLICIES / 1000) * 1000, 1000, 1e9, 'EUR', 'Marketing budget', 'Pazarlama bütçesi',
-      'The most a team can spend on its digital campaign in the year.', 'Bir takımın yıl içinde dijital kampanyasına harcayabileceği en fazla tutar.'),
-    fixedCost: A(k(0.052), 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
+      'The most a team can spend on its digital campaign in the year: half of it in each half-year, nothing carried over.', 'Bir takımın yıl içinde dijital kampanyasına harcayabileceği en fazla tutar: yarısı her yarıyıl için, devretmez.'),
+    // €500k a year at the default market size, scaling with the policy count like the budget.
+    fixedCost: A(Math.round(500000 * policies / DEFAULT_POLICIES / 1000) * 1000, 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
       'Yearly overhead every company carries, claims handling included.', 'Her şirketin taşıdığı yıllık genel gider; hasar yönetimi dahil.'),
-    expenseRatio: A(0.12, 0, 0.5, 'ratio', 'Expense ratio', 'Gider oranı',
+    expenseRatio: A(0.05, 0, 0.5, 'ratio', 'Expense ratio', 'Gider oranı',
       'Share of every euro of premium spent on running the business (sales, policy administration). Told to the teams.', 'Her euro primin işletmeye (satış, poliçe yönetimi) giden payı. Takımlara açıklanır.'),
     profitFloor: A(0, -1, 0.5, 'ratio', 'Profitability floor', 'Kârlılık tabanı',
       'Profit as a share of a fair market slice (the market’s premium ÷ 6) that scores 0 profitability points.', 'Kârlılıktan 0 puan alınan kâr / adil pazar dilimi (piyasa primi ÷ 6) oranı.'),
-    profitTarget: A(0.1, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
+    profitTarget: A(0.12, 0, 2, 'ratio', 'Profitability target', 'Kârlılık hedefi',
       'Profit as a share of a fair market slice that scores full profitability points.', 'Kârlılıktan tam puan alınan kâr / adil pazar dilimi oranı.'),
     shareTarget: A(1.5, 0.5, 6, 'x', 'Market share target', 'Pazar payı hedefi',
       'Full share points at this multiple of a fair share (1 / teams).', 'Adil payın (1 / takım) bu katında tam pay puanı.')
@@ -127,7 +132,7 @@ export function cascoMoney(config) {
   const a = config?.assumptions?.budget ? config.assumptions : cascoAssumptions(config?.lang, R, policies);
   const slice = referenceMarket(R, policies).gwp / NOMINAL_TEAMS;
   return {
-    slice, budget: a.budget.value, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.12,
+    slice, budget: a.budget.value, half: a.budget.value / 2, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.05,
     profitFloor: a.profitFloor.value, profitTarget: a.profitTarget.value, shareTarget: a.shareTarget.value
   };
 }
@@ -141,12 +146,14 @@ export function defaultCascoStrategy(config) {
     product: '', sentence: '',
     basePremium: Math.round(R.model.frequency * R.model.severity / R.model.lossRatio * 100) / 100,
     coef: Object.fromEntries(DIMENSIONS.map(dim => [dim, R.dimensions[dim].map(() => 1)])),
-    marketing: Math.round(money.budget * 0.5 / 1000) * 1000,
+    marketing: Math.round(money.half * 0.5 / 1000) * 1000, marketing2: Math.round(money.half * 0.5 / 1000) * 1000,
     mediaShare: 50, offers: campaignRules(R).offers.map((_, i) => (i ? 0 : 100))
   };
 }
 
-export const cascoSpend = s => Number(s.marketing);
+// A plan's marketing for the year: the first half plus the second (plans from before the halves spent `marketing` alone).
+export const halvesOf = s => [Number(s?.marketing) || 0, Number(s?.marketing2 ?? s?.marketing) || 0];
+export const cascoSpend = s => halvesOf(s)[0] + halvesOf(s)[1];
 
 // A coefficient as a team can hand it in: inside the bounds, on the step grid.
 export const snapCoef = (v, R = DEFAULT_RULES) => {
@@ -177,12 +184,15 @@ export function validateCasco(team, config, lang = config?.lang) {
     errors.push(m('Every gift weight goes from 0 to 100% in steps of 5.', 'Her hediye ağırlığı %0–100 arasında, 5’er adımla girilir.'));
   else if (Math.abs(c.weights.reduce((a, b) => a + b, 0) - 100) > 0.01)
     errors.push(m(`The gift weights must total 100% (currently ${c.weights.reduce((a, b) => a + b, 0)}%).`, `Hediye ağırlıklarının toplamı %100 olmalı (şu an %${c.weights.reduce((a, b) => a + b, 0)}).`));
-  if (!(s.marketing >= 0)) errors.push(m('The marketing budget must be zero or positive.', 'Pazarlama bütçesi sıfır veya pozitif olmalı.'));
-  else if (cascoSpend(s) > money.budget + 0.5) errors.push(m('Marketing exceeds the marketing budget.', 'Pazarlama, pazarlama bütçesini aşıyor.'));
+  const eur = v => `€${Math.round(v).toLocaleString(lang === 'tr' ? 'tr-TR' : 'en-US')}`;
+  [[s.marketing, 'first', 'İlk'], [s.marketing2 ?? s.marketing, 'second', 'İkinci']].forEach(([v, en, tr]) => {
+    if (!(Number(v) >= 0)) errors.push(m(`The ${en} half-year marketing budget must be zero or positive.`, `${tr} yarıyıl pazarlama bütçesi sıfır veya pozitif olmalı.`));
+    else if (Number(v) > money.half + 0.5) errors.push(m(`The ${en} half-year marketing budget can be at most ${eur(money.half)}.`, `${tr} yarıyıl pazarlama bütçesi en fazla ${eur(money.half)} olabilir.`));
+  });
   return errors;
 }
 
-// A team may revise its plan at quarter reviews. Each snapshot applies from the following month.
+// A team may revise its plan at the half-year review. Each snapshot applies from the following month.
 export function planAt(team, month) {
   const history = Array.isArray(team?.strategyHistory) ? team.strategyHistory : [];
   let active = null;
@@ -191,11 +201,10 @@ export function planAt(team, month) {
 }
 export const strategyAt = (team, month) => planAt(team, month).strategy;
 
-// The marketing budget is one wallet for the year. A plan's `marketing` is what it spends from the month it
-// takes effect to December, in equal monthly parts; a quarter revision can only spend what is left.
+// The marketing budget comes in two halves of the year, each spent in six equal monthly parts: `marketing`
+// for January–June, `marketing2` for July–December. Nothing carries over; what is not spent stays in profit.
 export function monthlyMarketing(team, month) {
-  const p = planAt(team, month);
-  return (Number(p.strategy.marketing) || 0) / (12 - p.from);
+  return halvesOf(planAt(team, month).strategy)[month < HALF_MONTHS ? 0 : 1] / HALF_MONTHS;
 }
 export function marketingSpent(team, month) {
   let spent = 0;
@@ -267,12 +276,12 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
     const snapshots = Array.isArray(t.strategyHistory) && t.strategyHistory.length ? t.strategyHistory : [{ strategy: t.strategy }];
     return snapshots.flatMap(entry => validateCasco({ ...t, strategy: entry.strategy }, config));
   });
-  for (const t of teamList) if (marketingSpent(t, 12) > money.budget + 1)
-    errors.push(L(config.lang, `${t.name}: marketing over the year exceeds the marketing budget.`, `${t.name}: yıllık pazarlama harcaması pazarlama bütçesini aşıyor.`));
+  for (const t of teamList) if (marketingSpent(t, HALF_MONTHS) > money.half + 1 || marketingSpent(t, 12) - marketingSpent(t, HALF_MONTHS) > money.half + 1)
+    errors.push(L(config.lang, `${t.name}: marketing in a half-year exceeds its budget.`, `${t.name}: bir yarıyılın pazarlama harcaması bütçesini aşıyor.`));
   if (errors.length) throw Error([...new Set(errors)].join(' '));
   if (config.weights.reduce((a, b) => a + b, 0) !== 100) throw Error(L(config.lang, 'Score weights must total 100%.', 'Puan ağırlıkları toplamı %100 olmalı.'));
 
-  const events = config.events || [], K = campaignRules(R);
+  const events = config.events || [], K = campaignRules(R), commissionRate = commissionOf(R);
   // Campaign target cells: the campaign channel's cells, weighted by their share of the sample.
   const targetCount = cells().reduce((a, c) => a + (c[1] === K.channel ? c[5] : 0), 0);
   const targetShare = cells().map(c => (c[1] === K.channel ? c[5] / targetCount : 0));
@@ -281,7 +290,7 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
   const risk = cells().map(c => cellRisk(c, R));
   const channels = R.dimensions.channel.length, personas = R.dimensions.persona.length;
   const ledgers = teamList.map(t => ({
-    id: t.id, policies: 0, gwp: 0, claims: 0, claimCount: 0, expenses: 0, marketing: 0, expectedCost: 0, profit: 0,
+    id: t.id, policies: 0, gwp: 0, claims: 0, claimCount: 0, expenses: 0, marketing: 0, commission: 0, expectedCost: 0, profit: 0,
     persona: Array(personas).fill(0), channel: Array(channels).fill(0)
   }));
   const months = [];
@@ -309,13 +318,15 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
     });
 
     const marketCounts = trace ? counts.map(a => Array.from(a)) : null;
-    // The campaign: impressions share one target group; reach, frequency, then each gift's funnel and its
+    // The campaign: bought reach shares one target group; then each gift's funnel and its
     // own slice of the gift budget (both in proportion to the gift's weight).
     const plans = strategies.map((s, i) => { const c = campaignOf(s), spend = spendNow[i]; return { ...c, media: spend * c.media / 100, gifts: spend * (1 - c.media / 100) }; });
-    const impressions = plans.map(p => p.media / K.cpm * 1000), allImpressions = impressions.reduce((a, b) => a + b, 0);
-    const frequency = Math.max(1, allImpressions / audience), bonus = frequency > K.frequency ? 1 + K.frequencyBonus : 1;
+    // Media buys contacts in one shared target group. The more the teams buy together, the more of them land on
+    // people already reached: distinct reach = audience × (1 − e^(−contacts ÷ audience)), split by contacts bought.
+    const bought = plans.map(p => p.media / K.reachCost * 100), allBought = bought.reduce((a, b) => a + b, 0);
+    const reachRate = allBought > 0 ? audience * (1 - Math.exp(-allBought / audience)) / allBought : 0;
     const campaign = plans.map((p, i) => {
-      const reach = impressions[i] * Math.min(1, audience / Math.max(allImpressions, 1e-9));
+      const reach = bought[i] * reachRate;
       // A cheaper price than the market converts more (the cell's own price sensitivity), at most priceCap ×.
       // The same seasonality and event demand that move the market move the target group.
       const pull = cells().map((cell, c) => (targetShare[c] ? targetShare[c] * season * demandOf[c] * Math.min(K.priceCap, Math.exp(-R.behavior[cell[3]].price * (cell[4] === 1 ? R.commercialPrice : 1) * Math.log(offerFor(strategies[i], cell) / risk[c].reference))) : 0));
@@ -323,27 +334,27 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       let leads = 0, customers = 0, wanted = 0, giftsUsed = 0, rate = 0; // rate: customers per unit of pull
       const gifts = K.offers.map((o, k) => {
         const w = (p.weights[k] || 0) / 100;
-        const giftLeads = reach * w * o.interest * o.click, giftWanted = giftLeads * o.hit * bonus * pullSum;
+        const giftLeads = reach * w * o.interest * o.click, giftWanted = giftLeads * o.hit * pullSum;
         const cap = p.gifts * w / o.cost, won = Math.min(giftWanted, cap);
         leads += giftLeads; wanted += giftWanted; customers += won; giftsUsed += won * o.cost;
         rate += pullSum ? won / pullSum : 0;
         return { id: o.id, weight: p.weights[k] || 0, leads: giftLeads, wanted: giftWanted, customers: won };
       });
       pull.forEach((v, c) => { if (v) counts[i][c] += rate * v; });
-      return { gifts, reach, leads, customers, wanted, giftsUsed, giftBudget: p.gifts, media: p.media, impressions: impressions[i] };
+      return { gifts, reach, leads, customers, wanted, giftsUsed, giftBudget: p.gifts, media: p.media, bought: bought[i] };
     });
 
     const rows = teamList.map((t, i) => {
       const s = strategies[i], l = ledgers[i], [u1, u2] = draws.teams[t.id][m];
       const camp = campaign[i];
       l.campaignCustomers = (l.campaignCustomers || 0) + camp.customers;
-      let policiesSold = 0, gwp = 0, expectedCount = 0, expectedCost = 0;
+      let policiesSold = 0, gwp = 0, expectedCount = 0, expectedCost = 0, commission = 0;
       const byChannel = Array(channels).fill(0), byPersona = Array(personas).fill(0);
       counts[i].forEach((k, c) => {
         if (!k) return;
         const cell = cells()[c], premium = k * offerFor(s, cell);
         const shock = live.reduce((x, e) => x * (inScope(e.scope, cell) ? e.cost ?? 1 : 1), 1);
-        policiesSold += k; gwp += premium;
+        policiesSold += k; gwp += premium; commission += premium * commissionRate[cell[1]];
         expectedCount += k * risk[c].freq * shock; expectedCost += k * risk[c].cost * shock;
         byChannel[cell[1]] += k; byPersona[cell[3]] += k;
       });
@@ -358,8 +369,8 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       // Marketing costs what it actually bought: the media and the gifts handed out. Gift money no customer
       // took stays with the company, like any part of the budget left unspent.
       const marketingCost = camp.media + camp.giftsUsed;
-      const monthExpenses = money.fixedMonthly + gwp * money.expenseRatio + marketingCost;
-      l.marketing += marketingCost;
+      const monthExpenses = money.fixedMonthly + gwp * money.expenseRatio + commission + marketingCost;
+      l.marketing += marketingCost; l.commission += commission;
       const profitBefore = l.profit;
       l.claims += claims; l.claimCount += count; l.expenses += monthExpenses;
 
@@ -367,13 +378,13 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       l.profit = profit;
       return {
         id: t.id, policies: l.policies, newPolicies: policiesSold, gwp: l.gwp, earned: l.gwp, claims: l.claims,
-        expenses: l.expenses, marketing: l.marketing, profit, monthProfit: profit - profitBefore, claimCount: l.claimCount,
+        expenses: l.expenses, marketing: l.marketing, commission: l.commission, monthCommission: commission, profit, monthProfit: profit - profitBefore, claimCount: l.claimCount,
         grossLossRatio: l.gwp ? l.claims / l.gwp : 0,
         lossRatio: l.gwp ? l.claims / l.gwp : 0, combinedRatio: l.gwp ? (l.claims + l.expenses) / l.gwp : 0,
         monthLossRatio: gwp ? claims / gwp : 0, eligible: true, // every team competes for every trophy (kept so saved sessions still read)
         segments: [...l.persona], channels: [...l.channel], monthSegments: byPersona, monthGwp: gwp, monthClaims: claims,
         expectedLossRatio: l.gwp ? l.expectedCost / l.gwp : 0,
-        campaign: { ...camp, frequency, audience, total: l.campaignCustomers },
+        campaign: { ...camp, audience, total: l.campaignCustomers },
         exposed: live.filter(e => e.scope !== 'all').map(e => e.title),
         score: 0, share: 0, unitShare: 0, monthShare: 0, components: []
       };

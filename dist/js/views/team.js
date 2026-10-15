@@ -2,7 +2,7 @@
 // its own workbook — before the race and again at every quarter review. The race itself plays on stage.
 import { getState, getSession, myTeam, raceStarted, seasonDone, playhead, currentStrategyReview, teamStatus, now, timeLeft, brochureUrl } from '../store.js';
 import { icon, emblem } from '../ui.js';
-import { esc, clock } from '../format.js';
+import { esc, clock, short } from '../format.js';
 import { monthsOf, marketingSpent, cascoMoney } from '../../engine.js';
 import { t, getLang, languageControl } from '../i18n.js';
 import { planSummary } from './plan.js';
@@ -40,8 +40,8 @@ export function teamPage() {
       <p class="muted">${t('Type your team’s name exactly as it is on the stage. New teams can’t join now.', 'Takımının adını sahnedeki gibi yaz. Artık yeni takım katılamaz.')}</p>
       <form class="join-form" data-form="team-join">
         <label for="team-name">${t('Team name', 'Takım adı')}</label>
-        <input class="input join-name" id="team-name" name="name" maxlength="16" autocomplete="off" required>
-        ${s.teams.filter(t2 => !t2.ai && !t2.connected).length ? `<p class="join-others">${t('Teams without a device', 'Cihazı bağlı olmayan takımlar')}: ${s.teams.filter(t2 => !t2.ai && !t2.connected).map(t2 => `<button type="button" class="linklike" data-action="team-fill" data-name="${esc(t2.name)}">${esc(t2.name)}</button>`).join(', ')}</p>` : ''}
+        <input class="input join-name" id="team-name" name="name" maxlength="40" autocomplete="off" required>
+        ${s.teams.filter(t2 => !t2.ai && !t2.connected).length ? `<p class="join-others">${t('Teams without a device', 'Cihazı bağlı olmayan takımlar')}: ${s.teams.filter(t2 => !t2.ai && !t2.connected).map(t2 => `<button type="button" class="linklike" data-action="team-fill" data-name="${esc(t2.name)}">${short(t2.name)}</button>`).join(', ')}</p>` : ''}
         <button class="btn go lg" type="submit">${t('Back to the game', 'Oyuna dön')} ${icon('arrow', 18)}</button>
       </form>`, pin);
     const waiting = s.teams.filter(team2 => !team2.ai && team2.excel && !team2.connected);
@@ -50,27 +50,27 @@ export function teamPage() {
       <p class="muted">${t('If the moderator already added your team, type the same name to take it over.', 'Moderatör takımını zaten eklediyse aynı adı yaz; takım sana geçer.')}</p>
       <form class="join-form" data-form="team-join">
         <label for="team-name">${t('Team name', 'Takım adı')}</label>
-        <input class="input join-name" id="team-name" name="name" maxlength="16" autocomplete="off" required placeholder="${t('e.g. Falcon Insurance', 'örn. Kartal Sigorta')}">
-        ${waiting.length ? `<p class="join-others">${t('Teams waiting for their device', 'Cihazını bekleyen takımlar')}: ${waiting.map(team2 => `<button type="button" class="linklike" data-action="team-fill" data-name="${esc(team2.name)}">${esc(team2.name)}</button>`).join(', ')}</p>` : ''}
+        <input class="input join-name" id="team-name" name="name" maxlength="40" autocomplete="off" required placeholder="${t('e.g. Falcon Insurance', 'örn. Kartal Sigorta')}">
+        ${waiting.length ? `<p class="join-others">${t('Teams waiting for their device', 'Cihazını bekleyen takımlar')}: ${waiting.map(team2 => `<button type="button" class="linklike" data-action="team-fill" data-name="${esc(team2.name)}">${short(team2.name)}</button>`).join(', ')}</p>` : ''}
         <button class="btn go lg" type="submit">${t('Join the game', 'Oyuna katıl')} ${icon('arrow', 18)}</button>
       </form>`, pin);
   }
 
   const review = currentStrategyReview(), status = teamStatus(team);
-  const head = `<div class="team-preview" style="--team:${team.color};--team-soft:color-mix(in oklab, ${team.color} 22%, var(--canvas))">${emblem(team, 'lg')}<div><strong class="display">${esc(team.name)}</strong><span class="chip ${status.id === 'locked' ? 'ok' : 'warn'}">${status.id === 'locked' ? icon('check', 13) : '<span class="dot"></span>'} ${esc(status.label)}</span></div></div>`;
+  const head = `<div class="team-preview" style="--team:${team.color};--team-soft:color-mix(in oklab, ${team.color} 22%, var(--canvas))">${emblem(team, 'lg')}<div><strong class="display">${short(team.name)}</strong><span class="chip ${status.id === 'locked' ? 'ok' : 'warn'}">${status.id === 'locked' ? icon('check', 13) : '<span class="dot"></span>'} ${esc(status.label)}</span></div></div>`;
   // Uploads open with the decision window (and at quarter reviews); before that the team can download and fill in.
   const canUpload = quarter => quarter || s.phase === 'decisions';
   const upload = (quarter, done) => `<div class="team-steps">
       <a class="btn lg" href="${CASE_DATA}" download>${icon('chart', 18)} ${t('Download the casco data', 'Kasko verisini indir')}</a>
       <button class="btn lg" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', 18)} ${quarter ? t('Download your current plan', 'Güncel planını indir') : t('Download your template', 'Şablonunu indir')}</button>
-      ${canUpload(quarter) ? `<button class="btn ${done ? 'ghost' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your file', 'Dosyanı değiştir') : t('Upload your workbook', 'Dosyanı yükle')}</button>
+      ${canUpload(quarter) ? `<button class="btn ${done ? 'ghost' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your strategy', 'Stratejini değiştir') : t('Upload your strategy', 'Stratejini yükle')}</button>
       <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>`
         : `<p class="team-wait">${icon('clock', 16)} ${t('Uploading opens when the moderator starts the decision window. Download your template and start filling it in.', 'Yükleme, moderatör karar aşamasını başlatınca açılır. Şablonunu indirip doldurmaya başlayabilirsin.')}</p>`}
     </div>`;
   const brochure = `<section class="team-brochure" data-brochure-box>
-      <div><b>${t('Product brochure', 'Ürün broşürü')}</b><small>${t('PNG, JPG or PDF (first page). It shows on the stage at the strategy reviews.', 'PNG, JPG ya da PDF (ilk sayfa). Strateji molalarında sahnede görünür.')}</small></div>
-      ${team.brochure ? `<img src="${brochureUrl(team.id, team.brochure)}" alt="${t('Your brochure', 'Broşürün')}" style="aspect-ratio:${team.brochure.w} / ${team.brochure.h}">` : ''}
-      <button class="btn lg" data-action="brochure-upload" data-team="${team.id}">${icon('upload', 18)} ${team.brochure ? t('Replace the brochure', 'Broşürü değiştir') : t('Upload a brochure', 'Broşür yükle')}</button>
+      <div><b>${t('Communication asset', 'İletişim materyali')}</b><small>${t('PNG, JPG or PDF (first page). It shows on the stage at the strategy reviews.', 'PNG, JPG ya da PDF (ilk sayfa). Strateji molalarında sahnede görünür.')}</small></div>
+      ${team.brochure ? `<img src="${brochureUrl(team.id, team.brochure)}" alt="${t('Your communication asset', 'İletişim materyalin')}" style="aspect-ratio:${team.brochure.w} / ${team.brochure.h}">` : ''}
+      <button class="btn lg" data-action="brochure-upload" data-team="${team.id}">${icon('upload', 18)} ${team.brochure ? t('Replace the communication asset', 'İletişim materyalini değiştir') : t('Upload a communication asset', 'İletişim materyali yükle')}</button>
       <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
     </section>`;
   const plan = team.locked ? `<p class="team-plan">${icon('check', 15)} ${esc(planSummary(team.strategy, s.config))}</p>` : '';
@@ -78,12 +78,12 @@ export function teamPage() {
   if (seasonDone()) return shell(`${head}<h1 class="display">${t('The season is over', 'Sezon bitti')}</h1><p class="muted">${t('The three trophies are handed out on the stage screen.', 'Üç kupa sahne ekranında veriliyor.')}</p>`, pin);
 
   if (review) {
-    const done = !!review.submitted?.[team.id], quarter = Math.floor(review.month / 3) + 1;
+    const done = !!review.submitted?.[team.id];
     return shell(`${head}
-      <p class="kicker amber">${t(`Quarter ${quarter} review`, `${quarter}. çeyrek molası`)} · <b class="num" data-quarter-clock>${clock(Math.max(0, (review.closesAt - now()) / 1000))}</b></p>
-      <h1 class="display">${done ? t('Next-quarter plan received', 'Gelecek çeyrek planın alındı') : t('Update your plan', 'Planını güncelle')}</h1>
-      <p class="muted">${t('Download your current plan, change prices, marketing or claims operations, and upload it. If no file arrives, your plan carries on unchanged.', 'Güncel planını indir; fiyat, pazarlama ya da hasar operasyonunu değiştir ve yükle. Dosya gelmezse planın aynen sürer.')}</p>
-      ${(() => { const spent = marketingSpent(team, review.month + 1), budget = cascoMoney(s.config).budget, months = monthsOf(getLang()); return `<p class="team-timer">${icon('coins', 16)} ${t(`Marketing: €${fmtInt(spent)} spent, €${fmtInt(budget - spent)} left for ${months[review.month + 1]}–${months[11]}.`, `Pazarlama: €${fmtInt(spent)} harcandı, ${months[review.month + 1]}–${months[11]} için €${fmtInt(budget - spent)} kaldı.`)}</p>`; })()}
+      <p class="kicker amber">${t('Half-year review', 'Yarıyıl molası')} · <b class="num" data-quarter-clock>${clock(Math.max(0, (review.closesAt - now()) / 1000))}</b></p>
+      <h1 class="display">${done ? t('Second-half plan received', 'İkinci yarıyıl planın alındı') : t('Update your plan', 'Planını güncelle')}</h1>
+      <p class="muted">${t('Download your current plan, change prices or the second-half marketing, and upload it. If no file arrives, your plan carries on unchanged.', 'Güncel planını indir; fiyatları ya da ikinci yarıyıl pazarlamasını değiştir ve yükle. Dosya gelmezse planın aynen sürer.')}</p>
+      ${(() => { const spent = marketingSpent(team, review.month + 1), half = cascoMoney(s.config).half, months = monthsOf(getLang()); return `<p class="team-timer">${icon('coins', 16)} ${t(`Marketing: €${fmtInt(spent)} spent in the first half. ${months[review.month + 1]}–${months[11]} has its own budget of up to €${fmtInt(half)}; nothing carries over.`, `Pazarlama: ilk yarıyılda €${fmtInt(spent)} harcandı. ${months[review.month + 1]}–${months[11]} için ayrı bütçe en fazla €${fmtInt(half)}; devretmez.`)}</p>`; })()}
       ${upload(true, done)}
       ${brochure}`, pin);
   }
@@ -93,7 +93,7 @@ export function teamPage() {
     return shell(`${head}
       <p class="kicker amber">${t('Live race', 'Canlı yarış')} · ${monthsOf(getLang())[m]}</p>
       <h1 class="display">${t('Your plan is racing', 'Planın yarışıyor')}</h1>
-      <p class="muted">${t('Follow the race on the stage screen. At every quarter end this page opens your plan for changes.', 'Yarışı sahne ekranından izle. Her çeyrek sonunda bu sayfa planını değişikliğe açar.')}</p>
+      <p class="muted">${t('Follow the race on the stage screen. At the end of June this page opens your plan for changes.', 'Yarışı sahne ekranından izle. Haziran sonunda bu sayfa planını değişikliğe açar.')}</p>
       ${plan}
       ${brochure}`, pin);
   }

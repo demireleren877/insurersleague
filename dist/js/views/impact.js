@@ -4,7 +4,7 @@
 import { getState } from '../store.js';
 import { icon } from '../ui.js';
 import { esc, fmt, money, points } from '../format.js';
-import { localizedEventTitle, monthsOf, dimensionName, levelName, campaignOf } from '../../engine.js';
+import { localizedEventTitle, monthsOf, dimensionName, levelName, campaignOf, halvesOf } from '../../engine.js';
 import { giftMix } from './plan.js';
 import { attribution } from '../attribution.js';
 import { t, getLang } from '../i18n.js';
@@ -22,7 +22,7 @@ function decisionLabel(key, strategy, config) {
   }
   switch (key) {
     case 'basePremium': return [t('Base premium', 'Baz prim'), `€${fmt(strategy.basePremium, 2)}`];
-    case 'marketing': return [t('Marketing budget', 'Pazarlama bütçesi'), money(strategy.marketing)];
+    case 'marketing': return [t('Marketing budget (H1 · H2)', 'Pazarlama bütçesi (1. · 2. yarıyıl)'), `${money(halvesOf(strategy)[0])} · ${money(halvesOf(strategy)[1])}`];
     case 'mediaShare': return [t('Media share', 'Medya payı'), `${campaignOf(strategy).media}%`];
     case 'offers': return [t('Gift weights', 'Hediye ağırlıkları'), giftMix(strategy, config, lang)];
     default: return [key, ''];

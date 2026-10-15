@@ -37,10 +37,11 @@ export function botStrategy(approach, config, rnd) {
   const jitter = v => snapCoef(v * between(rnd, 0.95, 1.05), R);
   const coef = Object.fromEntries(DIMENSIONS.map(dim => [dim, act[dim].map(v => (p.coef === 'flat' ? jitter(1) : jitter(v)))]));
   if (p.coef === 'digital') coef.channel = coef.channel.map((v, i) => (i === 2 ? snapCoef(v * 0.9, R) : v));
-  const marketing = Math.min(money.budget, Math.floor(money.budget * between(rnd, ...p.marketing) / 100) * 100);
+  // The same share of each half-year's budget in both halves.
+  const marketing = Math.min(money.half, Math.floor(money.half * between(rnd, ...p.marketing) / 100) * 100);
   return {
     product: approach, sentence: approach, basePremium: actuarialBase(coef, between(rnd, ...p.lr), R),
-    coef, marketing, mediaShare: Math.round(between(rnd, ...p.media) / 5) * 5, offers: [...p.offers]
+    coef, marketing, marketing2: marketing, mediaShare: Math.round(between(rnd, ...p.media) / 5) * 5, offers: [...p.offers]
   };
 }
 

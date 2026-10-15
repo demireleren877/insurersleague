@@ -24,6 +24,8 @@ export const upper = s => String(s).toLocaleUpperCase(locale());
 export const lower = s => String(s).toLocaleLowerCase(locale());
 
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// A team or product name for the screen: long ones end in “…”, the full name stays in the tooltip.
+export const short = (name, max = 22) => { const v = String(name ?? ''); return v.length <= max ? esc(v) : `<span title="${esc(v)}">${esc(v.slice(0, max - 1).trimEnd())}…</span>`; };
 
 export const clamp = (x, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, x));
 export const lerp = (a, b, t) => a + (b - a) * t;

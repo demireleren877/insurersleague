@@ -21,7 +21,7 @@ for (const lang of ['tr', 'en']) {
     product: lang === 'tr' ? 'Örnek Kasko' : 'Sample Casco',
     sentence: lang === 'tr' ? 'Piyasanın fiyat yapısını izle, kampanyayla büyü.' : 'Follow the market’s price structure, grow through the campaign.',
     basePremium: actuarialBase(coef, 0.62, R), coef,
-    marketing: Math.round(money.budget * 0.6 / 1000) * 1000,
+    marketing: Math.round(money.half * 0.6 / 1000) * 1000, marketing2: Math.round(money.half * 0.6 / 1000) * 1000,
     mediaShare: 40, offers: [20, 40, 30, 10]
   };
   const file = `dist/samples/${lang === 'tr' ? 'kasko-karar-ornegi' : 'casco-decision-sample'}.xlsx`;

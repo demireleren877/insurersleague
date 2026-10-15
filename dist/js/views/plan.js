@@ -1,6 +1,6 @@
 // A team's casco plan, in words and in a table: tiles, results and past sessions all read it the same way.
 import { esc, fmt, money, pct } from '../format.js';
-import { DIMENSIONS, dimensionName, levelName, bookProfile, campaignOf, campaignRules, rulesOf, offerName } from '../../engine.js';
+import { DIMENSIONS, dimensionName, levelName, bookProfile, campaignOf, campaignRules, rulesOf, offerName, cascoSpend } from '../../engine.js';
 import { ARCHETYPES, archetypeKey } from '../narrative.js';
 import { t, getLang } from '../i18n.js';
 
@@ -13,7 +13,7 @@ export function giftMix(s, config, lang = getLang()) {
 // One line for a team tile: base premium, approach, marketing and its gifts.
 export function planSummary(s, config) {
   const c = campaignOf(s);
-  return `€${fmt(s.basePremium, 2)} ${t('base', 'baz')} · ${ARCHETYPES[archetypeKey(s, config)].name} · ${t('Marketing', 'Pazarlama')} ${money(s.marketing)} (${t('media', 'medya')} ${c.media}%) · ${giftMix(s, config)}`;
+  return `€${fmt(s.basePremium, 2)} ${t('base', 'baz')} · ${ARCHETYPES[archetypeKey(s, config)].name} · ${t('Marketing', 'Pazarlama')} ${money(cascoSpend(s))} (${t('media', 'medya')} ${c.media}%) · ${giftMix(s, config)}`;
 }
 
 // The whole plan: price, the 19 coefficients, the budget.
@@ -27,7 +27,7 @@ export function planTable(s, config) {
     </dl>
     <div class="plan-coef">${DIMENSIONS.map(dim => `<div><h5>${dimensionName(dim, lang)}</h5><ul>${s.coef[dim].map((v, i) => `<li><span>${esc(levelName(dim, i, lang))}</span><b class="num ${v > 1.02 ? 'up' : v < 0.98 ? 'down' : ''}">${fmt(v, 2)}</b></li>`).join('')}</ul></div>`).join('')}</div>
     <dl class="plan-budget">
-      <div><dt>${t('Marketing', 'Pazarlama')}</dt><dd class="num">${money(s.marketing)}</dd></div>
+      <div><dt>${t('Marketing', 'Pazarlama')}</dt><dd class="num">${money(cascoSpend(s))}</dd></div>
       <div><dt>${t('Media / gifts', 'Medya / hediye')}</dt><dd class="num">${campaignOf(s).media}% / ${100 - campaignOf(s).media}%</dd></div>
       <div><dt>${t('Gift weights', 'Hediye ağırlıkları')}</dt><dd>${esc(giftMix(s, config, lang))}</dd></div>
     </dl>

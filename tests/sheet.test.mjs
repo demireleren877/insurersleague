@@ -91,18 +91,19 @@ test('compressed Excel workbooks import correctly', async () => {
   assert.equal(result.teams[0].name, 'Atlas');
 });
 
-test('initial workbook import reports overlength text instead of silently truncating it', async () => {
+test('long team names, product names and strategy sentences come through whole', async () => {
   const state = freshSession(1_000, { lang: 'tr', preset: 'casco' });
   const strategy = defaultStrategy('Atlas', state.config);
-  strategy.product = 'A'.repeat(33);
-  strategy.sentence = 'B'.repeat(91);
+  strategy.product = 'A'.repeat(55);
+  strategy.sentence = 'B'.repeat(250);
   const result = await readSheets([
-    fileOf('atlas.xlsx', buildTemplate(state, { lang: 'tr', teams: [{ name: 'Atlas', strategy }] }))
+    fileOf('atlas.xlsx', buildTemplate(state, { lang: 'tr', teams: [{ name: 'Atlas Sigorta Reasürans Anonim Şirketi', strategy }] }))
   ], state.config, 'tr');
 
-  assert.equal(result.teams.length, 0);
-  assert.match(result.errors.join(' '), /ürün adı en fazla 32 karakter olmalı/);
-  assert.match(result.errors.join(' '), /strateji cümlesi en fazla 90 karakter olmalı/);
+  assert.deepEqual(result.errors, []);
+  assert.equal(result.teams[0].name, 'Atlas Sigorta Reasürans Anonim Şirketi');
+  assert.equal(result.teams[0].strategy.product, 'A'.repeat(55));
+  assert.equal(result.teams[0].strategy.sentence, 'B'.repeat(250));
 });
 
 test('quarter workbooks merge changes from separate team copies and ignore unchanged roster rows', async () => {
@@ -111,7 +112,7 @@ test('quarter workbooks merge changes from separate team copies and ignore uncha
   const atlasCopy = structuredClone(roster);
   atlasCopy[0].strategy.basePremium = 24;
   const novaCopy = structuredClone(roster);
-  novaCopy[1].strategy.marketing = 28_000;
+  novaCopy[1].strategy.marketing2 = 28_000;
   const unchangedCopy = structuredClone(roster);
   // One workbook carries one team.
   const workbooks = [
@@ -124,7 +125,7 @@ test('quarter workbooks merge changes from separate team copies and ignore uncha
   assert.deepEqual(result.errors, []);
   assert.equal(result.teams.length, 2);
   assert.equal(result.teams.find(team => team.name === 'Atlas').strategy.basePremium, 24);
-  assert.equal(result.teams.find(team => team.name === 'Nova').strategy.marketing, 28_000);
+  assert.equal(result.teams.find(team => team.name === 'Nova').strategy.marketing2, 28_000);
 });
 
 test('quarter workbook merge reports conflicting edits to the same team', async () => {
@@ -139,7 +140,7 @@ test('quarter workbook merge reports conflicting edits to the same team', async 
     fileOf('nova.xlsx', buildTemplate(state, { lang: 'tr', teams: secondCopy, quarter: true }))
   ], state.config, 'tr', { quarter: true, currentTeams: roster });
 
-  assert.match(result.errors.join(' '), /çakışan çeyrek planları/i);
+  assert.match(result.errors.join(' '), /çakışan planlar/i);
 });
 
 test('unchanged rows from a quarter copy do not count as submitted plans', async () => {
@@ -149,7 +150,7 @@ test('unchanged rows from a quarter copy do not count as submitted plans', async
     fileOf('roster.xlsx', buildTemplate(state, { lang: 'tr', teams: roster, quarter: true }))
   ], state.config, 'tr', { quarter: true, currentTeams: roster });
 
-  assert.match(result.errors.join(' '), /Güncellenmiş çeyrek stratejisi bulunamadı/i);
+  assert.match(result.errors.join(' '), /Güncellenmiş yarıyıl stratejisi bulunamadı/i);
 });
 
 test('workbook imports report out-of-range coefficients by segment name', async () => {
@@ -213,18 +214,35 @@ test('the gift weights must total 100%, and an old four-sheet workbook is refuse
   assert.match(old.errors.join(' '), /earlier version/);
 });
 
-test('the quarter workbook shows what is spent and pre-fills the rest of the year at the current pace', async () => {
+test('the half-year workbook shows the first half as spent and opens the second half’s budget', async () => {
   const { readWorkbook } = await import('../dist/js/sheet.js');
   const { reduce } = await import('../dist/js/game.js');
   const s = freshSession(1_000, { lang: 'en' });
-  reduce(s, { type: 'excel-import-teams', teams: ['Atlas', 'Nova'].map(name => ({ name, strategy: { ...defaultStrategy(name, s.config), sentence: 'p', marketing: 240000 } })) }, { role: 'host', now: 1_000 });
+  reduce(s, { type: 'excel-import-teams', teams: ['Atlas', 'Nova'].map(name => ({ name, strategy: { ...defaultStrategy(name, s.config), sentence: 'p', marketing: 120000, marketing2: 200000 } })) }, { role: 'host', now: 1_000 });
   reduce(s, { type: 'phase', to: 'briefing' }, { role: 'host', now: 1_000 }); reduce(s, { type: 'phase', to: 'decisions' }, { role: 'host', now: 1_000 }); reduce(s, { type: 'start-race' }, { role: 'host', now: 1_000 });
-  for (let i = 0; i < 6 && !s.strategyReviews.current && s.strategyReviews.current !== 0; i++) reduce(s, { type: 'next-month' }, { role: 'host', now: 1_000 });
+  for (let i = 0; i < 12 && !s.strategyReviews.current && s.strategyReviews.current !== 0; i++) reduce(s, { type: 'next-month' }, { role: 'host', now: 1_000 });
   const review = s.strategyReviews.rounds[s.strategyReviews.current];
-  assert.equal(review.month, 2);
+  assert.equal(review.month, 5);
   const bytes = buildTemplate(s, { lang: 'en', teams: [s.teams[0]] });
   const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
   const mkt = sheets.find(sh => sh.name === 'Marketing');
-  assert.equal(mkt.rows[13][3], 180000, 'nine months left at €20k a month');
-  assert.match(String(mkt.rows[2][1]), /€60,000 spent/);
+  assert.equal(mkt.rows[13][3], 120000, 'January–June as spent');
+  assert.equal(mkt.rows[14][3], 200000, 'July–December as planned, open for changes');
+  assert.match(String(mkt.rows[2][1]), /€120,000 spent/);
+  const prem = sheets.find(sh => sh.name === 'Premium');
+  assert.ok(prem.rows[4][2] > 0, 'the review copy keeps the current base premium');
+});
+
+test('a room team’s first template leaves the base premium empty, and an empty one is refused', async () => {
+  const { readWorkbook } = await import('../dist/js/sheet.js');
+  const { reduce } = await import('../dist/js/game.js');
+  const s = freshSession(1_000, { lang: 'en' });
+  reduce(s, { type: 'excel-add-team', name: 'Atlas' }, { role: 'host', now: 1_001 });
+  const bytes = buildTemplate(s, { lang: 'en', teams: [s.teams[0]] });
+  const sheets = await readWorkbook(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  const prem = sheets.find(sh => sh.name === 'Premium'), mkt = sheets.find(sh => sh.name === 'Marketing');
+  assert.equal(prem.rows[4]?.[2] ?? '', '');
+  assert.ok(mkt.rows[13][3] >= 0 && mkt.rows[14][3] >= 0, 'both half-year budgets are pre-filled');
+  const result = await readSheets([fileOf('atlas.xlsx', bytes)], s.config, 'en');
+  assert.match(result.errors.join(' '), /base premium is empty/);
 });

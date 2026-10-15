@@ -39,7 +39,7 @@ test('validation catches out-of-range coefficients, gift weights off 100 and an 
   const bad = structuredClone(ok);
   bad.strategy.coef.city[0] = 3;
   bad.strategy.offers = [50, 50, 50, 0];
-  bad.strategy.marketing = money.budget * 2;
+  bad.strategy.marketing = money.half * 2;
   assert.equal(validateCasco(bad, config()).length, 3);
 });
 
@@ -60,14 +60,14 @@ test('cheaper prices buy market share at the cost of profit', () => {
 });
 
 test('profit is premium minus claims minus expenses, and marketing is a cost', () => {
-  const B = cascoMoney(config()).budget;
+  const H = cascoMoney(config()).half;
   const rows = field(team(0, act, 0.6), 3);
   for (const r of rows) assert.ok(Math.abs(r.profit - (r.gwp - r.claims - r.expenses)) < 1e-6);
   // The same plan with no marketing at all: fewer customers but no campaign bill.
-  const spend = field(team(0, act, 0.6, { marketing: B }), 3).find(r => r.id === 0);
-  const none = field(team(0, act, 0.6, { marketing: 0 }), 3).find(r => r.id === 0);
+  const spend = field(team(0, act, 0.6, { marketing: H, marketing2: H, mediaShare: 60, offers: [0, 0, 100, 0] }), 3).find(r => r.id === 0);
+  const none = field(team(0, act, 0.6, { marketing: 0, marketing2: 0 }), 3).find(r => r.id === 0);
   assert.ok(spend.policies > none.policies, 'the campaign brings customers');
-  assert.ok(spend.expenses - none.expenses > B * 0.99, 'and costs its budget');
+  assert.ok(spend.marketing > 0 && none.marketing === 0, 'and costs what it bought');
 });
 
 test('the moderator sets the market size; every cell keeps its sample share of it', () => {
@@ -140,7 +140,7 @@ const at = (season, id, m = 0) => season[m].rows.find(r => r.id === id).campaign
 
 test('each gift wins at most what its slice of the gift budget pays for', () => {
   const c = config(4), money = cascoMoney(c);
-  const season = simulateCasco([withCampaign(0, 0.6, { marketing: money.budget, mediaShare: 90, offers: [0, 0, 0, 100] }), withCampaign(1, 0.6, { marketing: 0 })], c);
+  const season = simulateCasco([withCampaign(0, 0.6, { marketing: money.half, marketing2: money.half, mediaShare: 90, offers: [0, 0, 0, 100] }), withCampaign(1, 0.6, { marketing: 0, marketing2: 0 })], c);
   for (const month of season) {
     const k = month.rows.find(r => r.id === 0).campaign;
     assert.ok(k.customers * 85 <= k.giftBudget + 1e-6, `gifts ${k.customers * 85} ≤ budget ${k.giftBudget}`);
@@ -151,8 +151,8 @@ test('each gift wins at most what its slice of the gift budget pays for', () => 
 });
 
 test('the gift weights split the reach and the gift budget', () => {
-  const c = config(4), B = cascoMoney(c).budget;
-  const mixed = simulateCasco([withCampaign(0, 0.6, { marketing: B, mediaShare: 40, offers: [0, 0, 50, 50] }), withCampaign(1, 0.6, {})], c);
+  const c = config(4), H = cascoMoney(c).half;
+  const mixed = simulateCasco([withCampaign(0, 0.6, { marketing: H, marketing2: H, mediaShare: 40, offers: [0, 0, 50, 50] }), withCampaign(1, 0.6, {})], c);
   const k = at(mixed, 0);
   const [coffee, gym] = [k.gifts[2], k.gifts[3]];
   assert.ok(Math.abs(coffee.leads / gym.leads - (0.6 * 0.06) / (0.81 * 0.5)) < 1e-9, 'leads follow interest × click at equal weights');
@@ -160,45 +160,52 @@ test('the gift weights split the reach and the gift budget', () => {
   assert.ok(Math.abs(k.customers - coffee.customers - gym.customers) < 1e-9);
 });
 
-test('a cheaper price converts more campaign customers, and heavy media triggers the frequency bonus', () => {
-  const c = config(4), B = cascoMoney(c).budget;
-  const camp = { marketing: B * 0.4, mediaShare: 20, offers: [0, 100, 0, 0] };
+test('a cheaper price converts more campaign customers; media reach fills up the shared target group with diminishing returns', () => {
+  const c = config(4), H = cascoMoney(c).half, K = c.rules.campaign;
+  const camp = { marketing: H * 0.8, marketing2: H * 0.8, mediaShare: 20, offers: [0, 100, 0, 0] };
   const cheap = simulateCasco([withCampaign(0, 0.75, camp), withCampaign(1, 0.6, {})], c);
   const dear = simulateCasco([withCampaign(0, 0.5, camp), withCampaign(1, 0.6, {})], c);
   assert.ok(at(cheap, 0).wanted > at(dear, 0).wanted, 'lower prices pull more of the reached people');
-  const light = simulateCasco([withCampaign(0, 0.6, { marketing: B * 0.2, mediaShare: 5, offers: [0, 0, 100, 0] }), withCampaign(1, 0.6, { marketing: B * 0.2, mediaShare: 5, offers: [0, 0, 100, 0] })], c);
-  const heavy = simulateCasco([withCampaign(0, 0.6, { marketing: B, mediaShare: 100, offers: [0, 0, 100, 0] }), withCampaign(1, 0.6, { marketing: B, mediaShare: 100, offers: [0, 0, 100, 0] })], c);
-  assert.ok(at(light, 0).frequency <= 5 && at(heavy, 0).frequency > 5, `light ${at(light, 0).frequency} heavy ${at(heavy, 0).frequency}`);
+  const light = simulateCasco([withCampaign(0, 0.6, { marketing: 6000, marketing2: 6000, mediaShare: 50, offers: [0, 0, 100, 0] }), withCampaign(1, 0.6, { marketing: 0, marketing2: 0 })], c);
+  const k = at(light, 0);
+  assert.ok(Math.abs(k.bought - k.media / K.reachCost * 100) < 1e-9, 'media buys 100 contacts per reach cost');
+  assert.ok(Math.abs(k.reach - k.audience * (1 - Math.exp(-k.bought / k.audience))) < 1e-6 && k.reach > k.bought * 0.95, 'a light buy reaches almost one new person per contact');
+  const heavy = simulateCasco([withCampaign(0, 0.6, { marketing: H, marketing2: H, mediaShare: 100, offers: [0, 0, 100, 0] }), withCampaign(1, 0.6, { marketing: H, marketing2: H, mediaShare: 100, offers: [0, 0, 100, 0] })], c);
+  const h0 = at(heavy, 0), h1 = at(heavy, 1);
+  assert.ok(h0.reach + h1.reach < h0.audience && (h0.reach + h1.reach) / (h0.bought + h1.bought) < k.reach / k.bought, 'heavy buying lands on people already reached: fewer new people per euro');
 });
 
-test('a campaign change at a quarter review applies from the next month', () => {
+test('a campaign change at the half-year review applies from July', () => {
   const c = config(4);
   const t0 = withCampaign(0, 0.6, { marketing: 0 });
-  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 3, strategy: { ...structuredClone(t0.strategy), marketing: cascoMoney(c).budget * 0.5, mediaShare: 25, offers: [0, 0, 100, 0] } }];
+  t0.strategy.marketing2 = 0;
+  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 6, strategy: { ...structuredClone(t0.strategy), marketing2: cascoMoney(c).half * 0.5, mediaShare: 25, offers: [0, 0, 100, 0] } }];
   const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
-  assert.equal(at(season, 0, 2).customers, 0);
-  assert.ok(at(season, 0, 3).customers > 0);
-  assert.ok(at(season, 0, 3).gifts[2].customers > 0 && at(season, 0, 3).gifts[0].customers === 0, 'the new gift does the work');
+  assert.equal(at(season, 0, 5).customers, 0);
+  assert.ok(at(season, 0, 6).customers > 0);
+  assert.ok(at(season, 0, 6).gifts[2].customers > 0 && at(season, 0, 6).gifts[0].customers === 0, 'the new gift does the work');
 });
 
-test('the marketing budget is one wallet: a quarter plan spends its amount over the months left', async () => {
-  const { monthlyMarketing, marketingSpent } = await import('../dist/casco.js');
-  const c = config(4), B = cascoMoney(c).budget;
-  const t0 = withCampaign(0, 0.6, { marketing: 120000 });
-  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 6, strategy: { ...structuredClone(t0.strategy), marketing: 300000 } }];
-  assert.equal(monthlyMarketing(t0, 2), 10000);
-  assert.equal(monthlyMarketing(t0, 6), 50000);
-  assert.equal(marketingSpent(t0, 6), 60000);
+test('marketing has two half-year budgets, each spent evenly over its six months, with nothing carried over', async () => {
+  const { monthlyMarketing, marketingSpent, commissionOf } = await import('../dist/casco.js');
+  const c = config(4), H = cascoMoney(c).half;
+  const t0 = withCampaign(0, 0.6, { marketing: 120000, marketing2: 60000 });
+  t0.strategyHistory = [{ effectiveMonth: 0, strategy: structuredClone(t0.strategy) }, { effectiveMonth: 6, strategy: { ...structuredClone(t0.strategy), marketing2: 240000 } }];
+  assert.equal(monthlyMarketing(t0, 2), 20000);
+  assert.equal(monthlyMarketing(t0, 6), 40000);
+  assert.equal(marketingSpent(t0, 6), 120000);
   assert.equal(marketingSpent(t0, 12), 360000);
+  assert.deepEqual(commissionOf(c.rules), [0.05, 0.1, 0.02, 0.1]);
   const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
   const fixed = c.assumptions.fixedCost.value / 12;
   for (let m = 0; m < 12; m++) {
     const r = season[m].rows.find(x => x.id === 0), before = m ? season[m - 1].rows.find(x => x.id === 0).expenses : 0;
-    // Expenses: fixed cost, 12% of the month's premium, and only what marketing bought (media + gifts handed out).
-    assert.ok(Math.abs(r.expenses - before - fixed - r.monthGwp * 0.12 - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
+    // Expenses: fixed cost, 5% of the month's premium, the channel commission, and only what marketing bought (media + gifts handed out).
+    assert.ok(Math.abs(r.expenses - before - fixed - r.monthGwp * 0.05 - r.monthCommission - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
+    assert.ok(r.monthCommission >= r.monthGwp * 0.02 - 1e-6 && r.monthCommission <= r.monthGwp * 0.1 + 1e-6, 'commission sits between the cheapest and dearest channel');
     assert.ok(r.campaign.giftsUsed <= r.campaign.giftBudget + 1e-6, 'never more gifts than their budget');
   }
-  assert.ok(Math.abs(season[6].rows.find(x => x.id === 0).campaign.media - 50000 * t0.strategy.mediaShare / 100) < 1e-6, 'from July the media follows the new pace');
-  const over = structuredClone(t0); over.strategyHistory[1].strategy.marketing = B - 50000;
-  assert.throws(() => simulateCasco([over, withCampaign(1, 0.6, {})], c), /exceeds the marketing budget/);
+  assert.ok(Math.abs(season[6].rows.find(x => x.id === 0).campaign.media - 40000 * t0.strategy.mediaShare / 100) < 1e-6, 'from July the media follows the second-half budget');
+  const over = structuredClone(t0); over.strategyHistory[1].strategy.marketing2 = H + 50000;
+  assert.throws(() => simulateCasco([over, withCampaign(1, 0.6, {})], c), /half-year exceeds its budget/);
 });

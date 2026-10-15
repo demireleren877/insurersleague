@@ -2,7 +2,7 @@
 // business, and a side-by-side comparison of the groups the moderator picks.
 import { savedHost } from '../store.js';
 import { icon, emblem } from '../ui.js';
-import { esc, fmt, money, pct } from '../format.js';
+import { esc, fmt, money, pct, short } from '../format.js';
 import { presetName, PRESET_IDS, campaignOf } from '../../engine.js';
 import { ARCHETYPES } from '../narrative.js';
 import { giftMix } from './plan.js';
@@ -93,7 +93,7 @@ function standings(x) {
     <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Score', 'Puan')}</th><th>${t('Approach', 'Yaklaşım')}</th><th>${t('Base premium', 'Baz prim')}</th><th>${t('Priced for LR', 'Hedef HO')}</th><th>${t('LR it got', 'Gerçekleşen HO')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Media', 'Medya')}</th><th>${t('Gifts', 'Hediyeler')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Share', 'Pay')}</th></tr></thead>
     <tbody>${x.teams.map(r => { const st = r.strategy; return `<tr class="${r.eligible ? '' : 'out'}">
       <td class="num rank">${r.rank}</td>
-      <td><span class="hs-team">${emblem(r, 'xs')}<b>${esc(r.name)}</b>${r.ai ? ' <em class="ai-tag">JEV AI</em>' : ''}</span></td>
+      <td><span class="hs-team">${emblem(r, 'xs')}<b>${short(r.name)}</b>${r.ai ? ' <em class="ai-tag">JEV AI</em>' : ''}</span></td>
       <td class="num strong">${fmt(r.score, 1)}</td>
       <td>${styleName(r.style)}${r.changes ? ` <small class="faint">${t(`${r.changes} revision${r.changes === 1 ? '' : 's'}`, `${r.changes} revizyon`)}</small>` : ''}</td>
       <td class="num">${st.basePremium !== undefined ? `€${fmt(st.basePremium, 2)}` : '—'}</td>
@@ -117,9 +117,9 @@ function sessionCard(x, selected) {
     </header>
     <label class="hs-label"><span>${t('Group name', 'Grup adı')}</span><input class="input" id="hs-label-${esc(x.id)}" data-history-label="${esc(x.id)}" maxlength="60" value="${esc(x.label || '')}" placeholder="${t('e.g. Sales team, March', 'ör. Satış ekibi, Mart')}"></label>
     <div class="hs-result">
-      ${w ? `<div class="hs-champ" style="--team:${w.color}">${emblem(w, 'lg')}<div><small>${t('Champion', 'Şampiyon')}</small><strong class="display">${esc(w.name)}</strong><span>${styleName(w.style)} · <b class="num">${fmt(w.score, 1)}</b></span></div></div>`
+      ${w ? `<div class="hs-champ" style="--team:${w.color}">${emblem(w, 'lg')}<div><small>${t('Champion', 'Şampiyon')}</small><strong class="display">${short(w.name)}</strong><span>${styleName(w.style)} · <b class="num">${fmt(w.score, 1)}</b></span></div></div>`
         : `<p class="muted">${t('No team met the capital rule; no champion.', 'Sermaye kuralını sağlayan takım yok; şampiyon yok.')}</p>`}
-      ${podium.length ? `<ol class="hs-podium" start="2">${podium.map(r => `<li><span class="hs-team">${emblem(r, 'xs')}<b>${esc(r.name)}</b></span><small>${styleName(r.style)} · ${fmt(r.score, 1)}</small></li>`).join('')}</ol>` : ''}
+      ${podium.length ? `<ol class="hs-podium" start="2">${podium.map(r => `<li><span class="hs-team">${emblem(r, 'xs')}<b>${short(r.name)}</b></span><small>${styleName(r.style)} · ${fmt(r.score, 1)}</small></li>`).join('')}</ol>` : ''}
     </div>
     <details class="hs-details"><summary>${icon('chevron', 15)} ${t('Full standings and decisions', 'Tam sıralama ve kararlar')}</summary>${standings(x)}</details>
   </article>`;

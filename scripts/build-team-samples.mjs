@@ -16,7 +16,7 @@ const kartal = {
   ...defaultStrategy('Kartal Sigorta', s.config),
   product: 'Kartal Kasko', sentence: 'Her segmenti riskine göre fiyatla, kârı koru.',
   coef: kartalCoef, basePremium: actuarialBase(kartalCoef, 0.58, R),
-  marketing: k(money.budget * 0.4), mediaShare: 30, offers: [0, 20, 0, 80]
+  marketing: k(money.half * 0.4), marketing2: k(money.half * 0.4), mediaShare: 30, offers: [0, 20, 0, 80]
 };
 
 // Mavi Dalga: chases volume with cheap prices, a loud campaign with cheap gifts, and a lighter touch on risk.
@@ -26,7 +26,7 @@ const mavi = {
   ...defaultStrategy('Mavi Dalga', s.config),
   product: 'Mavi Dalga Kasko', sentence: 'Uygun fiyatla hızlı büyü, dijitalde öne çık.',
   coef: flatter, basePremium: actuarialBase(flatter, 0.72, R),
-  marketing: k(money.budget * 0.9), mediaShare: 20, offers: [0, 30, 70, 0]
+  marketing: k(money.half * 0.9), marketing2: k(money.half * 0.9), mediaShare: 20, offers: [0, 30, 70, 0]
 };
 
 for (const [name, strategy, file] of [['Kartal Sigorta', kartal, 'kartal-sigorta.xlsx'], ['Mavi Dalga', mavi, 'mavi-dalga.xlsx']]) {

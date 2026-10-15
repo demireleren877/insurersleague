@@ -2,7 +2,7 @@
 // Chrome words (titles, connectives) are translated per-viewer via t(); segment/coverage/channel
 // names come from localizeRules(), which shows each viewer's own language for any name the host
 // never customized away from the room's default.
-import { monthsOf, rank, localizedEventText, cascoMoney, bookProfile, strategyAt, yearPlan, levelName, offerName, campaignRules, campaignOf, rulesOf } from '../engine.js';
+import { monthsOf, rank, localizedEventText, cascoMoney, bookProfile, strategyAt, yearPlan, levelName, offerName, campaignRules, campaignOf, rulesOf, cascoSpend } from '../engine.js';
 import { fmt, money, pct, points, lower } from './format.js';
 import { t, getLang } from './i18n.js';
 
@@ -34,7 +34,7 @@ export function archetypeKey(s, config) {
   const money = cascoMoney(config), p = bookProfile(s, config);
   const near = Math.max(0.02, p.spread * 0.5);
   if (p.flatGap < near && p.dataGap > near) return 'flat';
-  if (s.marketing >= money.budget * 0.75) return 'gifts';
+  if (cascoSpend(s) >= money.budget * 0.75) return 'gifts';
   if (p.impliedLossRatio >= 0.72) return 'volume';
   if (p.impliedLossRatio <= 0.55) return 'margin';
   return p.dataGap <= near ? 'actuary' : 'custom';
@@ -93,8 +93,8 @@ export function monthDigest(results, m, teams, config) {
       add('share', 'chart', 'good', 3, t(`${name} climbs from ${pct(before.share)} to ${pct(r.share)} market share.`, `${name} pazar payını ${pct(before.share)}’dan ${pct(r.share)}’a çıkardı.`), [r.id]);
   }
 
-  // The digital campaign: the month's best haul, a gift budget that ran out, the frequency bonus kicking in.
-  const lang = getLang(), K = campaignRules(rulesOf(config));
+  // The digital campaign: the month's best haul and a gift budget that ran out.
+  const lang = getLang();
   const camp = now.rows.filter(r => r.campaign?.customers >= 1).sort((a, b) => b.campaign.customers - a.campaign.customers);
   if (camp[0]) {
     const best = [...(camp[0].campaign.gifts || [])].sort((a, b) => b.customers - a.customers)[0];
@@ -103,8 +103,6 @@ export function monthDigest(results, m, teams, config) {
   }
   const capped = now.rows.filter(r => r.campaign && r.campaign.wanted > r.campaign.customers * 1.5 && r.campaign.wanted - r.campaign.customers >= 50).sort((a, b) => (b.campaign.wanted - b.campaign.customers) - (a.campaign.wanted - a.campaign.customers))[0];
   if (capped) add('gifts', 'coins', 'bad', 3, t(`${nameOf(teams, capped.id)} ran out of gifts: about ${fmt(capped.campaign.wanted - capped.campaign.customers)} interested customers walked away.`, `${nameOf(teams, capped.id)} hediyeleri tükendi: yaklaşık ${fmt(capped.campaign.wanted - capped.campaign.customers)} ilgili müşteri kaçtı.`), [capped.id]);
-  const freqNow = now.rows[0]?.campaign?.frequency ?? 1, freqBefore = prev?.rows[0]?.campaign?.frequency ?? 1;
-  if (freqNow > K.frequency && freqBefore <= K.frequency) add('frequency', 'eye', 'event', 4, t(`The target group now sees the ads ${fmt(freqNow, 1)} times on average: every campaign converts ${Math.round(K.frequencyBonus * 100)}% better.`, `Hedef kitle reklamları artık ortalama ${fmt(freqNow, 1)} kez görüyor: tüm kampanyaların dönüşümü %${Math.round(K.frequencyBonus * 100)} arttı.`), []);
 
   return {
     month: m, events: now.events, ranked,

@@ -21,7 +21,7 @@ const lever = (key, get, set) => ({ key, get, set });
 const DECISIONS = [
   lever('basePremium', s => s.basePremium, (s, v) => { s.basePremium = v; }),
   ...DIMENSIONS.map(dim => lever(`coef.${dim}`, s => s.coef[dim], (s, v) => { s.coef = { ...s.coef, [dim]: structuredClone(v) }; })),
-  lever('marketing', s => s.marketing, (s, v) => { s.marketing = v; }),
+  lever('marketing', s => [s.marketing, s.marketing2 ?? s.marketing], (s, v) => { [s.marketing, s.marketing2] = v; }),
   lever('mediaShare', s => campaignOf(s).media, (s, v) => { s.mediaShare = v; }),
   lever('offers', s => campaignOf(s).weights, (s, v) => { s.offers = [...v]; delete s.offer; })
 ];
@@ -67,11 +67,9 @@ function compute(teams, config, teamId) {
     if (timeline.every(strategy => same(d.get(strategy), d.get(neutral)))) continue; // untouched: nothing to explain
     const what = clone(teams);
     const mine = what.find(t => t.id === teamId);
-    const entries = [...(mine.strategyHistory?.length ? mine.strategyHistory : []), { strategy: mine.strategy, effectiveMonth: 0 }];
-    for (const { strategy, effectiveMonth } of entries) {
+    const entries = [...(mine.strategyHistory?.length ? mine.strategyHistory : []), { strategy: mine.strategy }];
+    for (const { strategy } of entries) {
       d.set(strategy, structuredClone(d.get(neutral)));
-      // Marketing is spent from a plan's start month to December: the default pace covers only the months left.
-      if (d.key === 'marketing') strategy.marketing = Math.round(neutral.marketing * (12 - effectiveMonth) / 12);
     }
     let counter;
     try { counter = finalRow(what, config, teamId); } catch { continue; } // can't be asked cleanly: don't guess

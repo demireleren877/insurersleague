@@ -5,11 +5,11 @@ Read this first, then `GELISTIRICI.md` (the full model and architecture). The ow
 ## What this is
 A casco (motor own-damage) pricing workshop game. 2–12 teams compete for one shared market for 12 months. A team decides only two things:
 - **Price:** a base premium and 19 segment coefficients (0.50–2.50, step 0.05).
-- **Marketing:** a yearly wallet of €500k that runs a digital campaign — a media/gift split and four gift weights.
+- **Marketing:** two half-year budgets of up to €250k (January–June, July–December, nothing carried over) that run a digital campaign — a media/gift split and four gift weights. Media costs €10 per 100 contacts; reach saturates in the shared target group.
 
-There are two trophies, **profit** and **market share** (gross premium share among the teams). There is no NPS, no capital, no reinsurance, no claims operations and no channel commission.
+There are two trophies, **profit** and **market share** (gross premium share among the teams). There is no NPS, no capital, no reinsurance and no claims operations. Teams revise their plan once, at the half-year review after June.
 
-Costs each month: claims + fixed cost/12 (€664k a year) + 12% of written premium (`expenseRatio`) + marketing bought. The 12% was chosen so that underpricing hurts: break-even sits near a 68–70% target loss ratio, and a flat tariff never makes money. Composite score thresholds are `profitFloor` 0 and `profitTarget` 0.10.
+Costs each month: claims + fixed cost/12 (€500k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near a 78% target loss ratio and a flat tariff loses. Composite score thresholds are `profitFloor` 0 and `profitTarget` 0.12.
 
 It runs on Cloudflare Workers:
 - `worker/index.js`, with Durable Objects `Room` (one per 6-digit PIN) and `Archive`.
@@ -43,12 +43,12 @@ It runs on Cloudflare Workers:
 2. **The engine is deterministic:** same plans plus same seed give the same season. All luck comes from `drawsFor` (seeded tables).
 3. **The audit workbook mirrors the engine formula by formula.** If you change the engine's arithmetic, change `audit.js` the same way and verify in Microsoft Excel: open the generated file, calculate, and the "Puan" sheet difference column must be ~0.
 4. **Every Excel input rule is enforced on the server too** (`validateCasco`, `strategyFrom`, `marketingOver`). Excel validation is a convenience, not a guard.
-5. **The marketing wallet:** a plan's `marketing` is spent evenly from the month it takes effect to December. A quarter revision may allocate only what is left. The cost is only what was bought (media + gifts handed out); unallocated budget and unused gift money stay in profit.
-6. **Pre-race workbook uploads** are allowed only in the `decisions` phase. Quarter reviews run 15 / 10 / 5 minutes (`EXCEL_REVIEW_MINUTES`); the decision window is 20 minutes.
+5. **Marketing halves:** `marketing` is January–June, `marketing2` July–December, each ≤ half the budget and spent evenly over its six months. Only `marketing2` is a review lever. The cost is only what was bought (media + gifts handed out); unallocated budget and unused gift money stay in profit.
+6. **Pre-race workbook uploads** are allowed only in the `decisions` phase. There is one review, after June, for 15 minutes (`STRATEGY_REVIEW_MONTHS`, `EXCEL_REVIEW_MINUTES`); the decision window is 20 minutes.
 7. **Players rejoin by team name** when their device is offline (`excel-join`), even mid-race. Their identity lives in `localStorage`.
 8. **Bump the asset version** (`?v=NN` in `dist/index.html` and in `dist/js/main.js` imports) on every UI change. Replace the number everywhere: `grep -rl "v=NN" dist | xargs sed -i '' 's/v=NN/v=NN+1/g'`.
 9. **The participant data file is served by the Worker from R2** (`/data/katilimci-verisi.xlsx`, downloads as "Pricing Case Data.xlsx"). Do not put it back into `dist/`: as a static asset it went missing on some Cloudflare edges.
-10. **Every UI string is bilingual:** `t('English', 'Türkçe')`. Room content uses `M(cfg, en, tr)`.
+10. **Every UI string is bilingual:** `t('English', 'Türkçe')`. Room content uses `M(cfg, en, tr)`. Team-facing words: the decision file is the team's "strategy" (not "workbook"); the uploaded image is a "communication asset" ("iletişim materyali"). Names are capped generously (`NAME_MAX` 40, `PRODUCT_MAX` 60, `SENTENCE_MAX` 300); screens shorten them with `short()`.
 
 ## Style
 - UI: hand-drawn sketch look (drawn borders, yellow highlighter), typeface IBM Plex Sans. Desktop and projector first; the owner does not want work on phone or tablet layouts.

@@ -231,5 +231,5 @@ export async function sendBrochure(teamId, blob, w, h) {
   let r;
   try { r = await fetch(`/api/rooms/${session.pin}/brochure/${teamId}?w=${w}&h=${h}`, { method: 'POST', headers, body: blob }); }
   catch { throw Error(t('Couldn\u2019t reach the server. Check your internet connection.', 'Sunucuya ulaşılamadı. İnternet bağlantını kontrol et.')); }
-  if (!r.ok) throw Error((await r.json().catch(() => ({}))).error || t('The brochure was not saved.', 'Broşür kaydedilmedi.'));
+  if (!r.ok) throw Error((await r.json().catch(() => ({}))).error || t('The communication asset was not saved.', 'İletişim materyali kaydedilmedi.'));
 }

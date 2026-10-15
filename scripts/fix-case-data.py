@@ -148,9 +148,10 @@ ws.append(['Note', f'The data is a sample of {n_all:,} customers from the casco 
 
 # The marketing inputs (Marketing_Input.xlsx) with this game's own budget and audience.
 game = json.loads(subprocess.run(['node', '--input-type=module', '-e', """
-import { scenario, cascoMoney, campaignRules, campaignAudience, offerName } from './dist/engine.js';
+import { scenario, cascoMoney, campaignRules, campaignAudience, offerName, commissionOf, levelName } from './dist/engine.js';
 const c = scenario('tr'), m = cascoMoney(c), R = c.rules, K = campaignRules(R);
-console.log(JSON.stringify({ budget: m.budget, audience: campaignAudience(R, m), K, names: K.offers.map(o => [offerName(o.id, 'en'), offerName(o.id, 'tr')]), expenseRatio: m.expenseRatio, fixed: c.assumptions.fixedCost.value }));
+console.log(JSON.stringify({ half: m.half, audience: campaignAudience(R, m), K, names: K.offers.map(o => [offerName(o.id, 'en'), offerName(o.id, 'tr')]), expenseRatio: m.expenseRatio, fixed: c.assumptions.fixedCost.value,
+  commission: R.dimensions.channel.map((_, i) => [levelName('channel', i, 'en'), levelName('channel', i, 'tr'), commissionOf(R)[i]]) }));
 """], capture_output=True, text=True, check=True).stdout)
 KC = game['K']
 ws = part.create_sheet('MARKETING')
@@ -161,17 +162,18 @@ rows = [
     ('Population', 84_000_000, 'Nüfus'),
     ('18–55 digital users', KC['digitalUsers'], '18–55 yaş dijital kullanıcı'),
     ('Target group: Joyful Disregarders', KC['targetShare'], 'Hedef kitle: dijital kullanıcıların payı'),
-    ('Marketing budget per team (EUR, at most)', game['budget'], 'Takım başına pazarlama bütçesi (en fazla). Medya ve hediye arasında bölünür.'),
+    ('Marketing budget per team, January–June (EUR, at most)', game['half'], 'Takım başına Ocak–Haziran pazarlama bütçesi (en fazla). Medya ve hediye arasında bölünür; devretmez.'),
+    ('Marketing budget per team, July–December (EUR, at most)', game['half'], 'Takım başına Temmuz–Aralık pazarlama bütçesi (en fazla). Yarıyıl molasında değiştirilebilir.'),
     ('Target group per team in a year', round(game['audience']), 'Bu oyunda takım başına yıllık hedef kitle (vakadaki euro başına kişi korunur)'),
-    ('Media cost per 1,000 impressions (EUR)', KC['cpm'], '1.000 reklam gösteriminin maliyeti'),
-    (f"Frequency bonus: seen more than {KC['frequency']} times", KC['frequencyBonus'], f"Reklamı ortalama {KC['frequency']} kereden fazla gören kitlede hit oranı bu kadar artar"),
+    ('Cost of reaching 100 customers (EUR)', KC['reachCost'], 'Hedef kitleden 100 müşteriye ulaşmanın maliyeti; kitle doldukça her ek euro daha az yeni kişiye ulaşır (erişim = kitle × (1 − e^(−temas ÷ kitle)))'),
     ('Price effect cap on conversion (×)', KC['priceCap'], 'Ucuz fiyat kampanya dönüşümünü en fazla bu kat artırır'),
     ('Expense ratio (share of premium)', game['expenseRatio'], 'Gider oranı: her euro primin işletmeye (satış, poliçe yönetimi) giden payı'),
     ('Fixed operating cost a year (EUR)', game['fixed'], 'Yıllık sabit işletme gideri (hasar yönetimi dahil)'),
+    *[(f'Channel commission: {en} (share of premium)', v, f'Kanal komisyonu: {tr} (primin payı)') for en, tr, v in game['commission']],
 ]
 for r in rows:
     ws.append(list(r))
-for i, fmt in enumerate(['#,##0', '#,##0', PCT1, EUR0, '#,##0', EUR2, PCT1, '0.0', PCT1, EUR0], start=2):
+for i, fmt in enumerate(['#,##0', '#,##0', PCT1, EUR0, EUR0, '#,##0', EUR2, '0.0', PCT1, EUR0, *[PCT1] * len(game['commission'])], start=2):
     ws.cell(row=i, column=2).number_format = fmt
 ws.append([])
 ws.append(['Gift', 'Interest rate', 'Cost (EUR)', 'Click rate', 'Hit ratio', 'Hediye'])

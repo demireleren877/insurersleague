@@ -7,8 +7,8 @@ import { icon, emblem, byId, qrSvg, joinUrl, letter } from '../ui.js';
 import { MIN_TEAMS, MAX_TEAMS, quizModeName, questionOf, quizMonths } from '../game.js';
 import { t, getLang, languageControl } from '../i18n.js';
 import { answerStylesFor, localizedQuestion } from '../quiz.js';
-import { esc, fmt, money, pct, pad, clamp, lerp, easeInOut, upper, lower, clock } from '../format.js';
-import { monthsOf, rank, scaledMarket, rulesOf, localizedBranch, localizedTeamProduct, localizedEventText, DIMENSIONS, dimensionName, levelName, marketCells, policiesOf } from '../../engine.js';
+import { esc, fmt, money, pct, pad, clamp, lerp, easeInOut, upper, lower, clock, short } from '../format.js';
+import { monthsOf, rank, scaledMarket, rulesOf, localizedBranch, localizedTeamProduct, localizedEventText, DIMENSIONS, dimensionName, levelName, marketCells, policiesOf, commissionOf } from '../../engine.js';
 import { monthDigest } from '../narrative.js';
 import { sfx } from '../audio.js';
 import { podium, AWARDS } from './results.js';
@@ -26,7 +26,7 @@ const phasesOf = () => [
 function awardsBrief(s, compact = false) {
   const R = rulesOf(s.config);
   return `<div class="${compact ? 'mobile-awards' : 'brief-awards'}">${AWARDS.map(a => `<article>${icon(a.icon, compact ? 18 : 22)}<div><b>${a.label}</b><small>${a.basis}</small></div></article>`).join('')}</div>
-    <p class="score-note">${icon('sliders', 16)} ${t('Two separate trophies. Teams can revise their prices and their campaign at every quarter end.', 'İki ayrı kupa. Takımlar her çeyrek sonunda fiyatlarını ve kampanyalarını güncelleyebilir.')}</p>`;
+    <p class="score-note">${icon('sliders', 16)} ${t('Two separate trophies. Teams can revise their prices and their campaign once, at the end of June.', 'İki ayrı kupa. Takımlar fiyatlarını ve kampanyalarını bir kez, Haziran sonunda güncelleyebilir.')}</p>`;
 }
 
 // The market events that have hit by `upTo`, newest first, in the viewer's language.
@@ -49,21 +49,21 @@ function marketProfile(compact = false) {
 function excelTeamCard(team, { quarter = false, canManage = true, submitted = false } = {}) {
   const s = getState(), done = quarter ? submitted : team.locked;
   const status = team.ai ? t('Jev AI rival', 'Jev AI rakibi')
-    : quarter ? (submitted ? t('Next-quarter plan received', 'Gelecek çeyrek planı alındı') : t('Keeps its plan unless a file arrives', 'Dosya gelmezse planı aynen sürer'))
-      : done ? t('Plan received', 'Plan alındı') : t('Waiting for the workbook', 'Dosya bekleniyor');
+    : quarter ? (submitted ? t('Second-half plan received', 'İkinci yarıyıl planı alındı') : t('Keeps its plan unless a file arrives', 'Dosya gelmezse planı aynen sürer'))
+      : done ? t('Plan received', 'Plan alındı') : t('Waiting for the strategy', 'Strateji bekleniyor');
   const manage = canManage && !team.ai;
   const device = team.owner ? `<span class="xl-team-device ${team.connected ? 'on' : ''}">${icon('users', 12)} ${team.connected ? t('On its own device', 'Kendi cihazında') : t('Device offline', 'Cihazı çevrimdışı')}</span>` : '';
   return `<article class="xl-team ${done ? 'done' : 'waiting'}" style="--team:${team.color}">
-    <header>${emblem(team, 'md')}<div><strong class="display">${esc(team.name)}</strong><span class="xl-team-status">${done ? icon('check', 13) : '<i class="dot"></i>'} ${status}</span>${device}</div>
+    <header>${emblem(team, 'md')}<div><strong class="display">${short(team.name)}</strong><span class="xl-team-status">${done ? icon('check', 13) : '<i class="dot"></i>'} ${status}</span>${device}</div>
       ${manage && !quarter && s.phase !== 'race' ? `<button class="icon-btn sm" data-action="remove-team" data-team="${team.id}" aria-label="${t(`Remove ${esc(team.name)}`, `${esc(team.name)} takımını çıkar`)}" title="${t('Remove team', 'Takımı çıkar')}">${icon('x', 14)}</button>` : ''}</header>
-    ${team.brochure ? `<button class="xl-brochure" data-action="brochure-view" data-team="${team.id}" aria-label="${t(`Open ${esc(team.name)}’s brochure`, `${esc(team.name)} broşürünü aç`)}"><img src="${brochureUrl(team.id, team.brochure)}" alt="${t(`${esc(team.name)} brochure`, `${esc(team.name)} broşürü`)}" loading="lazy" style="aspect-ratio:${team.brochure.w} / ${team.brochure.h}"></button>`
-      : quarter && !team.ai ? `<div class="xl-brochure empty">${icon('file', 18)} ${t('No brochure yet', 'Henüz broşür yok')}</div>` : ''}
+    ${team.brochure ? `<button class="xl-brochure" data-action="brochure-view" data-team="${team.id}" aria-label="${t(`Open ${esc(team.name)}’s communication asset`, `${esc(team.name)} iletişim materyalini aç`)}"><img src="${brochureUrl(team.id, team.brochure)}" alt="${t(`${esc(team.name)} communication asset`, `${esc(team.name)} iletişim materyali`)}" loading="lazy" style="aspect-ratio:${team.brochure.w} / ${team.brochure.h}"></button>`
+      : quarter && !team.ai ? `<div class="xl-brochure empty">${icon('file', 18)} ${t('No communication asset yet', 'Henüz iletişim materyali yok')}</div>` : ''}
     <p class="xl-team-plan">${team.locked || team.ai ? esc(excelSummary(team, s.config)) : t('No plan yet. Hand the team its template.', 'Henüz plan yok. Takıma kendi şablonunu ver.')}</p>
     ${manage ? `<div class="xl-team-actions">
       <button class="btn ghost sm" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', 14)} ${quarter ? t('Its current plan', 'Güncel planı') : t('Its template', 'Şablonu')}</button>
       ${quarter || s.phase === 'decisions' ? `<button class="btn ${done ? 'ghost' : 'gold'} sm" data-action="excel-team-upload" data-team="${team.id}">${icon('upload', 14)} ${done ? t('Replace file', 'Dosyayı değiştir') : t('Upload file', 'Dosya yükle')}</button>
       <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>` : ''}
-      <button class="btn ghost sm" data-action="brochure-upload" data-team="${team.id}">${icon('eye', 14)} ${team.brochure ? t('Replace brochure', 'Broşürü değiştir') : t('Brochure', 'Broşür')}</button>
+      <button class="btn ghost sm" data-action="brochure-upload" data-team="${team.id}">${icon('eye', 14)} ${team.brochure ? t('Replace communication asset', 'İletişim materyalini değiştir') : t('Communication asset', 'İletişim materyali')}</button>
       <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
     </div>` : ''}
   </article>`;
@@ -72,7 +72,7 @@ function excelTeamCard(team, { quarter = false, canManage = true, submitted = fa
 function excelAddTeam() {
   return `<form class="xl-add" data-form="excel-add-team">
     <label for="xl-new-team">${t('Add a team', 'Takım ekle')}</label>
-    <input class="input" id="xl-new-team" name="name" maxlength="16" autocomplete="off" placeholder="${t('Team name', 'Takım adı')}">
+    <input class="input" id="xl-new-team" name="name" maxlength="40" autocomplete="off" placeholder="${t('Team name', 'Takım adı')}">
     <button class="btn go" type="submit">${icon('plus', 16)} ${t('Add', 'Ekle')}</button>
     <a class="btn ghost" href="${sampleWorkbook()}" download>${icon('eye', 16)} ${t('Filled-in example', 'Doldurulmuş örnek')}</a>
     <a class="btn ghost" href="${CASE_DATA}" download>${icon('chart', 16)} ${t('Casco data', 'Kasko verisi')}</a>
@@ -186,7 +186,7 @@ export function mountStage(root) {
     el.innerHTML = s.teams.map(t2 => `<button class="lane" data-lane="${t2.id}" data-focus="${t2.id}" style="--team:${t2.color}">
       <span class="lane-pos num">--</span>
       <span class="lane-move num"></span>
-      <span class="lane-id ${t2.name.length > 11 ? 'long' : ''}">${emblem(t2, 'md')}<span><b class="display">${esc(t2.name)}</b><small>${esc(t2.code)} · ${esc(localizedTeamProduct(t2, s.config, getLang()))}</small><span class="lane-tag"></span></span></span>
+      <span class="lane-id ${t2.name.length > 11 ? 'long' : ''}">${emblem(t2, 'md')}<span><b class="display">${short(t2.name)}</b><small>${esc(t2.code)} · ${short(localizedTeamProduct(t2, s.config, getLang()), 26)}</small><span class="lane-tag"></span></span></span>
       <span class="lane-val num">—</span>
       <span class="lane-stat num" data-k="share"></span>
       <span class="lane-stat num" data-k="profit"></span>
@@ -292,7 +292,7 @@ export function mountStage(root) {
     const fresh = !seenTeams.has(t2.id);
     seenTeams.add(t2.id);
     return `<div class="pre-team ${fresh && !reduced() ? 'pop' : ''} ${t2.locked ? 'locked' : ''} ${t2.connected ? '' : 'off'}" style="--team:${t2.color};--i:${i}">
-      ${emblem(t2, 'lg')}<div><strong class="display ${t2.name.length > 11 ? 'long' : ''}">${esc(t2.name)}</strong>
+      ${emblem(t2, 'lg')}<div><strong class="display ${t2.name.length > 11 ? 'long' : ''}">${short(t2.name)}</strong>
       ${withStatus ? `<span class="chip ${t2.locked ? 'ok' : st.id === 'offline' ? 'bad' : ''}">${t2.locked ? icon('lock', 13) : '<span class="dot"></span>'} ${st.label}</span>${s.inputMode === 'excel' && t2.excel ? `<small class="pre-team-strategy">${esc(excelSummary(t2, s.config))}</small>` : ''}` : s.inputMode === 'excel' && t2.excel ? `<small class="pre-team-strategy">${esc(excelSummary(t2, s.config))}</small>` : t2.connected ? `<small>${esc(t2.code)}</small>` : `<span class="chip bad">${t('Disconnected', 'Bağlantı yok')}</span>`}</div>
     </div>`;
   }
@@ -325,8 +325,9 @@ export function mountStage(root) {
         ${s.inputMode === 'excel' ? '' : `<span class="pre-pin chip">${t('Join at', 'Katılım')}: ${esc(location.host)} · PIN <b class="num">${pinText}</b></span>`}
         <div class="brief-head"><p class="kicker amber">${t('Market brief', 'Pazar dosyası')} · ${s.config.year} ${esc(localizedBranch(s.config, getLang()))}</p><h1 class="display">${t('Everyone starts under the same conditions.', 'Herkes aynı koşullarda başlar.')}</h1></div>
         <div class="brief-stats">
-          <div><small>${t('Marketing budget', 'Pazarlama bütçesi')}</small><b class="num">${money(a.budget.value)}</b><span>${t('the digital campaign: media + gifts', 'dijital kampanya: medya + hediye')}</span></div>
-          <div><small>${t('Expense ratio', 'Gider oranı')}</small><b class="num">%${fmt((s.config.assumptions.expenseRatio?.value ?? 0.12) * 100)}</b><span>${t(`of premium · plus ${money(s.config.assumptions.fixedCost.value)} fixed a year`, `primin · ayrıca yıllık ${money(s.config.assumptions.fixedCost.value)} sabit`)}</span></div>
+          <div><small>${t('Marketing budget', 'Pazarlama bütçesi')}</small><b class="num">2 × ${money(a.budget.value / 2)}</b><span>${t('one for each half-year: media + gifts, nothing carried over', 'her yarıyıl için ayrı: medya + hediye, devretmez')}</span></div>
+          <div><small>${t('Channel commission', 'Kanal komisyonu')}</small><b class="num">${(() => { const c = commissionOf(rulesOf(s.config)); return `%${fmt(Math.min(...c) * 100)}–${fmt(Math.max(...c) * 100)}`; })()}</b><span>${rulesOf(s.config).dimensions.channel.map((_, i) => `${levelName('channel', i, getLang())} %${fmt(commissionOf(rulesOf(s.config))[i] * 100)}`).join(' · ')}</span></div>
+          <div><small>${t('Expense ratio', 'Gider oranı')}</small><b class="num">%${fmt((s.config.assumptions.expenseRatio?.value ?? 0.05) * 100)}</b><span>${t(`of premium · plus ${money(s.config.assumptions.fixedCost.value)} fixed a year`, `primin · ayrıca yıllık ${money(s.config.assumptions.fixedCost.value)} sabit`)}</span></div>
           <div><small>${t('Policies a year', 'Yıllık poliçe')}</small><b class="num">${fmt(policiesOf(s.config))}</b><span>${t('the whole market', 'tüm pazar')}</span></div>
           <div><small>${t('Customers a month', 'Aylık müşteri')}</small><b class="num">${fmt(market.pool)}</b><span>${t(`shared by ${n} teams and the rest of the market`, `${n} takım ve piyasanın geri kalanı paylaşıyor`)}</span></div>
         </div>
@@ -404,8 +405,7 @@ export function mountStage(root) {
     if (clockEl) clockEl.textContent = clock(left);
     if (key === reviewKey) return;
     reviewKey = key;
-    const quarter = Math.floor(review.month / 3) + 1;
-    reviewEl.innerHTML = `<header class="review-stage-head"><div><p class="kicker amber">${t(`Strategy review · quarter ${quarter} complete`, `Strateji molası · ${quarter}. çeyrek tamamlandı`)}</p><h1 class="display">${t(`Quarter ${quarter} results`, `${quarter}. çeyrek sonuçları`)}</h1><p>${s.inputMode === 'excel' ? t('Teams can upload their next-quarter plan now. Changes apply next month; completed months stay fixed.', 'Takımlar gelecek çeyrek planını şimdi yükleyebilir. Değişiklikler gelecek ay uygulanır; tamamlanan aylar sabit kalır.') : t('Teams can adjust the main lines of their plan. Every approved change takes effect next month.', 'Takımlar planlarının ana hatlarını güncelleyebilir. Onaylanan her değişiklik gelecek ay devreye girer.')}</p></div><div class="review-stage-clock"><b class="display num" data-quarter-clock>${clock(left)}</b><small>${t('remaining', 'kaldı')}</small></div></header>
+    reviewEl.innerHTML = `<header class="review-stage-head"><div><p class="kicker amber">${t('Strategy review · first half complete', 'Strateji molası · ilk yarıyıl tamamlandı')}</p><h1 class="display">${t('First-half results', 'İlk yarıyıl sonuçları')}</h1><p>${s.inputMode === 'excel' ? t('Teams can upload their second-half plan now. Changes apply from July; January–June stays fixed.', 'Takımlar ikinci yarıyıl planını şimdi yükleyebilir. Değişiklikler Temmuz’dan itibaren uygulanır; Ocak–Haziran sabit kalır.') : t('Teams can adjust the main lines of their plan. Every approved change takes effect next month.', 'Takımlar planlarının ana hatlarını güncelleyebilir. Onaylanan her değişiklik gelecek ay devreye girer.')}</p></div><div class="review-stage-clock"><b class="display num" data-quarter-clock>${clock(left)}</b><small>${t('remaining', 'kaldı')}</small></div></header>
       <div class="qr-body">${quarterResults(review.month)}${reviewNews(s, review.month)}</div>
       <div class="qr-strip">${s.teams.map(team => reviewChip(team, { done: submitted.has(team.id), manage: isHost && !team.ai && s.inputMode === 'excel' })).join('')}</div>
       <footer class="review-stage-foot"><p><b class="num">${submitted.size}/${s.teams.length}</b> ${t('plans submitted', 'plan gönderildi')}</p>${isHost ? `<button class="btn go lg" data-action="quarter-close">${icon('play', 18)} ${t('Close review and continue', 'Değerlendirmeyi kapat ve devam et')}</button>` : ''}</footer>`;
@@ -414,15 +414,15 @@ export function mountStage(root) {
   // The quarter's results stay on screen through the review: the year so far, ranked by gross premium,
   // with what the quarter itself added.
   function quarterResults(month) {
-    const s = getState(), now = results()[month], before = results()[month - 3];
+    const s = getState(), now = results()[month], before = results()[month - 6];
     if (!now) return '';
     const rows = [...now.rows].sort((a, b) => b.gwp - a.gwp);
     const quarterGwp = r => r.gwp - (before?.rows.find(x => x.id === r.id)?.gwp ?? 0);
     return `<section class="qr-results"><table class="qr-table">
-      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('This quarter', 'Bu çeyrek')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Campaign customers', 'Kampanya müşterisi')}</th></tr></thead>
+      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('This half-year', 'Bu yarıyıl')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Campaign customers', 'Kampanya müşterisi')}</th></tr></thead>
       <tbody>${rows.map((r, i) => { const team = byId(s.teams, r.id); return `<tr style="--team:${team.color}" class="${i === 0 ? 'leader' : ''}">
         <td class="num rank">${pad(i + 1)}</td>
-        <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${esc(team.name)}</b></span></td>
+        <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${short(team.name)}</b></span></td>
         <td class="num r strong">${money(r.gwp)}</td><td class="num r">${money(quarterGwp(r))}</td><td class="num r">${pct(r.share)}</td>
         <td class="num r ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num r ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio, 0)}</td><td class="num r">${fmt(r.campaign?.total ?? 0)}</td>
       </tr>`; }).join('')}</tbody>
@@ -442,13 +442,13 @@ export function mountStage(root) {
   function reviewChip(team, { done, manage }) {
     const status = team.ai ? t('Recalculating', 'Yeniden hesaplıyor') : done ? t('Plan received', 'Plan alındı') : t('Keeps its plan', 'Planı aynen sürer');
     return `<article class="xl-chip ${done ? 'done' : ''}" style="--team:${team.color}">
-      ${team.brochure ? `<button class="xl-chip-brochure" data-action="brochure-view" data-team="${team.id}" aria-label="${t(`Open ${esc(team.name)}’s brochure`, `${esc(team.name)} broşürünü aç`)}"><img src="${brochureUrl(team.id, team.brochure)}" alt="" loading="lazy"></button>` : `<span class="xl-chip-brochure empty" title="${t('No brochure yet', 'Henüz broşür yok')}">${icon('file', 16)}</span>`}
-      <div class="xl-chip-who"><b>${esc(team.name)}</b><small>${done ? icon('check', 12) : '<i class="dot"></i>'} ${status}</small></div>
+      ${team.brochure ? `<button class="xl-chip-brochure" data-action="brochure-view" data-team="${team.id}" aria-label="${t(`Open ${esc(team.name)}’s communication asset`, `${esc(team.name)} iletişim materyalini aç`)}"><img src="${brochureUrl(team.id, team.brochure)}" alt="" loading="lazy"></button>` : `<span class="xl-chip-brochure empty" title="${t('No communication asset yet', 'Henüz iletişim materyali yok')}">${icon('file', 16)}</span>`}
+      <div class="xl-chip-who"><b>${short(team.name)}</b><small>${done ? icon('check', 12) : '<i class="dot"></i>'} ${status}</small></div>
       ${manage ? `<div class="xl-chip-actions">
         <button class="icon-btn sm" data-action="excel-team-template" data-team="${team.id}" data-quarter="true" title="${t('Its current plan', 'Güncel planı')}" aria-label="${t(`${esc(team.name)}: current plan`, `${esc(team.name)}: güncel plan`)}">${icon('file', 14)}</button>
         <button class="icon-btn sm" data-action="excel-team-upload" data-team="${team.id}" title="${t('Upload file', 'Dosya yükle')}" aria-label="${t(`${esc(team.name)}: upload file`, `${esc(team.name)}: dosya yükle`)}">${icon('upload', 14)}</button>
         <input type="file" data-team-upload="${team.id}" data-quarter="true" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
-        <button class="icon-btn sm" data-action="brochure-upload" data-team="${team.id}" title="${team.brochure ? t('Replace brochure', 'Broşürü değiştir') : t('Brochure', 'Broşür')}" aria-label="${t(`${esc(team.name)}: brochure`, `${esc(team.name)}: broşür`)}">${icon('eye', 14)}</button>
+        <button class="icon-btn sm" data-action="brochure-upload" data-team="${team.id}" title="${team.brochure ? t('Replace communication asset', 'İletişim materyalini değiştir') : t('Communication asset', 'İletişim materyali')}" aria-label="${t(`${esc(team.name)}: communication asset`, `${esc(team.name)}: iletişim materyali`)}">${icon('eye', 14)}</button>
         <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
       </div>` : ''}
     </article>`;
@@ -465,7 +465,7 @@ export function mountStage(root) {
     const rest = order.slice(3);
     return `<header class="final-one-head"><span class="award-icon">${icon(a.icon, 26)}</span><div><small>${t('Trophy', 'Kupa')} ${k + 1} / ${AWARDS.length}</small><h2 class="display">${a.label}</h2><p>${a.basis}</p></div></header>
       ${podium(rows, teams, 'final-podium', a)}
-      ${rest.length ? `<ol class="final-rest" start="4">${rest.map((r, i) => { const t2 = byId(teams, r.id); return `<li style="--team:${t2.color}"><b class="num">${i + 4}.</b>${emblem(t2, 'sm')}<span>${esc(t2.name)}</span><em class="num">${a.value(r)}</em></li>`; }).join('')}</ol>` : ''}`;
+      ${rest.length ? `<ol class="final-rest" start="4">${rest.map((r, i) => { const t2 = byId(teams, r.id); return `<li style="--team:${t2.color}"><b class="num">${i + 4}.</b>${emblem(t2, 'sm')}<span>${short(t2.name)}</span><em class="num">${a.value(r)}</em></li>`; }).join('')}</ol>` : ''}`;
   }
   function renderFinal() {
     const s = getState();
@@ -548,14 +548,14 @@ export function mountStage(root) {
     const progress = `<ol class="mobile-stage-progress">${steps.map((label, i) => `<li class="${i < phase ? 'done' : i === phase ? 'on' : ''}"><i>${i < phase ? icon('check', 12) : i + 1}</i><span>${label}</span></li>`).join('')}</ol>`;
     const teamList = (compact = false) => `<ul class="mobile-team-list ${compact ? 'compact' : ''}">${s.teams.length ? s.teams.map(team => {
       const status = teamStatus(team);
-      return `<li style="--team:${team.color}">${emblem(team, 'xs')}<span><b>${esc(team.name)}</b><small>${team.ai ? 'JEV AI · ' : ''}${esc(status.label)}</small>${s.inputMode === 'excel' && team.excel ? `<small class="mobile-team-strategy">${esc(excelSummary(team, s.config))}</small>` : ''}</span><i class="${status.id}">${status.id === 'locked' ? icon('lock', 14) : status.id === 'ready' ? icon('check', 14) : '<span class="live-dot"></span>'}</i></li>`;
+      return `<li style="--team:${team.color}">${emblem(team, 'xs')}<span><b>${short(team.name)}</b><small>${team.ai ? 'JEV AI · ' : ''}${esc(status.label)}</small>${s.inputMode === 'excel' && team.excel ? `<small class="mobile-team-strategy">${esc(excelSummary(team, s.config))}</small>` : ''}</span><i class="${status.id}">${status.id === 'locked' ? icon('lock', 14) : status.id === 'ready' ? icon('check', 14) : '<span class="live-dot"></span>'}</i></li>`;
     }).join('') : `<li class="empty">${t('Waiting for the first team.', 'İlk takım bekleniyor.')}</li>`}</ul>`;
     const stat = (label, value, note = '') => `<div class="mobile-stat"><small>${label}</small><b class="num">${value}</b>${note ? `<span>${note}</span>` : ''}</div>`;
 
     if (s.phase === 'lobby') {
       const url = joinUrl(s.code);
       body.innerHTML = `${progress}
-        <section class="mobile-stage-hero lobby"><p class="kicker amber">${t('Lobby', 'Lobi')}</p><h1 class="display">${s.inputMode === 'excel' ? t('Add the teams', 'Takımları ekle') : t('Build the league', 'Ligi kur')}</h1><p>${s.inputMode === 'excel' ? t('Teams join with the PIN on their own device and upload their own workbook. You can also add a team here and upload for it.', 'Takımlar PIN ile kendi cihazından katılır ve kendi dosyasını yükler. İstersen takımı buradan ekleyip dosyasını sen de yükleyebilirsin.') : t('Teams join from their own phones. When they are ready, start the briefing from here.', 'Takımlar kendi telefonlarından katılır. Hazır olduklarında brifingi buradan başlat.')}</p></section>
+        <section class="mobile-stage-hero lobby"><p class="kicker amber">${t('Lobby', 'Lobi')}</p><h1 class="display">${s.inputMode === 'excel' ? t('Add the teams', 'Takımları ekle') : t('Build the league', 'Ligi kur')}</h1><p>${s.inputMode === 'excel' ? t('Teams join with the PIN on their own device and upload their own strategy. You can also add a team here and upload for it.', 'Takımlar PIN ile kendi cihazından katılır ve kendi stratejisini yükler. İstersen takımı buradan ekleyip stratejisini sen de yükleyebilirsin.') : t('Teams join from their own phones. When they are ready, start the briefing from here.', 'Takımlar kendi telefonlarından katılır. Hazır olduklarında brifingi buradan başlat.')}</p></section>
         ${s.inputMode === 'excel' ? `<section class="mobile-stage-card">${excelJoin(s, true)}${excelRoster(s, { isHost, add: true })}</section>` : `<section class="mobile-join-card"><div><p class="kicker">${t('Join the game', 'Oyuna katıl')}</p><b class="num">${esc(s.code.replace(/(\d{3})(\d{3})/, '$1 $2'))}</b><a href="${esc(url)}" translate="no">${esc(url.replace(/^https?:\/\//, ''))}</a></div>${qrSvg(url, { size: 112 })}</section>`}
         ${s.inputMode === 'excel' ? '' : `<section class="mobile-stage-card"><header><div><p class="kicker">${t('Teams', 'Takımlar')}</p><h2 class="display">${s.teams.length}/12</h2></div>${isHost ? `<button class="btn gold sm" data-action="open-settings">${icon('plus', 14)} ${t('Add AI', 'AI ekle')}</button>` : ''}</header>${teamList()}</section>`}
         ${isHost ? `<button class="btn go lg mobile-primary" data-action="phase" data-to="briefing" ${s.teams.length < MIN_TEAMS ? 'disabled' : ''}>${t('Start briefing', 'Brifingi başlat')} ${icon('arrow', 18)}</button>` : ''}`;
@@ -597,7 +597,7 @@ export function mountStage(root) {
     if (review) {
       const seconds = Math.max(0, (review.closesAt - clockNow()) / 1000);
       body.innerHTML = `${progress}
-        <section class="mobile-stage-hero review"><p class="kicker amber">${t(`Quarter ${Math.floor(review.month / 3) + 1} complete`, `${Math.floor(review.month / 3) + 1}. çeyrek tamamlandı`)}</p><h1 class="display">${t('Strategy review', 'Strateji molası')}</h1><b class="display num" data-quarter-clock>${clock(seconds)}</b><p>${s.inputMode === 'excel' ? t('Submit revised workbooks during this pause. Plans apply next month; completed months remain fixed.', 'Bu molada güncellenmiş çalışma kitaplarını yükle. Planlar gelecek ay uygulanır; tamamlanan aylar değişmez.') : t('Plans apply from next month. Completed months remain fixed.', 'Planlar gelecek ay uygulanır. Tamamlanan aylar sabit kalır.')}</p></section>
+        <section class="mobile-stage-hero review"><p class="kicker amber">${t('First half complete', 'İlk yarıyıl tamamlandı')}</p><h1 class="display">${t('Strategy review', 'Strateji molası')}</h1><b class="display num" data-quarter-clock>${clock(seconds)}</b><p>${s.inputMode === 'excel' ? t('Submit revised strategies during this pause. Plans apply next month; completed months remain fixed.', 'Bu molada güncellenmiş stratejileri yükle. Planlar gelecek ay uygulanır; tamamlanan aylar değişmez.') : t('Plans apply from next month. Completed months remain fixed.', 'Planlar gelecek ay uygulanır. Tamamlanan aylar sabit kalır.')}</p></section>
         ${s.inputMode === 'excel' ? `<section class="mobile-stage-card">${excelRoster(s, { quarter: true, isHost, review })}</section>` : `<section class="mobile-stage-card"><header><div><p class="kicker">${t('Plan status', 'Plan durumu')}</p><h2 class="display">${submitted}/${s.teams.length}</h2></div></header>${teamList()}</section>`}
         ${isHost ? `<button class="btn go lg mobile-primary" data-action="quarter-close">${t('Close review and continue', 'Değerlendirmeyi kapat ve devam et')} ${icon('arrow', 18)}</button>` : ''}`;
       return;
@@ -608,7 +608,7 @@ export function mountStage(root) {
     body.innerHTML = `${progress}
       <section class="mobile-race-head"><div><p class="kicker"><span class="live-dot"></span> ${t('Live race', 'Canlı yarış')}</p><h1 class="display">${month}</h1><span>${t(`Month ${m + 1} / 12`, `Ay ${m + 1} / 12`)}</span></div></section>
       <section class="mobile-stage-card standings"><header><div><p class="kicker">${t('Gross premium leader', 'Brüt prim lideri')}</p><h2 class="display">${lead ? esc(byId(s.teams, lead.id).name) : '—'}</h2></div><span class="chip info">${lead ? money(lead.gwp) : '—'}</span></header>
-        <ol>${rows.map(row => { const team = byId(s.teams, row.id); return `<li style="--team:${team.color}" class="${row.id === lead?.id ? 'leader' : ''}"><b class="num">${pad(row.rank)}</b>${emblem(team, 'xs')}<span><strong>${esc(team.name)}</strong><small>${pct(row.share)} ${t('share', 'pay')} · <i class="${row.profit < 0 ? 'down' : ''}">${money(row.profit)}</i> · ${t('LR', 'H/P')} ${pct(row.grossLossRatio, 0)}</small></span><em class="num">${money(row.gwp)}</em></li>`; }).join('')}</ol>
+        <ol>${rows.map(row => { const team = byId(s.teams, row.id); return `<li style="--team:${team.color}" class="${row.id === lead?.id ? 'leader' : ''}"><b class="num">${pad(row.rank)}</b>${emblem(team, 'xs')}<span><strong>${short(team.name)}</strong><small>${pct(row.share)} ${t('share', 'pay')} · <i class="${row.profit < 0 ? 'down' : ''}">${money(row.profit)}</i> · ${t('LR', 'H/P')} ${pct(row.grossLossRatio, 0)}</small></span><em class="num">${money(row.gwp)}</em></li>`; }).join('')}</ol>
       </section>
       <section class="mobile-stage-card mobile-feed"><p class="kicker">${t('Market news', 'Piyasa haberleri')}</p><ol>${news.length ? news.map(item => `<li class="event"><small>${item.when}</small><span><b>${esc(item.title)}</b> ${esc(item.description)}</span></li>`).join('') : `<li><span>${t('No market news yet.', 'Henüz piyasa haberi yok.')}</span></li>`}</ol></section>
       ${isHost ? `<div class="mobile-action-row"><button class="btn ghost" data-action="toggle-play">${icon(h.running ? 'pause' : 'play', 16)} ${h.running ? t('Pause', 'Duraklat') : t('Resume', 'Devam')}</button><button class="btn go" data-action="next-month">${t('Next month', 'Sonraki ay')} ${icon('next', 16)}</button></div>` : ''}`;
@@ -775,7 +775,7 @@ export function mountStage(root) {
     const r = results()[m].rows.find(x => x.id === t2.id);
     const gwps = results().slice(0, m + 1).map(x => x.rows.find(y => y.id === t2.id).gwp);
     $('detail').style.setProperty('--team', t2.color);
-    $('detail').innerHTML = `<header>${emblem(t2, 'md')}<div><p class="kicker">${t('Published results', 'Yayınlanan sonuçlar')} · ${monthsOf(getLang())[m]}</p><strong class="display">${esc(t2.name)}</strong></div><button class="icon-btn" data-action="toggle-detail" aria-label="${t('Close detail', 'Detayı kapat')}">${icon('x', 16)}</button></header>
+    $('detail').innerHTML = `<header>${emblem(t2, 'md')}<div><p class="kicker">${t('Published results', 'Yayınlanan sonuçlar')} · ${monthsOf(getLang())[m]}</p><strong class="display">${short(t2.name)}</strong></div><button class="icon-btn" data-action="toggle-detail" aria-label="${t('Close detail', 'Detayı kapat')}">${icon('x', 16)}</button></header>
       <div class="detail-grid">${[[t('Policies', 'Poliçe'), fmt(r.policies)], [t('Gross premium', 'Brüt prim'), money(r.gwp)], [t('Market share', 'Pazar payı'), pct(r.share)], [t('Technical profit', 'Teknik kâr'), money(r.profit)], [t('Loss ratio', 'Hasar/prim'), pct(r.grossLossRatio)], [t('Campaign customers', 'Kampanya müşterisi'), fmt(r.campaign?.total ?? 0)], [t('Ad frequency', 'Reklam frekansı'), fmt(r.campaign?.frequency ?? 1, 1)]].map(([k, v]) => `<div><small>${k}</small><b class="num">${v}</b></div>`).join('')}</div>
       ${spark(gwps, t2.color, { width: 520, height: 120, min: 0, max: gwpMax(), label: t(`${t2.name} cumulative gross premium`, `${t2.name} kümülatif brüt prim`) })}`;
   }
@@ -791,7 +791,7 @@ export function mountStage(root) {
     showBrochure(id) {
       const s = getState(), team = byId(s.teams, id), el = $('lightbox');
       if (!team?.brochure || !el) return;
-      el.innerHTML = `<figure><img src="${brochureUrl(team.id, team.brochure)}" alt="${t(`${esc(team.name)} brochure`, `${esc(team.name)} broşürü`)}"><figcaption style="--team:${team.color}">${emblem(team, 'sm')} ${esc(team.name)}${team.strategy?.product ? ` · ${esc(team.strategy.product)}` : ''}</figcaption></figure><button class="icon-btn" data-action="brochure-close" aria-label="${t('Close', 'Kapat')}">${icon('x', 18)}</button>`;
+      el.innerHTML = `<figure><img src="${brochureUrl(team.id, team.brochure)}" alt="${t(`${esc(team.name)} communication asset`, `${esc(team.name)} iletişim materyali`)}"><figcaption style="--team:${team.color}">${emblem(team, 'sm')} ${esc(team.name)}${team.strategy?.product ? ` · ${esc(team.strategy.product)}` : ''}</figcaption></figure><button class="icon-btn" data-action="brochure-close" aria-label="${t('Close', 'Kapat')}">${icon('x', 18)}</button>`;
       el.hidden = false;
     },
     closeBrochure() { const el = $('lightbox'); if (el) el.hidden = true; },

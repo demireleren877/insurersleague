@@ -1,6 +1,6 @@
 import { getState, seasonDone, playhead, raceStarted, results } from '../store.js';
 import { icon, emblem, byId } from '../ui.js';
-import { esc, money, fmt, pct } from '../format.js';
+import { esc, money, fmt, pct, short } from '../format.js';
 import { rank, localizedTeamProduct, levelName, bookProfile, strategyAt, yearPlan, rulesOf, campaignOf } from '../../engine.js';
 import { debrief, rankHistory, ARCHETYPES, archetypeKey } from '../narrative.js';
 import { bump } from './charts.js';
@@ -27,7 +27,7 @@ export function podium(rows, teams, cls = '', award = AWARDS[0]) {
     const r = eligible[i]; if (!r) return '<div></div>';
     const t2 = byId(teams, r.id);
     return `<div class="podium-slot p${i + 1}" style="--team:${t2.color}">
-      <div class="podium-who">${emblem(t2, i === 0 ? 'xl' : 'lg')}<strong class="display">${esc(t2.name)}</strong><span class="num">${award.value(r)}</span></div>
+      <div class="podium-who">${emblem(t2, i === 0 ? 'xl' : 'lg')}<strong class="display">${short(t2.name)}</strong><span class="num">${award.value(r)}</span></div>
       <div class="podium-step"><b class="display">${i === 0 ? icon('cup', 44) : i + 1}</b><span>${labels[i]}</span></div>
     </div>`;
   }).join('')}</div>`;
@@ -83,7 +83,7 @@ export function resultsPage() {
       <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Gross premium', 'Brüt prim')}</th><th class="${col('share')}">${t('Market share', 'Pazar payı')}</th><th class="${col('profit')}">${t('Technical profit', 'Teknik kâr')}</th><th>${t('Loss ratio', 'Hasar/prim')}</th><th>${t('Campaign customers', 'Kampanya müşterisi')}</th><th>${t('Combined ratio', 'Bileşik oran')}</th></tr></thead>
       <tbody>${ordered.map((r, i) => { const t2 = byId(s.teams, r.id); return `<tr class="${r.id === focus.id ? 'on' : ''}" style="--team:${t2.color}">
         <td class="num rank">${String(i + 1).padStart(2, '0')}</td>
-        <td><button class="team-link" data-focus="${t2.id}" aria-pressed="${r.id === focus.id}">${emblem(t2, 'sm')}<b>${esc(t2.name)}</b></button></td>
+        <td><button class="team-link" data-focus="${t2.id}" aria-pressed="${r.id === focus.id}">${emblem(t2, 'sm')}<b>${short(t2.name)}</b></button></td>
         <td class="num strong">${money(r.gwp)}</td><td class="num ${col('share')}">${pct(r.share)}</td><td class="num ${r.profit < 0 ? 'down' : ''} ${col('profit')}">${money(r.profit)}</td><td class="num ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio)}</td><td class="num">${fmt(r.campaign?.total ?? 0)}</td><td class="num ${r.combinedRatio > 1 ? 'down' : ''}">${pct(r.combinedRatio)}</td>
         </tr>`; }).join('')}</tbody>
     </table></div>
@@ -95,7 +95,7 @@ export function resultsPage() {
   </section>
 
   <section class="panel focus" style="--team:${focus.color}">
-    <header class="focus-head livery">${emblem(focus, 'lg')}<div><p class="kicker">${t(`What the decisions earned · ${money(fr.gwp)} gross premium · ${pct(fr.share)} share`, `Kararların karşılığı · ${money(fr.gwp)} brüt prim · ${pct(fr.share)} pay`)}</p><h2 class="display">${esc(focus.name)} · ${esc(localizedTeamProduct(focus, s.config, getLang()))}</h2></div></header>
+    <header class="focus-head livery">${emblem(focus, 'lg')}<div><p class="kicker">${t(`What the decisions earned · ${money(fr.gwp)} gross premium · ${pct(fr.share)} share`, `Kararların karşılığı · ${money(fr.gwp)} brüt prim · ${pct(fr.share)} pay`)}</p><h2 class="display">${short(focus.name, 30)} · ${short(localizedTeamProduct(focus, s.config, getLang()), 30)}</h2></div></header>
     <div class="components">${fr.components.map((v, i) => `<div class="component">
       <span>${components[i]} <b>${s.config.weights[i]}%</b></span>
       <strong class="num">${fmt(v, 1)}<small>/100</small></strong>
@@ -119,7 +119,7 @@ export function resultsPage() {
     <div class="table-wrap"><table>
       <thead><tr><th>${t('Team', 'Takım')}</th><th>${t('Approach', 'Yaklaşım')}</th><th>${t('Base premium', 'Baz prim')}</th><th>${t('Priced for LR', 'Hedef HO')}</th><th>${t('LR it got', 'Gerçekleşen HO')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Media', 'Medya')}</th><th>${t('Gifts', 'Hediyeler')}</th><th>${t('Policies', 'Poliçe')}</th><th>${t('Rank', 'Sıra')}</th></tr></thead>
       <tbody>${rows.map(r => { const t2 = byId(s.teams, r.id), st = yearPlan(t2), p = bookProfile(st, s.config); return `<tr style="--team:${t2.color}" class="${r.id === focus.id ? 'on' : ''}">
-        <td><button class="team-link" data-focus="${t2.id}">${emblem(t2, 'xs')}<b>${esc(t2.name)}</b></button></td>
+        <td><button class="team-link" data-focus="${t2.id}">${emblem(t2, 'xs')}<b>${short(t2.name)}</b></button></td>
         <td>${ARCHETYPES[archetypeKey(st, s.config)].name}</td><td class="num">€${fmt(st.basePremium, 2)}</td><td class="num">${pct(p.impliedLossRatio, 0)}</td><td class="num ${r.lossRatio > p.impliedLossRatio + 0.05 ? 'down' : ''}">${pct(r.lossRatio, 0)}</td>
         <td class="num">${money(st.marketing)}</td><td class="num">${campaignOf(st).media}%</td><td>${esc(giftMix(st, s.config))}</td>
         <td class="num">${fmt(r.policies)}</td><td class="num strong">${r.rank}.</td></tr>`; }).join('')}</tbody>

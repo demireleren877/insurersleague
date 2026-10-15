@@ -51,6 +51,6 @@ export async function prepareBrochure(file) {
     blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
     if (blob && blob.size <= MAX_BYTES) break;
   }
-  if (!blob) throw Error(t('The brochure could not be prepared.', 'Broşür hazırlanamadı.'));
+  if (!blob) throw Error(t('The communication asset could not be prepared.', 'İletişim materyali hazırlanamadı.'));
   return { blob, w, h };
 }

@@ -1,6 +1,6 @@
 // Jev strategy adapter. The model only chooses among legal, finite options;
 // the insurance engine remains the sole authority for financial outcomes.
-import { rulesOf, cascoMoney, policiesOf, actuarialCoefficients, actuarialBase, marketCells, DIMENSIONS, snapCoef, campaignRules, campaignAudience } from '../engine.js';
+import { rulesOf, cascoMoney, policiesOf, actuarialCoefficients, actuarialBase, marketCells, DIMENSIONS, snapCoef, campaignRules, campaignAudience, commissionOf } from '../engine.js';
 
 export const JEV_MODEL = 'typesafe/jev-1.13';
 
@@ -99,9 +99,10 @@ export function buildJevRequest(session, profile, model = JEV_MODEL, reviewMonth
     ai_profile: { id: profile.id, objective: profile.brief },
     market: {
       line: config.branch, year: config.year, annual_policies: policiesOf(config),
-      marketing_budget: money.budget,
+      marketing_budget_per_half_year: money.half,
+      expenses: { fixed_per_year_eur: config.assumptions.fixedCost.value, share_of_premium: money.expenseRatio, channel_commission: Object.fromEntries(rules.dimensions.channel.map((lv, i) => [lv.id, commissionOf(rules)[i]])) },
       claim_model: { base_frequency: rules.model.frequency, base_severity_eur: rules.model.severity, base_loss_ratio: rules.model.lossRatio },
-      digital_campaign: { cost_per_1000_impressions: campaignRules(rules).cpm, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), frequency_bonus: { above_views: campaignRules(rules).frequency, hit_ratio_up: campaignRules(rules).frequencyBonus }, gifts: campaignRules(rules).offers, note: 'All marketing runs the campaign. The ads show each gift in proportion to its weight. Customers per gift = reach × weight × interest × click × hit, at most (gift budget × weight) ÷ gift cost.' },
+      digital_campaign: { cost_to_reach_100_people_eur: campaignRules(rules).reachCost, target_group_per_team_per_month: Math.round(campaignAudience(rules, money) / 12), gifts: campaignRules(rules).offers, note: 'All marketing runs the campaign. The ads show each gift in proportion to its weight. Customers per gift = reach × weight × interest × click × hit, at most (gift budget × weight) ÷ gift cost.' },
       scoring_weights: { profit: config.weights[0], market_share: config.weights[1] }
     },
     segments: Object.fromEntries(DIMENSIONS.map(dim => [dim, rules.dimensions[dim].map(lv => ({ level: lv.id, frequency_coef: lv.freq, severity_coef: lv.sev, market_premium_coef: lv.prem }))])),
@@ -200,7 +201,8 @@ export function strategyFromJev(session, profile, answers, context) {
   const budget = pick(answers.budget, BUDGETS, 'b', signature.budget);
   const campaign = pick(answers.campaign, CAMPAIGNS, 'c', signature.campaign);
   const coef = coefficientsFor(view.id, rules);
-  const marketing = Math.max(0, Math.min(round1k(money.budget * budget.marketing), Math.floor(money.budget / 1000) * 1000));
+  // The same share of each half-year's budget in both halves.
+  const marketing = Math.max(0, Math.min(round1k(money.half * budget.marketing), Math.floor(money.half / 1000) * 1000));
   const confidenceValues = Object.values(answers).map(confidenceOf).filter(Number.isFinite);
   const confidence = confidenceValues.length ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length : null;
   const profileName = profile.name[session.config.lang === 'tr' ? 'tr' : 'en'];
@@ -208,7 +210,7 @@ export function strategyFromJev(session, profile, answers, context) {
     ? `${profileName}: riski doğru fiyatla, sermayeyi koru.`
     : `${profileName}: price the risk right, protect the margin.`;
   return {
-    strategy: { sentence, basePremium: actuarialBase(coef, lossRatio, rules), coef, marketing, mediaShare: campaign.mediaShare, offers: [...campaign.offers] },
+    strategy: { sentence, basePremium: actuarialBase(coef, lossRatio, rules), coef, marketing, marketing2: marketing, mediaShare: campaign.mediaShare, offers: [...campaign.offers] },
     confidence
   };
 }

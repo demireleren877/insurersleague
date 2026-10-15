@@ -19,8 +19,9 @@ export const RULE_FIELDS = {
   'commercialPrice': F('x', 0.2, 2, 0.05),
   'market.outside': F('num', 0, 10, 0.1), 'market.seasonality': F('pct', 0, 0.5, 0.01),
   'coef.min': F('num', 0.1, 1, 0.05), 'coef.max': F('num', 1, 5, 0.05),
-  'campaign.cpm': F('eur', 0.5, 200, 0.5), 'campaign.digitalUsers': F('num', 100000, 100000000, 100000), 'campaign.targetShare': F('pct', 0.01, 1, 0.01),
-  'campaign.referenceBudget': F('eur', 100000, 100000000, 100000), 'campaign.frequency': F('num', 1, 50, 1), 'campaign.frequencyBonus': F('pct', 0, 1, 0.01),
+  'commission.#': F('pct', 0, 0.5, 0.005),
+  'campaign.reachCost': F('eur', 0.05, 20, 0.05), 'campaign.digitalUsers': F('num', 100000, 100000000, 100000), 'campaign.targetShare': F('pct', 0.01, 1, 0.01),
+  'campaign.referenceBudget': F('eur', 100000, 100000000, 100000),
   'campaign.priceCap': F('x', 1, 5, 0.1),
   'campaign.offers.#.interest': F('pct', 0, 1, 0.01), 'campaign.offers.#.click': F('pct', 0, 1, 0.01), 'campaign.offers.#.hit': F('pct', 0, 1, 0.01), 'campaign.offers.#.cost': F('eur', 0, 1000, 1)
 };

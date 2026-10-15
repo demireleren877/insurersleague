@@ -60,15 +60,15 @@ test('re-importing a team name updates that team instead of adding a copy', () =
   assert.equal(s.teams[0].strategy.basePremium, 30);
 });
 
-test('quarter uploads move only the quarter levers and never rewrite finished months', () => {
+test('half-year uploads move only the review levers and never rewrite finished months', () => {
   let now = 10_000;
   const s = roomWith(['Atlas', 'Nova'], now);
   toRace(s, ++now);
-  now = s.playback.t0 + s.config.speed * 1000 * 4 + 50;
+  now = s.playback.t0 + s.config.speed * 1000 * 7 + 50;
   assert.ok(tick(s, now).changed);
   const review = currentStrategyReview(s);
-  assert.equal(review.month, 2);
-  const past = structuredClone(s.results.slice(0, 3));
+  assert.equal(review.month, 5);
+  const past = structuredClone(s.results.slice(0, 6));
   const team = s.teams[0], before = structuredClone(team.strategy);
   assert.deepEqual(review.initialStrategies[team.id], before, 'the review keeps its opening strategy as the import baseline');
 
@@ -82,21 +82,21 @@ test('quarter uploads move only the quarter levers and never rewrite finished mo
   assert.deepEqual(team.strategy.offers, [10, 20, 30, 40]);
   assert.equal(team.strategy.mediaShare, 30);
   assert.equal(team.strategy.product, before.product);
-  assert.equal(team.strategyHistory.at(-1).effectiveMonth, 3);
+  assert.equal(team.strategyHistory.at(-1).effectiveMonth, 6);
   assert.equal('initialStrategies' in currentStrategyReview(viewFor(s, { role: 'stage' }, now)), false, 'the stage never sees the private baseline');
-  assert.deepEqual(s.results.slice(0, 3), past);
+  assert.deepEqual(s.results.slice(0, 6), past);
 
   assert.ok(reduce(s, { type: 'quarter-close' }, host(now + 200)).changed);
   assert.equal(currentStrategyReview(s), null);
 });
 
-test('a team device applies its own quarter plan locally even though rivals’ plans are hidden', () => {
+test('a team device applies its own half-year plan locally even though rivals’ plans are hidden', () => {
   let now = 10_000;
   const s = freshSession(now, { code: '123456', lang: 'en' });
   reduce(s, { type: 'excel-join', name: 'Kartal' }, player('p1', ++now));
   reduce(s, { type: 'excel-add-team', name: 'Mavi' }, host(++now));
   toRace(s, ++now);
-  now = s.playback.t0 + s.config.speed * 1000 * 4 + 50;
+  now = s.playback.t0 + s.config.speed * 1000 * 7 + 50;
   tick(s, now);
   assert.ok(currentStrategyReview(s));
   // What the team's own browser holds: its plan in full, the rival's hidden.
@@ -108,17 +108,19 @@ test('a team device applies its own quarter plan locally even though rivals’ p
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: mine.id, strategy: plan }, player('p1', now + 10)).changed, 'and the server takes it');
 });
 
-test('a quarter plan can spend only what is left of the year’s marketing budget', () => {
+test('at the review only July–December’s budget moves, up to half the year’s budget; January–June stays as spent', () => {
   let now = 10_000;
   const s = roomWith(['Atlas', 'Nova'], now);
   toRace(s, ++now);
-  now = s.playback.t0 + s.config.speed * 1000 * 4 + 50;
+  now = s.playback.t0 + s.config.speed * 1000 * 7 + 50;
   tick(s, now);
-  const team = s.teams[0], budget = cascoMoney(s.config).budget, spent = team.strategy.marketing * 3 / 12, left = budget - spent;
-  const tooMuch = { ...structuredClone(team.strategy), marketing: Math.ceil(left) + 1000 };
+  const team = s.teams[0], half = cascoMoney(s.config).half, h1 = team.strategy.marketing;
+  const tooMuch = { ...structuredClone(team.strategy), marketing2: half + 1000 };
   assert.match(reduce(s, { type: 'excel-quarter-submit', teams: [{ name: team.name, strategy: tooMuch }] }, host(now + 10)).error, /at most/);
-  const all = { ...structuredClone(team.strategy), marketing: Math.floor(left) };
+  const all = { ...structuredClone(team.strategy), marketing: 0, marketing2: half };
   assert.ok(reduce(s, { type: 'excel-quarter-submit', teams: [{ name: team.name, strategy: all }] }, host(now + 20)).changed);
+  assert.equal(team.strategy.marketing2, half);
+  assert.equal(team.strategy.marketing, h1, 'the first half’s budget is not a review lever');
   assert.ok(Math.abs(simulate(s.teams, s.config)[11].rows.find(r => r.id === team.id).expenses) > 0);
 });
 
@@ -181,11 +183,11 @@ test('rule studio: host edits validated rules that change the simulation; race l
   assert.ok(reduce(s, { type: 'rule', path: 'behavior.2.price', value: 7 }, host(3)).changed);
   assert.notEqual(gwp(), before);
 
-  reduce(s, { type: 'rule', path: 'campaign.cpm', value: 12 }, host(4));
+  reduce(s, { type: 'rule', path: 'campaign.reachCost', value: 1.5 }, host(4));
   reduce(s, { type: 'assumption', key: 'budget', value: 99_000 }, host(4));
   assert.ok(reduce(s, { type: 'rules-reset', keys: ['behavior'] }, host(5)).changed);
   assert.equal(s.config.rules.behavior[2].price, 4.2);
-  assert.equal(s.config.rules.campaign.cpm, 12);
+  assert.equal(s.config.rules.campaign.reachCost, 1.5);
   assert.ok(reduce(s, { type: 'rules-reset', keys: [], market: true }, host(5)).changed);
   assert.equal(s.config.assumptions.budget.value, freshSession(0).config.assumptions.budget.value);
 
@@ -193,7 +195,7 @@ test('rule studio: host edits validated rules that change the simulation; race l
   assert.match(toRace(s, 7).error, /Scoring/);
   assert.ok(reduce(s, { type: 'weights-normalize' }, host(8)).changed);
   assert.ok(reduce(s, { type: 'start-race' }, host(9)).changed);
-  assert.match(reduce(s, { type: 'rule', path: 'campaign.cpm', value: 10 }, host(10)).error, /race/);
+  assert.match(reduce(s, { type: 'rule', path: 'campaign.reachCost', value: 1 }, host(10)).error, /race/);
 });
 
 test('a bigger market scales every money figure and the teams’ budgets with it', () => {
@@ -251,14 +253,14 @@ test('lobby teams are added by name and each takes its own plan', () => {
 
   toRace(s, 2_000);
   assert.equal(s.results.length, 12, 'a team without a file races with the default plan');
-  assert.match(reduce(s, { type: 'excel-team-plan', teamId: s.teams[0].id, strategy: plan }, host(2_001)).error, /çeyrek molasında/);
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: s.teams[0].id, strategy: plan }, host(2_001)).error, /yarıyıl molasında/);
 });
 
 test('at a quarter review a team’s own file moves only its quarter levers', () => {
   let now = 10_000;
   const s = roomWith(['Atlas', 'Nova'], now);
   toRace(s, ++now);
-  now = s.playback.t0 + s.config.speed * 1000 * 4 + 50;
+  now = s.playback.t0 + s.config.speed * 1000 * 7 + 50;
   tick(s, now);
   const review = currentStrategyReview(s), team = s.teams[1], before = structuredClone(team.strategy);
   const file = { ...structuredClone(before), basePremium: before.basePremium * 1.1, reinsurance: !before.reinsurance };
@@ -285,7 +287,7 @@ test('a team joins from its own device and hands in only its own workbook', () =
   const plan = { ...defaultStrategy('Nova', s.config), sentence: 'Nova plan.' };
   assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('bbb', 1_005)).error, /decision window opens/);
   reduce(s, { type: 'phase', to: 'briefing' }, host(1_005)); reduce(s, { type: 'phase', to: 'decisions' }, host(1_005));
-  assert.match(reduce(s, { type: 'excel-team-plan', teamId: falcon.id, strategy: plan }, player('bbb', 1_005)).error, /own workbook/);
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: falcon.id, strategy: plan }, player('bbb', 1_005)).error, /own strategy/);
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('bbb', 1_006)).changed);
   assert.ok(nova.locked, 'the plan is received');
   // Others never see a rival's plan before the season ends.
@@ -299,9 +301,9 @@ test('a team joins from its own device and hands in only its own workbook', () =
   assert.match(reduce(s, { type: 'excel-join', name: 'Late' }, player('ccc', 2_001)).error, /started/);
 });
 
-test('the decision window closes team uploads after 20 minutes; quarter reviews last 15, 10 and 5 minutes', async () => {
+test('the decision window closes team uploads after 20 minutes; the one half-year review lasts 15 minutes', async () => {
   const { EXCEL_REVIEW_MINUTES } = await import('../dist/js/game.js');
-  assert.deepEqual(EXCEL_REVIEW_MINUTES, { 2: 15, 5: 10, 8: 5 });
+  assert.deepEqual(EXCEL_REVIEW_MINUTES, { 5: 15 });
   const s = freshSession(1_000, { code: '123456', lang: 'en' });
   assert.equal(s.config.minutes, 20);
   reduce(s, { type: 'excel-join', name: 'Nova' }, player('p1', 1_001));
@@ -314,7 +316,7 @@ test('the decision window closes team uploads after 20 minutes; quarter reviews 
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 21 * 60_000)).changed, 'the moderator can still upload');
   reduce(s, { type: 'extend' }, host(1_004 + 21 * 60_000));
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 23 * 60_000)).changed, 'added time reopens uploads');
-  // The three reviews get 15, 10 and 5 minutes.
+  // One review, after June, for 15 minutes.
   let now = 2_000_000;
   reduce(s, { type: 'start-race' }, host(now));
   const lengths = [];
@@ -323,7 +325,7 @@ test('the decision window closes team uploads after 20 minutes; quarter reviews 
     const review = currentStrategyReview(s);
     if (review) { lengths.push((review.closesAt - review.openedAt) / 60_000); reduce(s, { type: 'quarter-close' }, host(now)); }
   }
-  assert.deepEqual(lengths, [15, 10, 5]);
+  assert.deepEqual(lengths, [15]);
 });
 
 test('a team whose tab was closed gets back in by its name, even mid-race; a connected team stays put', () => {

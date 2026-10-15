@@ -307,7 +307,7 @@ export class Room extends DurableObject {
     if (!team || team.ai) return json({ error: this.m('That team is not in this game.', 'Bu takım oyunda yok.') }, 404);
     const player = request.headers.get('x-player') || '';
     const allowed = request.headers.get('x-host-key') === this.hostKey || (player && team.owner === player);
-    if (!allowed) return json({ error: this.m('Only the moderator or the team itself can change its brochure.', 'Broşürü yalnızca moderatör ya da takımın kendisi değiştirebilir.') }, 403);
+    if (!allowed) return json({ error: this.m('Only the moderator or the team itself can change its communication asset.', 'İletişim materyalini yalnızca moderatör ya da takımın kendisi değiştirebilir.') }, 403);
     if (request.method === 'DELETE') {
       await this.ctx.storage.delete(key);
       reduce(this.state, { type: 'brochure-set', teamId, brochure: null }, { role: 'system', now: Date.now() });
@@ -318,7 +318,7 @@ export class Room extends DurableObject {
     const type = (request.headers.get('content-type') || '').split(';')[0];
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(type)) return json({ error: this.m('Upload an image (JPG, PNG or WebP).', 'Bir resim yükle (JPG, PNG ya da WebP).') }, 415);
     const bytes = await request.arrayBuffer();
-    if (!bytes.byteLength || bytes.byteLength > 1_500_000) return json({ error: this.m('The brochure must be under 1.5 MB.', 'Broşür 1,5 MB’tan küçük olmalı.') }, 413);
+    if (!bytes.byteLength || bytes.byteLength > 1_500_000) return json({ error: this.m('The communication asset must be under 1.5 MB.', 'İletişim materyali 1,5 MB’tan küçük olmalı.') }, 413);
     const w = Math.max(1, Math.min(10000, Number(url.searchParams.get('w')) || 1)), h = Math.max(1, Math.min(10000, Number(url.searchParams.get('h')) || 1));
     await this.ctx.storage.put(key, { bytes, type });
     reduce(this.state, { type: 'brochure-set', teamId, brochure: { v: Date.now(), w, h } }, { role: 'system', now: Date.now() });

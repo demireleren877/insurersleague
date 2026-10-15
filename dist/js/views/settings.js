@@ -1,7 +1,7 @@
 // Moderator settings: the side panel opened on stage.
 import { getState, teamStatus, raceStarted } from '../store.js';
 import { icon, emblem, qrSvg, joinUrl } from '../ui.js';
-import { esc } from '../format.js';
+import { esc, short } from '../format.js';
 import { rulesOf } from '../../engine.js';
 import { getLang, t } from '../i18n.js';
 import { aiProfileName } from '../jev.js';
@@ -17,9 +17,9 @@ export function settingsPanel() {
     <section class="set-block">
       <header><h3>${icon('users', 16)} ${t('Game', 'Oyun')}</h3><span class="faint small">PIN ${esc(s.code)}</span></header>
       ${s.inputMode === 'excel'
-        ? `<p class="set-note">${icon('file', 15)} ${t('Teams hand in their plans as workbooks on their lobby cards; no participant device joins.', 'Takımlar planlarını lobideki kartlarına dosya olarak teslim eder; katılımcı cihazı bağlanmaz.')}</p>`
+        ? `<p class="set-note">${icon('file', 15)} ${t('Teams hand in their strategies on their lobby cards; no participant device joins.', 'Takımlar stratejilerini lobideki kartlarına teslim eder; katılımcı cihazı bağlanmaz.')}</p>`
         : `<div class="set-join">${qrSvg(url, { size: 112 })}<div><b class="num">${esc(s.code.replace(/(\d{3})(\d{3})/, '$1 $2'))}</b><a href="${esc(url)}" target="_blank" rel="noopener" translate="no">${esc(url.replace(/^https?:\/\//, ''))}</a></div></div>`}
-      <ul class="set-teams">${s.teams.length ? s.teams.map(t2 => { const st = teamStatus(t2); return `<li style="--team:${t2.color}">${emblem(t2, 'xs')}<span><b>${esc(t2.name)} ${t2.ai ? '<em class="ai-tag">JEV AI</em>' : ''}</b><small class="st-${st.id}">${st.label}${t2.ai ? ` · ${esc(aiProfileName(t2.ai.profile, getLang()))}` : ''}</small></span>
+      <ul class="set-teams">${s.teams.length ? s.teams.map(t2 => { const st = teamStatus(t2); return `<li style="--team:${t2.color}">${emblem(t2, 'xs')}<span><b>${short(t2.name)} ${t2.ai ? '<em class="ai-tag">JEV AI</em>' : ''}</b><small class="st-${st.id}">${st.label}${t2.ai ? ` · ${esc(aiProfileName(t2.ai.profile, getLang()))}` : ''}</small></span>
         ${s.inputMode !== 'excel' && !active && t2.locked && !t2.ai ? `<button class="btn ghost sm" data-action="revision" data-team="${t2.id}">${icon('unlock', 13)} ${t('Unlock', 'Kilidi aç')}</button>` : ''}
         ${!active ? `<button class="icon-btn sm" data-action="remove-team" data-team="${t2.id}" aria-label="${t(`Remove ${esc(t2.name)}`, `${esc(t2.name)} takımını çıkar`)}" title="${t('Remove team', 'Takımı çıkar')}">${icon('x', 14)}</button>` : ''}</li>`; }).join('') : `<li class="faint">${t('No teams yet.', 'Henüz takım yok.')}</li>`}</ul>
       <div class="set-ai">

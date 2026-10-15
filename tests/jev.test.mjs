@@ -33,9 +33,9 @@ test('Jev choices become a legal strategy and an AI team can complete a season',
 
   assert.deepEqual(validate({ name: 'Jev', strategy: decision.strategy }, session.config), []);
   assert.equal(decision.strategy.offers.reduce((sum, value) => sum + value, 0), 100);
-  assert.ok(decision.strategy.marketing <= cascoMoney(session.config).budget);
+  assert.ok(decision.strategy.marketing <= cascoMoney(session.config).half && decision.strategy.marketing2 === decision.strategy.marketing);
   assert.ok(decision.confidence > .9);
-  assert.ok(decision.strategy.marketing >= cascoMoney(session.config).budget * 0.85, 'the challenger keeps its big-spending identity');
+  assert.ok(decision.strategy.marketing >= cascoMoney(session.config).half * 0.85, 'the challenger keeps its big-spending identity');
 
   const created = reduce(session, {
     type: 'ai-team-create', name: identity.name, emblem: identity.emblem, strategy: decision.strategy,
