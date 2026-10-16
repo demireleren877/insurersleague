@@ -76,6 +76,10 @@ export function emblem(team, size = 'md') {
   return `<span class="emblem emblem-${size}" style="--team:${team.color}" aria-hidden="true"><svg viewBox="0 0 36 36"><path d="${shape.path}"/></svg></span>`;
 }
 
+// A bankrupt team's name carries a red stamp on its top-right corner; the name itself stays readable.
+export const bankruptStamp = (cls = '') => `<span class="stamp-bankrupt over ${cls}" aria-label="${t('Bankrupt', 'Battı')}">${t('BANKRUPT', 'BATTI')}</span>`;
+export const stamped = (nameHtml, bankrupt) => (bankrupt ? `<span class="name-stamped">${nameHtml}${bankruptStamp()}</span>` : nameHtml);
+
 export function button(label, action, cls = 'ghost', attrs = '') {
   return `<button type="button" class="btn ${cls}" data-action="${action}" ${attrs}>${label}</button>`;
 }

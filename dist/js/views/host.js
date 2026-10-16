@@ -24,6 +24,6 @@ export function hostPage(active, content, actions = '') {
       <div class="host-bar-actions">${actions}${languageControl(true)}</div>
     </header>
     ${raceStarted() && active === 'rules' ? `<div class="host-banner">${icon('lock', 16)} ${t('The race is running. Rules are locked; to change them, end the game and start "New game, same teams".', 'Yarış sürüyor. Kurallar kilitli; değiştirmek için oyunu bitirip “Aynı takımlarla yeni oyun”u başlat.')}</div>` : ''}
-    <main class="host-main ${active === 'rules' ? 'wide' : ''}" id="main">${content}</main>
+    <main class="host-main ${active === 'rules' ? 'wide' : active === 'results' ? 'full' : ''}" id="main">${content}</main>
   </div>`;
 }

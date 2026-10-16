@@ -510,5 +510,48 @@ dialog.team-analysis[open] { display: flex; flex-direction: column; }
 .results-table tr.winner td { background: color-mix(in oklab, var(--hl) 28%, transparent); }
 .results-table tr.winner .rank svg { color: var(--ink); }
 .results-table tr.bankrupt td { color: var(--ink-3); }
-.results-table tr.bankrupt td:nth-child(2) { position: relative; }
-.stamp-bankrupt { display: inline-block; margin-left: 10px; padding: 2px 8px; border: 2.5px solid var(--down); border-radius: 4px; color: var(--down); font: 900 12px/1.2 var(--font); letter-spacing: .12em; transform: rotate(-8deg); vertical-align: middle; }
+.results-table .team-cell { position: relative; display: inline-flex; align-items: center; }
+
+/* Bankrupt: a red rubber stamp slammed across the team name. */
+.stamp-bankrupt {
+  display: inline-block; margin-left: 12px; padding: 4px 12px 3px;
+  color: var(--down); background: color-mix(in oklab, var(--down) 8%, transparent);
+  border: 3px solid currentColor; border-radius: 6px; outline: 1.5px solid currentColor; outline-offset: 2px;
+  font: 900 15px/1.1 var(--font); letter-spacing: .22em; text-transform: uppercase; white-space: nowrap;
+  transform: rotate(-9deg); vertical-align: middle; mix-blend-mode: multiply; opacity: .92;
+  text-shadow: 0 0 1px currentColor;
+}
+.name-stamped { position: relative; display: inline-block; }
+/* On a name: perched above its right end, clear of the letters, so the name stays readable. */
+.stamp-bankrupt.over {
+  position: absolute; right: -.9em; top: .05em; margin: 0; z-index: 2; pointer-events: none;
+  padding: .22em .6em .16em; font-size: clamp(12px, .6em, 20px); letter-spacing: .2em;
+  border-width: 3px; outline-width: 1.5px; outline-offset: 2px;
+  background: color-mix(in oklab, var(--paper) 88%, var(--down) 6%); mix-blend-mode: normal; opacity: 1;
+  box-shadow: 0 2px 0 color-mix(in oklab, var(--down) 22%, transparent);
+  transform: translateY(-100%) rotate(-7deg); transform-origin: right bottom;
+}
+.results-table .stamp-bankrupt.over { font-size: clamp(13px, .85vw, 16px); }
+.lane .lane-stamp { display: none; }
+.lane.dq .lane-stamp { display: inline-block; }
+.lane.dq .name-stamped { opacity: 1; }
+.final-bankrupt { display: flex; flex-wrap: wrap; gap: 26px 34px; padding-top: 18px; }
+.final-bankrupt .name-stamped { font-weight: 800; }
+@media (prefers-reduced-motion: no-preference) {
+  .stamp-bankrupt.over { animation: stamp-slam .55s cubic-bezier(.2, 1.6, .4, 1) both .2s; }
+  @keyframes stamp-slam {
+    from { opacity: 0; transform: translateY(-100%) rotate(-22deg) scale(2.2); }
+    70% { opacity: 1; transform: translateY(-100%) rotate(-6deg) scale(.94); }
+    to { opacity: 1; transform: translateY(-100%) rotate(-7deg) scale(1); }
+  }
+}
+
+/* Detailed results: the whole width of the screen, set large enough to read from across the room. */
+.host-main.full { max-width: none; padding-inline: clamp(16px, 2vw, 36px); }
+.host-main.full .results-table { font-size: 16px; }
+.host-main.full .results-table thead th { font-size: 13.5px; max-width: 150px; padding: 10px 14px; }
+.host-main.full .results-table th.group { font-size: 14px; }
+.host-main.full .results-table td { padding: 16px 14px; font-size: clamp(17px, 1.2vw, 22px); }
+.host-main.full .results-table td.strong, .host-main.full .results-table td.rank { font-size: clamp(20px, 1.45vw, 27px); }
+.host-main.full .results-table .result-team-link b { font-size: clamp(17px, 1.2vw, 22px); }
+.host-main.full .results-table .emblem { --size: 36px; }

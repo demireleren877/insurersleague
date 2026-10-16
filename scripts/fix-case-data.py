@@ -123,28 +123,29 @@ ws = part.active
 ws.title = 'DATA'
 write_table(ws, keep, [[r[col[k]] for k in keep] for r in body], DATA_FMT, DATA_W)
 ws = part.create_sheet('DICTIONARY')
+# The participant file is English only: teams read it as handed out, whatever the room's language.
 dictionary = [
-    ('customer_id', 'Customer identifier', 'Müşteri kimliği'),
-    ('renewal_channel', 'Sales channel: Agency, Bank, Digital, Broker', 'Satış kanalı: acente, banka, dijital, broker'),
-    ('city', 'City: Istanbul, Ankara, Izmir, Bursa, Antalya, Other', 'İl: İstanbul, Ankara, İzmir, Bursa, Antalya, diğer'),
-    ('vehicle_segment', 'Vehicle age: New/0-1y, Mid (2-6y), Old (7y+)', 'Araç yaşı: yeni (0–1), orta (2–6), eski (7+)'),
-    ('customer_type', 'Individual or Commercial', 'Bireysel ya da ticari'),
-    ('final_premium_gross', 'Gross premium the customer pays (EUR)', 'Müşterinin ödediği brüt prim (EUR)'),
-    ('competitor_price_index', 'Competitors’ price ÷ our price (1.05 = competitors 5% dearer)', 'Rakip fiyatı ÷ bizim fiyat (1,05 = rakipler %5 pahalı)'),
-    ('claims_count_12m', 'Number of claims in the last 12 months', 'Son 12 aydaki hasar adedi'),
-    ('claims_paid_12m', 'Claims paid in the last 12 months (EUR)', 'Son 12 ayda ödenen hasar (EUR)'),
-    ('persona', 'Customer persona: Bank customer, Post-claim, Price-driven, Value-driven', 'Müşteri personası: banka müşterisi, hasar sonrası, fiyat odaklı, değer odaklı'),
+    ('customer_id', 'Customer identifier'),
+    ('renewal_channel', 'Sales channel: Agency, Bank, Digital, Broker'),
+    ('city', 'City: Istanbul, Ankara, Izmir, Bursa, Antalya, Other'),
+    ('vehicle_segment', 'Vehicle age: New/0-1y, Mid (2-6y), Old (7y+)'),
+    ('customer_type', 'Individual or Commercial'),
+    ('final_premium_gross', 'Gross premium the customer pays (EUR)'),
+    ('competitor_price_index', 'Competitors’ price ÷ our price (1.05 = competitors 5% dearer)'),
+    ('claims_count_12m', 'Number of claims in the last 12 months'),
+    ('claims_paid_12m', 'Claims paid in the last 12 months (EUR)'),
+    ('persona', 'Customer persona: Bank customer, Post-claim, Price-driven, Value-driven'),
 ]
-ws.append(['Column', 'Description', 'Açıklama'])
+ws.append(['Column', 'Description'])
 for c in ws[1]:
     c.font, c.fill = HEAD_FONT, HEAD_FILL
 for r in dictionary:
     ws.append(list(r))
-for letter, w in zip('ABC', (24, 70, 70)):
+for letter, w in zip('AB', (24, 90)):
     ws.column_dimensions[letter].width = w
 ws.freeze_panes = 'A2'
 ws.append([])
-ws.append(['Note', f'The data is a sample of {n_all:,} customers from the casco market; its profile matches the market the game simulates.', f'Veri kasko pazarından {n_all:,} müşterilik bir örneklemdir; profili oyunun simüle ettiği pazarla aynıdır.'.replace(',', '.')])
+ws.append(['Note', f'The data is a sample of {n_all:,} customers from the casco market; its profile matches the market the game simulates.'])
 
 # The marketing inputs (Marketing_Input.xlsx) with this game's own budget and audience.
 game = json.loads(subprocess.run(['node', '--input-type=module', '-e', """
@@ -155,39 +156,38 @@ console.log(JSON.stringify({ half: m.half, audience: campaignAudience(R, m), K, 
 """], capture_output=True, text=True, check=True).stdout)
 KC = game['K']
 ws = part.create_sheet('MARKETING')
-ws.append(['Item', 'Value', 'Açıklama / Description'])
+ws.append(['Item', 'Value', 'Description'])
 for c in ws[1]:
     c.font, c.fill = HEAD_FONT, HEAD_FILL
 rows = [
-    ('Population', 84_000_000, 'Nüfus'),
-    ('18–55 digital users', KC['digitalUsers'], '18–55 yaş dijital kullanıcı'),
-    ('Target group: Joyful Disregarders', KC['targetShare'], 'Hedef kitle: dijital kullanıcıların payı'),
-    ('Marketing budget per team, January–June (EUR, at most)', game['half'], 'Takım başına Ocak–Haziran pazarlama bütçesi (en fazla). Medya ve hediye arasında bölünür; devretmez.'),
-    ('Marketing budget per team, July–December (EUR, at most)', game['half'], 'Takım başına Temmuz–Aralık pazarlama bütçesi (en fazla). Yarıyıl molasında değiştirilebilir.'),
-    ('Target group per team in a year', round(game['audience']), 'Bu oyunda takım başına yıllık hedef kitle (vakadaki euro başına kişi korunur)'),
-    ('Cost of reaching 100 customers (EUR)', KC['reachCost'], 'Hedef kitleden 100 müşteriye ulaşmanın maliyeti; kitle doldukça her ek euro daha az yeni kişiye ulaşır (erişim = kitle × (1 − e^(−temas ÷ kitle)))'),
-    ('Price effect cap on conversion (×)', KC['priceCap'], 'Ucuz fiyat kampanya dönüşümünü en fazla bu kat artırır'),
-    ('Expense ratio (share of premium)', game['expenseRatio'], 'Gider oranı: her euro primin işletmeye (satış, poliçe yönetimi) giden payı'),
-    ('Fixed operating cost a year (EUR)', game['fixed'], 'Yıllık sabit işletme gideri (hasar yönetimi dahil)'),
-    *[(f'Channel commission: {en} (share of premium)', v, f'Kanal komisyonu: {tr} (primin payı)') for en, tr, v in game['commission']],
+    ('Population', 84_000_000, 'Population of the market'),
+    ('18–55 digital users', KC['digitalUsers'], 'Digital users aged 18–55'),
+    ('Target group: Joyful Disregarders', KC['targetShare'], 'Share of the digital users in the target group'),
+    ('Marketing budget per team, January–June (EUR, at most)', game['half'], 'Split between media and gifts; unspent money stays in profit, nothing carries over.'),
+    ('Marketing budget per team, July–December (EUR, at most)', game['half'], 'The same amount runs again unless the half-year review changes it.'),
+    ('Target group per team in a year', round(game['audience']), 'People in the target group per team and year in this game'),
+    ('Cost of reaching 100 customers (EUR)', KC['reachCost'], 'Media cost per 100 people reached; as the shared target group fills up, each extra euro reaches fewer new people (reach = audience × (1 − e^(−contacts ÷ audience))).'),
+    ('Price effect cap on conversion (×)', KC['priceCap'], 'A cheaper price can raise campaign conversion at most this many times.'),
+    ('Expense ratio (share of premium)', game['expenseRatio'], 'Share of every euro of premium spent on running the business (sales, policy administration).'),
+    ('Fixed operating cost a year (EUR)', game['fixed'], 'Yearly fixed operating cost, claims handling included.'),
+    *[(f'Channel commission: {en} (share of premium)', v, f'Commission paid on premium sold through {en}.') for en, tr, v in game['commission']],
 ]
 for r in rows:
     ws.append(list(r))
 for i, fmt in enumerate(['#,##0', '#,##0', PCT1, EUR0, EUR0, '#,##0', EUR2, '0.0', PCT1, EUR0, *[PCT1] * len(game['commission'])], start=2):
     ws.cell(row=i, column=2).number_format = fmt
 ws.append([])
-ws.append(['Gift', 'Interest rate', 'Cost (EUR)', 'Click rate', 'Hit ratio', 'Hediye'])
+ws.append(['Gift', 'Interest rate', 'Cost (EUR)', 'Click rate', 'Hit ratio'])
 for c in ws[ws.max_row]:
     c.font, c.fill = HEAD_FONT, HEAD_FILL
 for o, (en, tr) in zip(KC['offers'], game['names']):
-    ws.append([en, o['interest'], o['cost'], o['click'], o['hit'], tr])
+    ws.append([en, o['interest'], o['cost'], o['click'], o['hit']])
     r = ws.max_row
     for cl, fmt in (('B', PCT1), ('C', EUR0), ('D', PCT1), ('E', PCT1)):
         ws[f'{cl}{r}'].number_format = fmt
 ws.append([])
 ws.append(['How it works', '', 'Customers per gift = reach × gift weight × interest × click × hit ratio; each gift serves at most (gift budget × its weight) ÷ its cost customers. Every acquired customer gets one gift.'])
-ws.append(['Nasıl çalışır', '', 'Hediye başına müşteri = erişim × hediye ağırlığı × ilgi × tıklama × hit oranı; her hediye en fazla (hediye bütçesi × ağırlığı) ÷ maliyeti kadar müşteriye yeter. Kazanılan her müşteri bir hediye alır.'])
-for letter, w in zip('ABCDEF', (40, 16, 90, 12, 12, 30)):
+for letter, w in zip('ABCDE', (52, 16, 110, 12, 12)):
     ws.column_dimensions[letter].width = w
 ws.freeze_panes = 'A2'
 part.save('veri/katilimci_verisi.xlsx')

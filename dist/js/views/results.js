@@ -1,5 +1,5 @@
 import { getState, seasonDone, playhead, raceStarted, results } from '../store.js';
-import { icon, emblem, byId } from '../ui.js';
+import { icon, emblem, byId, stamped } from '../ui.js';
 import { money, fmt, pct, short, esc } from '../format.js';
 import { cascoMoney } from '../../engine.js';
 import { hostPage as shell } from './host.js';
@@ -61,7 +61,7 @@ export function resultsPage() {
         const winner = i === 0 && !r.bankrupt;
         return `<tr style="--team:${t2.color}" class="${winner ? 'winner' : ''} ${r.bankrupt ? 'bankrupt' : ''}">
         <td class="num rank">${winner ? icon('cup', 20) : String(i + 1).padStart(2, '0')}</td>
-        <td><button type="button" class="team-link result-team-link" data-action="team-analysis" data-team="${t2.id}" aria-haspopup="dialog" aria-label="${esc(t(`Open analysis for ${t2.name}`, `${t2.name} takımının analizini aç`))}">${emblem(t2, 'sm')}<b>${short(t2.name)}</b>${icon('chevron', 14)}</button>${r.bankrupt ? `<span class="stamp-bankrupt">${t('BANKRUPT', 'BATTI')}</span>` : ''}</td>
+        <td><div class="team-cell"><button type="button" class="team-link result-team-link" data-action="team-analysis" data-team="${t2.id}" aria-haspopup="dialog" aria-label="${esc(t(`Open analysis for ${t2.name}`, `${t2.name} takımının analizini aç`))}">${emblem(t2, 'sm')}<b>${stamped(short(t2.name), r.bankrupt)}</b>${icon('chevron', 14)}</button></div></td>
         <td class="num">${fmt(r.components[0], 1)}</td><td class="num">${fmt(r.components[1], 1)}</td><td class="num strong sorted">${fmt(r.score, 1)}</td>
         <td class="num ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num">${money(r.gwp)}</td><td class="num">${pct(r.share)}</td><td class="num">${fmt(r.policies)}</td>
         <td class="num">${fmt(r.campaign?.total ?? 0)}</td>

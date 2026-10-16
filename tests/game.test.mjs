@@ -36,7 +36,7 @@ test('the game runs from the moderator screen: teams arrive by Excel, devices ca
 
   assert.ok(reduce(s, { type: 'phase', to: 'briefing' }, host(1_004)).changed);
   assert.ok(reduce(s, { type: 'phase', to: 'decisions' }, host(1_005)).changed);
-  assert.equal(s.deadline, 1_005 + 20 * 60_000, 'the decision window runs 20 minutes');
+  assert.equal(s.deadline, 1_005 + 30 * 60_000, 'the decision window runs 30 minutes');
   assert.ok(reduce(s, { type: 'start-race' }, host(1_006)).changed);
   assert.equal(s.results.length, 12);
 });
@@ -300,19 +300,19 @@ test('a team joins from its own device and hands in only its own workbook', () =
   assert.match(reduce(s, { type: 'excel-join', name: 'Late' }, player('ccc', 2_001)).error, /started/);
 });
 
-test('the decision window closes team uploads after 20 minutes; the one half-year review lasts 15 minutes', async () => {
+test('the decision window closes team uploads after 30 minutes; the one half-year review lasts 15 minutes', async () => {
   const { EXCEL_REVIEW_MINUTES } = await import('../dist/js/game.js');
   assert.deepEqual(EXCEL_REVIEW_MINUTES, { 5: 15 });
   const s = freshSession(1_000, { code: '123456', lang: 'en' });
-  assert.equal(s.config.minutes, 20);
+  assert.equal(s.config.minutes, 30);
   reduce(s, { type: 'excel-join', name: 'Nova' }, player('p1', 1_001));
   reduce(s, { type: 'excel-add-team', name: 'Atlas' }, host(1_002));
   reduce(s, { type: 'phase', to: 'briefing' }, host(1_003));
   reduce(s, { type: 'phase', to: 'decisions' }, host(1_004));
   const nova = s.teams.find(t => t.name === 'Nova'), plan = { ...defaultStrategy('Nova', s.config), sentence: 'Plan.' };
-  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 19 * 60_000)).changed, 'in time');
-  assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 21 * 60_000)).error, /Time’s up/);
-  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 21 * 60_000)).changed, 'the moderator can still upload');
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 29 * 60_000)).changed, 'in time');
+  assert.match(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 31 * 60_000)).error, /Time’s up/);
+  assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, host(1_004 + 31 * 60_000)).changed, 'the moderator can still upload');
   reduce(s, { type: 'extend' }, host(1_004 + 21 * 60_000));
   assert.ok(reduce(s, { type: 'excel-team-plan', teamId: nova.id, strategy: plan }, player('p1', 1_004 + 23 * 60_000)).changed, 'added time reopens uploads');
   // One review, after June, for 15 minutes.

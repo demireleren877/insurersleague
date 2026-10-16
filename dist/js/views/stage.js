@@ -3,7 +3,7 @@
 // Phases: lobby → briefing → decision window → live race (with quiz rounds) → final.
 // The rank animation moves linearly between two months' results; every overtake on screen matches a real rank change.
 import { getState, playhead, raceStarted, teamStatus, seasonDone, results, getSession, currentRound, currentStrategyReview, answeredTeams, timeLeft, now as clockNow, brochureUrl } from '../store.js';
-import { icon, emblem, byId, qrSvg, joinUrl, letter } from '../ui.js';
+import { icon, emblem, byId, qrSvg, joinUrl, letter, stamped, bankruptStamp } from '../ui.js';
 import { MIN_TEAMS, MAX_TEAMS, quizModeName, questionOf, quizMonths } from '../game.js';
 import { t, getLang, languageControl } from '../i18n.js';
 import { answerStylesFor, localizedQuestion } from '../quiz.js';
@@ -186,7 +186,7 @@ export function mountStage(root) {
     el.innerHTML = s.teams.map(t2 => `<button class="lane" data-lane="${t2.id}" data-focus="${t2.id}" style="--team:${t2.color}">
       <span class="lane-pos num">--</span>
       <span class="lane-move num"></span>
-      <span class="lane-id ${t2.name.length > 11 ? 'long' : ''}">${emblem(t2, 'md')}<span><b class="display">${short(t2.name)}</b><small>${esc(t2.code)} · ${short(localizedTeamProduct(t2, s.config, getLang()), 26)}</small><span class="lane-tag"></span></span></span>
+      <span class="lane-id ${t2.name.length > 11 ? 'long' : ''}">${emblem(t2, 'md')}<span><b class="display"><span class="name-stamped">${short(t2.name)}${bankruptStamp('lane-stamp')}</span></b><small>${esc(t2.code)} · ${short(localizedTeamProduct(t2, s.config, getLang()), 26)}</small><span class="lane-tag"></span></span></span>
       <span class="lane-val num">—</span>
       <span class="lane-stat num" data-k="gwp"></span>
       <span class="lane-stat num" data-k="profit"></span>
@@ -422,7 +422,7 @@ export function mountStage(root) {
       <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Points', 'Puan')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('This half-year', 'Bu yarıyıl')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Campaign customers', 'Kampanya müşterisi')}</th></tr></thead>
       <tbody>${rows.map((r, i) => { const team = byId(s.teams, r.id); return `<tr style="--team:${team.color}" class="${i === 0 ? 'leader' : ''}">
         <td class="num rank">${pad(i + 1)}</td>
-        <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${short(team.name)}</b>${r.bankrupt ? `<span class="stamp-bankrupt">${t('BANKRUPT', 'BATTI')}</span>` : ''}</span></td>
+        <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${stamped(short(team.name), r.bankrupt)}</b></span></td>
         <td class="num r strong">${fmt(r.score, 1)}</td><td class="num r">${money(r.gwp)}</td><td class="num r">${money(quarterGwp(r))}</td><td class="num r">${pct(r.share)}</td>
         <td class="num r ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num r ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio, 0)}</td><td class="num r">${fmt(r.campaign?.total ?? 0)}</td>
       </tr>`; }).join('')}</tbody>
@@ -466,7 +466,7 @@ export function mountStage(root) {
     return `<header class="final-one-head"><span class="award-icon">${icon(a.icon, 26)}</span><div>${AWARDS.length > 1 ? `<small>${t('Trophy', 'Kupa')} ${k + 1} / ${AWARDS.length}</small>` : ''}<h2 class="display">${a.label}</h2><p>${a.basis}</p></div></header>
       ${podium(rows, teams, 'final-podium', a)}
       ${rest.length ? `<ol class="final-rest" start="4">${rest.map((r, i) => { const t2 = byId(teams, r.id); return `<li style="--team:${t2.color}"><b class="num">${i + 4}.</b>${emblem(t2, 'sm')}<span>${short(t2.name)}</span><em class="num">${a.value(r)}</em></li>`; }).join('')}</ol>` : ''}
-      ${broke.length ? `<p class="final-bankrupt"><span class="stamp-bankrupt">${t('BANKRUPT', 'BATTI')}</span> ${broke.map(r => short(byId(teams, r.id).name)).join(' · ')}</p>` : ''}`;
+      ${broke.length ? `<p class="final-bankrupt">${broke.map(r => stamped(short(byId(teams, r.id).name), true)).join('')}</p>` : ''}`;
   }
   function renderFinal() {
     const s = getState();
@@ -609,7 +609,7 @@ export function mountStage(root) {
     body.innerHTML = `${progress}
       <section class="mobile-race-head"><div><p class="kicker"><span class="live-dot"></span> ${t('Live race', 'Canlı yarış')}</p><h1 class="display">${month}</h1><span>${t(`Month ${m + 1} / 12`, `Ay ${m + 1} / 12`)}</span></div></section>
       <section class="mobile-stage-card standings"><header><div><p class="kicker">${t('Leader on points', 'Puan lideri')}</p><h2 class="display">${lead ? esc(byId(s.teams, lead.id).name) : '—'}</h2></div><span class="chip info">${lead ? `${fmt(lead.score, 1)} ${t('pts', 'puan')}` : '—'}</span></header>
-        <ol>${rows.map(row => { const team = byId(s.teams, row.id); return `<li style="--team:${team.color}" class="${row.id === lead?.id ? 'leader' : ''}"><b class="num">${pad(row.rank)}</b>${emblem(team, 'xs')}<span><strong>${short(team.name)}</strong><small>${money(row.gwp)} ${t('premium', 'prim')} · <i class="${row.profit < 0 ? 'down' : ''}">${money(row.profit)}</i> · ${t('LR', 'H/P')} ${pct(row.grossLossRatio, 0)}${row.bankrupt ? ` · <b class="down">${t('BANKRUPT', 'BATTI')}</b>` : ''}</small></span><em class="num">${fmt(row.score, 1)}</em></li>`; }).join('')}</ol>
+        <ol>${rows.map(row => { const team = byId(s.teams, row.id); return `<li style="--team:${team.color}" class="${row.id === lead?.id ? 'leader' : ''}"><b class="num">${pad(row.rank)}</b>${emblem(team, 'xs')}<span><strong>${stamped(short(team.name), row.bankrupt)}</strong><small>${money(row.gwp)} ${t('premium', 'prim')} · <i class="${row.profit < 0 ? 'down' : ''}">${money(row.profit)}</i> · ${t('LR', 'H/P')} ${pct(row.grossLossRatio, 0)}</small></span><em class="num">${fmt(row.score, 1)}</em></li>`; }).join('')}</ol>
       </section>
       <section class="mobile-stage-card mobile-feed"><p class="kicker">${t('Market news', 'Piyasa haberleri')}</p><ol>${news.length ? news.map(item => `<li class="event"><small>${item.when}</small><span><b>${esc(item.title)}</b> ${esc(item.description)}</span></li>`).join('') : `<li><span>${t('No market news yet.', 'Henüz piyasa haberi yok.')}</span></li>`}</ol></section>
       ${isHost ? `<div class="mobile-action-row"><button class="btn ghost" data-action="toggle-play">${icon(h.running ? 'pause' : 'play', 16)} ${h.running ? t('Pause', 'Duraklat') : t('Resume', 'Devam')}</button><button class="btn go" data-action="next-month">${t('Next month', 'Sonraki ay')} ${icon('next', 16)}</button></div>` : ''}`;
@@ -747,7 +747,7 @@ export function mountStage(root) {
       setText(lane, 'camp', lane.stat.camp, fmt(lerp(prev?.campaign?.total ?? 0, row.campaign?.total ?? 0, t2v)));
       const moved = startOrder.indexOf(x.id) - p;
       setText(lane, 'move', lane.move, !from ? '' : moved > 0 ? `<b class="up">▲${moved}</b>` : moved < 0 ? `<b class="down">▼${-moved}</b>` : '<b class="flat">–</b>', true);
-      const tag = elapsed < revealAt ? '' : !row.eligible ? `<i class="bad">${icon('x', 12)} ${t('BANKRUPT', 'BATTI')}</i>` : row.exposed.length ? `<i class="warn">${icon('bolt', 12)} ${t('EVENT IMPACT', 'OLAY ETKİSİ')}</i>` : row.monthLossRatio > 1 ? `<i class="bad">${icon('shield', 12)} ${t('CLAIMS OVER PREMIUM', 'HASAR PRİMİ AŞTI')}</i>` : '';
+      const tag = elapsed < revealAt ? '' :  !row.eligible ? '' : row.exposed.length ? `<i class="warn">${icon('bolt', 12)} ${t('EVENT IMPACT', 'OLAY ETKİSİ')}</i>` : row.monthLossRatio > 1 ? `<i class="bad">${icon('shield', 12)} ${t('CLAIMS OVER PREMIUM', 'HASAR PRİMİ AŞTI')}</i>` : '';
       setText(lane, 'tag', lane.tag, tag, true);
     }
 

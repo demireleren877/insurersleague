@@ -72,9 +72,9 @@ export const EVENT_SCOPES = eventScopesFor('en');
 
 // cost: claims multiplier in scope · demand: customers coming to market in scope · duration in months.
 const EVENT_TEXT = [
-  { month: 2, duration: 6, cost: 1.12, demand: 1, scope: 'all',
-    en: ['Rapid Currency Depreciation', 'The free fall in the Turkish lira has stoked fears of an economic fallout. (12% FX shock)'],
-    tr: ['Hızlı kur değer kaybı', 'Türk lirasındaki serbest düşüş ekonomik çöküş endişelerini körükledi. (%12 kur şoku)'] },
+  { month: 2, duration: 6, cost: 1.08, demand: 1, scope: 'all',
+    en: ['Rapid Currency Depreciation', 'The free fall in the Turkish lira has stoked fears of an economic fallout. (8% FX shock)'],
+    tr: ['Hızlı kur değer kaybı', 'Türk lirasındaki serbest düşüş ekonomik çöküş endişelerini körükledi. (%8 kur şoku)'] },
   { month: 5, duration: 1, cost: 1.3, demand: 1, scope: 'city:0',
     en: ['Hailstorm over Istanbul', 'A severe hailstorm hits Istanbul: claims from Istanbul policies written this month run 30% higher.'],
     tr: ['İstanbul’da dolu fırtınası', 'İstanbul’u sert bir dolu vurdu: bu ay yazılan İstanbul poliçelerinde hasar %30 yüksek.'] },
@@ -93,7 +93,7 @@ export const EVENTS = eventsFor('en');
 
 export function scenario(lang = 'en') {
   return {
-    version: 'casco-1.0', seed: 2026, year: 2026, branch: presetName(DEFAULT_PRESET, lang), preset: DEFAULT_PRESET, minutes: 20, speed: 6,
+    version: 'casco-1.0', seed: 2026, year: 2026, branch: presetName(DEFAULT_PRESET, lang), preset: DEFAULT_PRESET, minutes: 30, speed: 6,
     weights: [50, 50], lang, assumptions: cascoAssumptions(lang), events: eventsFor(lang), rules: defaultCascoRules()
   };
 }

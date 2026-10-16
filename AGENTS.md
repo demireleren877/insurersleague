@@ -9,7 +9,7 @@ A casco (motor own-damage) pricing workshop game. 2–12 teams compete for one s
 
 There is one trophy, by total points: profit points (none below €0, 50 at €0, 100 at €1M) + premium points (none below €4M, 50 at €4M, 100 at €8M), ties by profit; a combined ratio above 135% is bankruptcy (ranked last, stamped). There is no NPS, no capital, no reinsurance and no claims operations. Teams revise their plan once, at the half-year review after June.
 
-Costs each month: claims + fixed cost/12 (€500k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near a 76% target loss ratio and a flat tariff loses. Score thresholds are euro amounts in the assumptions (`profitFloor`, `profitTarget`, `premiumFloor`, `premiumTarget`, `bankruptRatio`).
+Costs each month: claims + fixed cost/12 (€200k a year) + 5% of written premium (`expenseRatio`) + channel commission on written premium (Agency 5%, Bank 10%, Digital 2%, Broker 10%; `rules.commission`) + marketing bought. Calibrated so data-based pricing makes ~10% of a fair slice, break-even sits near an 80% target loss ratio and a flat tariff loses. Score thresholds are euro amounts in the assumptions (`profitFloor`, `profitTarget`, `premiumFloor`, `premiumTarget`, `bankruptRatio`).
 
 It runs on Cloudflare Workers:
 - `worker/index.js`, with Durable Objects `Room` (one per 6-digit PIN) and `Archive`.
@@ -44,7 +44,7 @@ It runs on Cloudflare Workers:
 3. **The audit workbook mirrors the engine formula by formula.** If you change the engine's arithmetic, change `audit.js` the same way and verify in Microsoft Excel: open the generated file, calculate, and the "Puan" sheet difference column must be ~0.
 4. **Every Excel input rule is enforced on the server too** (`validateCasco`, `strategyFrom`, `marketingOver`). Excel validation is a convenience, not a guard.
 5. **Marketing halves:** `marketing` is January–June, `marketing2` July–December, each ≤ half the budget and spent evenly over its six months. Only `marketing2` is a review lever. The cost is only what was bought (media + gifts handed out); unallocated budget and unused gift money stay in profit.
-6. **Pre-race workbook uploads** are allowed only in the `decisions` phase. There is one review, after June, for 15 minutes (`STRATEGY_REVIEW_MONTHS`, `EXCEL_REVIEW_MINUTES`); the decision window is 20 minutes.
+6. **Pre-race workbook uploads** are allowed only in the `decisions` phase. There is one review, after June, for 15 minutes (`STRATEGY_REVIEW_MONTHS`, `EXCEL_REVIEW_MINUTES`); the decision window is 30 minutes.
 7. **Players rejoin by team name** when their device is offline (`excel-join`), even mid-race. Their identity lives in `localStorage`.
 8. **Bump the asset version** (`?v=NN` in `dist/index.html` and in `dist/js/main.js` imports) on every UI change. Replace the number everywhere: `grep -rl "v=NN" dist | xargs sed -i '' 's/v=NN/v=NN+1/g'`.
 9. **The participant data file is served by the Worker from R2** (`/data/katilimci-verisi.xlsx`, downloads as "Pricing Case Data.xlsx"). Do not put it back into `dist/`: as a static asset it went missing on some Cloudflare edges.
