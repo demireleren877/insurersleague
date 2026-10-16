@@ -32,6 +32,18 @@ export default {
       } });
     }
 
+    // Other files the owner shares from the same R2 bucket. Only the keys listed here are served; the rest of the bucket stays private.
+    const SHARED = { '/files/agent-demo-v2.zip': { key: 'agent-demo-v2.zip', type: 'application/zip' } };
+    const shared = SHARED[url.pathname];
+    if (shared && (request.method === 'GET' || request.method === 'HEAD')) {
+      const file = await env.DATA?.get(shared.key);
+      if (!file) return new Response('File not found.', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' } });
+      return new Response(request.method === 'HEAD' ? null : file.body, { headers: {
+        'content-type': shared.type, 'content-disposition': `attachment; filename="${shared.key}"`,
+        'content-length': String(file.size), etag: file.httpEtag, 'cache-control': 'public, max-age=300'
+      } });
+    }
+
     if (url.pathname === '/api/rooms' && request.method === 'POST') {
       const body = await request.clone().json().catch(() => ({}));
       const lang = body.lang === 'tr' ? 'tr' : 'en';

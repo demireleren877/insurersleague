@@ -126,9 +126,9 @@ export function stageMarkup() {
 
       <section class="st-race">
         <div class="st-race-head">
-          <div><p class="kicker" data-st="metric-kicker"></p><h2 class="display">${t('Gross premium race', 'Brüt prim yarışı')}</h2></div>
+          <div><p class="kicker" data-st="metric-kicker"></p><h2 class="display">${t('Points race', 'Puan yarışı')}</h2></div>
         </div>
-        <div class="st-cols"><span>${t('RANK', 'SIRA')}</span><span></span><span>${t('TEAM', 'TAKIM')}</span><span class="r">${t('GROSS PREMIUM', 'BRÜT PRİM')}</span><span class="r">${t('SHARE', 'PAY')}</span><span class="r">${t('PROFIT / LOSS', 'KÂR / ZARAR')}</span><span class="r">${t('LOSS RATIO', 'HASAR / PRİM')}</span><span class="r">${t('CAMPAIGN CUST.', 'KAMPANYA MÜŞ.')}</span></div>
+        <div class="st-cols"><span>${t('RANK', 'SIRA')}</span><span></span><span>${t('TEAM', 'TAKIM')}</span><span class="r">${t('POINTS', 'PUAN')}</span><span class="r">${t('GROSS PREMIUM', 'BRÜT PRİM')}</span><span class="r">${t('PROFIT / LOSS', 'KÂR / ZARAR')}</span><span class="r">${t('LOSS RATIO', 'HASAR / PRİM')}</span><span class="r">${t('CAMPAIGN CUST.', 'KAMPANYA MÜŞ.')}</span></div>
         <div class="st-lanes" data-st="lanes"></div>
         <div class="st-banner" data-st="banner" aria-hidden="true"></div>
         <div class="st-notice" data-st="notice" hidden></div>
@@ -188,7 +188,7 @@ export function mountStage(root) {
       <span class="lane-move num"></span>
       <span class="lane-id ${t2.name.length > 11 ? 'long' : ''}">${emblem(t2, 'md')}<span><b class="display">${short(t2.name)}</b><small>${esc(t2.code)} · ${short(localizedTeamProduct(t2, s.config, getLang()), 26)}</small><span class="lane-tag"></span></span></span>
       <span class="lane-val num">—</span>
-      <span class="lane-stat num" data-k="share"></span>
+      <span class="lane-stat num" data-k="gwp"></span>
       <span class="lane-stat num" data-k="profit"></span>
       <span class="lane-stat num" data-k="loss"></span>
       <span class="lane-stat num" data-k="camp"></span>
@@ -411,19 +411,19 @@ export function mountStage(root) {
       <footer class="review-stage-foot"><p><b class="num">${submitted.size}/${s.teams.length}</b> ${t('plans submitted', 'plan gönderildi')}</p>${isHost ? `<button class="btn go lg" data-action="quarter-close">${icon('play', 18)} ${t('Close review and continue', 'Değerlendirmeyi kapat ve devam et')}</button>` : ''}</footer>`;
   }
 
-  // The quarter's results stay on screen through the review: the year so far, ranked by gross premium,
-  // with what the quarter itself added.
+  // The first half's results stay on screen through the review: the year so far, ranked by points (as the
+  // trophy will be), with what the half-year itself added.
   function quarterResults(month) {
     const s = getState(), now = results()[month], before = results()[month - 6];
     if (!now) return '';
-    const rows = [...now.rows].sort((a, b) => b.gwp - a.gwp);
+    const rows = rank(now.rows, 'score');
     const quarterGwp = r => r.gwp - (before?.rows.find(x => x.id === r.id)?.gwp ?? 0);
     return `<section class="qr-results"><table class="qr-table">
-      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('This half-year', 'Bu yarıyıl')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Campaign customers', 'Kampanya müşterisi')}</th></tr></thead>
+      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Points', 'Puan')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('This half-year', 'Bu yarıyıl')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Campaign customers', 'Kampanya müşterisi')}</th></tr></thead>
       <tbody>${rows.map((r, i) => { const team = byId(s.teams, r.id); return `<tr style="--team:${team.color}" class="${i === 0 ? 'leader' : ''}">
         <td class="num rank">${pad(i + 1)}</td>
-        <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${short(team.name)}</b></span></td>
-        <td class="num r strong">${money(r.gwp)}</td><td class="num r">${money(quarterGwp(r))}</td><td class="num r">${pct(r.share)}</td>
+        <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${short(team.name)}</b>${r.bankrupt ? `<span class="stamp-bankrupt">${t('BANKRUPT', 'BATTI')}</span>` : ''}</span></td>
+        <td class="num r strong">${fmt(r.score, 1)}</td><td class="num r">${money(r.gwp)}</td><td class="num r">${money(quarterGwp(r))}</td><td class="num r">${pct(r.share)}</td>
         <td class="num r ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num r ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio, 0)}</td><td class="num r">${fmt(r.campaign?.total ?? 0)}</td>
       </tr>`; }).join('')}</tbody>
     </table></section>`;
@@ -470,7 +470,7 @@ export function mountStage(root) {
   }
   function renderFinal() {
     const s = getState();
-    const rows = rank(results()[11].rows, 'gwp');
+    const rows = rank(results()[11].rows, 'score');
     const el = $('final');
     clearCeremony();
     el.classList.remove('skip', 'done');
@@ -604,12 +604,12 @@ export function mountStage(root) {
       return;
     }
 
-    const m = Math.max(0, h.month), rows = rank(results()[m]?.rows || [], 'gwp'), lead = rows[0], month = monthsOf(getLang())[m];
+    const m = Math.max(0, h.month), rows = rank(results()[m]?.rows || [], 'score'), lead = rows[0], month = monthsOf(getLang())[m];
     const news = marketNews(s, m);
     body.innerHTML = `${progress}
       <section class="mobile-race-head"><div><p class="kicker"><span class="live-dot"></span> ${t('Live race', 'Canlı yarış')}</p><h1 class="display">${month}</h1><span>${t(`Month ${m + 1} / 12`, `Ay ${m + 1} / 12`)}</span></div></section>
-      <section class="mobile-stage-card standings"><header><div><p class="kicker">${t('Gross premium leader', 'Brüt prim lideri')}</p><h2 class="display">${lead ? esc(byId(s.teams, lead.id).name) : '—'}</h2></div><span class="chip info">${lead ? money(lead.gwp) : '—'}</span></header>
-        <ol>${rows.map(row => { const team = byId(s.teams, row.id); return `<li style="--team:${team.color}" class="${row.id === lead?.id ? 'leader' : ''}"><b class="num">${pad(row.rank)}</b>${emblem(team, 'xs')}<span><strong>${short(team.name)}</strong><small>${pct(row.share)} ${t('share', 'pay')} · <i class="${row.profit < 0 ? 'down' : ''}">${money(row.profit)}</i> · ${t('LR', 'H/P')} ${pct(row.grossLossRatio, 0)}</small></span><em class="num">${money(row.gwp)}</em></li>`; }).join('')}</ol>
+      <section class="mobile-stage-card standings"><header><div><p class="kicker">${t('Leader on points', 'Puan lideri')}</p><h2 class="display">${lead ? esc(byId(s.teams, lead.id).name) : '—'}</h2></div><span class="chip info">${lead ? `${fmt(lead.score, 1)} ${t('pts', 'puan')}` : '—'}</span></header>
+        <ol>${rows.map(row => { const team = byId(s.teams, row.id); return `<li style="--team:${team.color}" class="${row.id === lead?.id ? 'leader' : ''}"><b class="num">${pad(row.rank)}</b>${emblem(team, 'xs')}<span><strong>${short(team.name)}</strong><small>${money(row.gwp)} ${t('premium', 'prim')} · <i class="${row.profit < 0 ? 'down' : ''}">${money(row.profit)}</i> · ${t('LR', 'H/P')} ${pct(row.grossLossRatio, 0)}${row.bankrupt ? ` · <b class="down">${t('BANKRUPT', 'BATTI')}</b>` : ''}</small></span><em class="num">${fmt(row.score, 1)}</em></li>`; }).join('')}</ol>
       </section>
       <section class="mobile-stage-card mobile-feed"><p class="kicker">${t('Market news', 'Piyasa haberleri')}</p><ol>${news.length ? news.map(item => `<li class="event"><small>${item.when}</small><span><b>${esc(item.title)}</b> ${esc(item.description)}</span></li>`).join('') : `<li><span>${t('No market news yet.', 'Henüz piyasa haberi yok.')}</span></li>`}</ol></section>
       ${isHost ? `<div class="mobile-action-row"><button class="btn ghost" data-action="toggle-play">${icon(h.running ? 'pause' : 'play', 16)} ${h.running ? t('Pause', 'Duraklat') : t('Resume', 'Devam')}</button><button class="btn go" data-action="next-month">${t('Next month', 'Sonraki ay')} ${icon('next', 16)}</button></div>` : ''}`;
@@ -690,18 +690,19 @@ export function mountStage(root) {
       if (d.events.length) announce(t('A market event affected this month’s results.', 'Bu ayki sonuçları bir piyasa olayı etkiledi.'));
       shownMonth = m; digestPushed = -1;
       lastOrder = [];
-      $('metric-kicker').textContent = m === 11 ? t('Season-end ranking · cumulative gross premium', 'Sezon sonu sıralaması · kümülatif brüt prim') : t('Live ranking · cumulative gross premium', 'Canlı sıralama · kümülatif brüt prim');
+      $('metric-kicker').textContent = m === 11 ? t('Season-end ranking · total points (profit + premium)', 'Sezon sonu sıralaması · toplam puan (kâr + prim)') : t('Live ranking · total points (profit + premium)', 'Canlı sıralama · toplam puan (kâr + prim)');
     }
     renderFeed(m);
 
     const to = results()[m].rows, from = m > 0 ? results()[m - 1].rows : null;
-    const rankedTo = rank(to, 'gwp');
+    // The ranking is the trophy's: total points, ties by profit; bankrupt teams sink to the bottom.
+    const rankedTo = rank(to, 'score');
     const values = to.map(r => {
-      const f = from ? from.find(x => x.id === r.id).gwp : 0;
-      return { id: r.id, v: lerp(f, r.gwp, t2v), endRank: rankedTo.find(x => x.id === r.id).rank };
+      const f = from ? from.find(x => x.id === r.id).score : 0;
+      return { id: r.id, v: lerp(f, r.score, t2v), standing: r.eligible ? 1 : 0, endRank: rankedTo.find(x => x.id === r.id).rank };
     });
-    const order = [...values].sort((a, b) => b.v - a.v || a.endRank - b.endRank).map(x => x.id);
-    const startOrder = from ? rank(from, 'gwp').map(r => r.id) : order;
+    const order = [...values].sort((a, b) => b.standing - a.standing || b.v - a.v || a.endRank - b.endRank).map(x => x.id);
+    const startOrder = from ? rank(from, 'score').map(r => r.id) : order;
 
     if (lastOrder.length && t2v > 0 && t2v < 1) {
       for (let p = 0; p < order.length; p++) {
@@ -710,7 +711,7 @@ export function mountStage(root) {
           const passed = lastOrder.slice(p, before).filter(x => order.indexOf(x) > p);
           if (passed.length) {
             const a = byId(s.teams, id), b = byId(s.teams, passed[0]);
-            announce(t(`${a.name} passed ${b.name} in gross premium`, `${a.name}, brüt primde ${b.name} takımını geçti`));
+            announce(t(`${a.name} passed ${b.name} on points`, `${a.name}, puanda ${b.name} takımını geçti`));
             const lane = lanes.get(id);
             if (lane && !reduced()) { lane.node.classList.remove('overtake'); void lane.node.offsetWidth; lane.node.classList.add('overtake'); }
             if (s.sound) sfx.overtake();
@@ -719,7 +720,7 @@ export function mountStage(root) {
       }
       if (order[0] !== lastOrder[0]) {
         const lead = byId(s.teams, order[0]);
-        banner(lead.name, lead, t('NEW GROSS PREMIUM LEADER', 'BRÜT PRİMDE YENİ LİDER'));
+        banner(lead.name, lead, t('NEW LEADER', 'YENİ LİDER'));
       }
     }
     lastOrder = order;
@@ -735,9 +736,9 @@ export function mountStage(root) {
       lane.node.classList.toggle('focus', s.focusTeam === x.id && detail);
       lane.node.classList.toggle('dq', !row.eligible);
       setText(lane, 'pos', lane.pos, pad(t2v >= 1 ? x.endRank : p + 1));
-      setText(lane, 'val', lane.val, money(x.v));
+      setText(lane, 'val', lane.val, fmt(x.v, 1));
       // The side stats move with the bar, from last month's figure to this month's.
-      setText(lane, 'share', lane.stat.share, pct(lerp(prev?.share ?? 0, row.share, t2v)));
+      setText(lane, 'gwp', lane.stat.gwp, money(lerp(prev?.gwp ?? 0, row.gwp, t2v)));
       setText(lane, 'profit', lane.stat.profit, money(lerp(prev?.profit ?? 0, row.profit, t2v)));
       lane.stat.profit.classList.toggle('down', lerp(prev?.profit ?? 0, row.profit, t2v) < 0);
       const loss = prev ? lerp(prev.grossLossRatio, row.grossLossRatio, t2v) : row.grossLossRatio;
@@ -746,7 +747,7 @@ export function mountStage(root) {
       setText(lane, 'camp', lane.stat.camp, fmt(lerp(prev?.campaign?.total ?? 0, row.campaign?.total ?? 0, t2v)));
       const moved = startOrder.indexOf(x.id) - p;
       setText(lane, 'move', lane.move, !from ? '' : moved > 0 ? `<b class="up">▲${moved}</b>` : moved < 0 ? `<b class="down">▼${-moved}</b>` : '<b class="flat">–</b>', true);
-      const tag = elapsed < revealAt ? '' : !row.eligible ? `<i class="bad">${icon('x', 12)} ${t('OUT OF THE TROPHIES', 'KUPA DIŞI')}</i>` : row.exposed.length ? `<i class="warn">${icon('bolt', 12)} ${t('EVENT IMPACT', 'OLAY ETKİSİ')}</i>` : row.monthLossRatio > 1 ? `<i class="bad">${icon('shield', 12)} ${t('CLAIMS OVER PREMIUM', 'HASAR PRİMİ AŞTI')}</i>` : '';
+      const tag = elapsed < revealAt ? '' : !row.eligible ? `<i class="bad">${icon('x', 12)} ${t('BANKRUPT', 'BATTI')}</i>` : row.exposed.length ? `<i class="warn">${icon('bolt', 12)} ${t('EVENT IMPACT', 'OLAY ETKİSİ')}</i>` : row.monthLossRatio > 1 ? `<i class="bad">${icon('shield', 12)} ${t('CLAIMS OVER PREMIUM', 'HASAR PRİMİ AŞTI')}</i>` : '';
       setText(lane, 'tag', lane.tag, tag, true);
     }
 
@@ -759,7 +760,7 @@ export function mountStage(root) {
         if (was.id !== is.id && is[key] !== was[key]) { const lead = byId(s.teams, is.id); banner(lead.name, lead, label); }
       }
       const top = rankedTo[0];
-      $('sr').textContent = t(`End of ${months[m]}: ${byId(s.teams, top.id).name} leads with ${money(top.gwp)} of gross premium.`, `${months[m]} sonu: ${byId(s.teams, top.id).name} ${money(top.gwp)} brüt primle lider.`);
+      $('sr').textContent = t(`End of ${months[m]}: ${byId(s.teams, top.id).name} leads with ${fmt(top.score, 1)} points.`, `${months[m]} sonu: ${byId(s.teams, top.id).name} ${fmt(top.score, 1)} puanla lider.`);
     }
 
     if (detail) renderDetail(m); else $('detail').hidden = true;
