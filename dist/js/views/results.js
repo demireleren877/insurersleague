@@ -1,7 +1,7 @@
 import { getState, seasonDone, playhead, raceStarted, results } from '../store.js';
 import { icon, emblem, byId } from '../ui.js';
 import { money, fmt, pct, short, esc } from '../format.js';
-import { yearPlan, cascoMoney } from '../../engine.js';
+import { cascoMoney } from '../../engine.js';
 import { hostPage as shell } from './host.js';
 import { t } from '../i18n.js';
 
@@ -12,7 +12,7 @@ const pageHead = (kicker, title, lead, extra = '') => `<div class="page-head"><d
 // The trophies: each criterion crowns its own podium.
 export const AWARDS = [
   // One trophy: total points (profit points + premium points), then profit. Bankrupt teams can't win it.
-  { id: 'score', icon: 'cup', get label() { return t('Insurers League Cup', 'Insurers League Kupası'); }, get basis() { return t('Total points: profit + premium, 0–200', 'Toplam puan: kâr + prim, 0–200'); }, value: r => `${fmt(r.score, 1)} ${t('pts', 'puan')}`, sort: (a, b) => b.score - a.score || b.profit - a.profit }
+  { id: 'score', icon: 'cup', get label() { return t('SVM Cup', 'SVM Kupası'); }, get basis() { return t('Total points: profit + premium, 0–200', 'Toplam puan: kâr + prim, 0–200'); }, value: r => `${fmt(r.score, 1)} ${t('pts', 'puan')}`, sort: (a, b) => b.score - a.score || b.profit - a.profit }
 ];
 
 export function podium(rows, teams, cls = '', award = AWARDS[0]) {
@@ -49,10 +49,10 @@ export function resultsPage() {
     <header><span class="faint small">${t(`Profit points: below €0 none, €0 → 50, ${money(cascoMoney(s.config).profitTarget)} → 100. Premium points: below ${money(cascoMoney(s.config).premiumFloor)} none, from it 50, ${money(cascoMoney(s.config).premiumTarget)} → 100. A combined ratio above ${pct(cascoMoney(s.config).bankruptRatio, 0)} is bankruptcy.`, `Kâr puanı: €0 altı yok, €0 → 50, ${money(cascoMoney(s.config).profitTarget)} → 100. Prim puanı: ${money(cascoMoney(s.config).premiumFloor)} altı yok, ondan itibaren 50, ${money(cascoMoney(s.config).premiumTarget)} → 100. Bileşik oran ${pct(cascoMoney(s.config).bankruptRatio, 0)}’i aşarsa takım batar.`)}</span><span class="results-analysis-hint">${icon('eye', 16)} ${t('Select a team name for its detailed analysis.', 'Detaylı analiz için takım adına tıkla.')}</span></header>
     <div class="table-wrap"><table class="results-table">
       <thead>
-        <tr><th colspan="2"></th><th colspan="3" class="group">${t('Points', 'Puan')}</th><th colspan="6"></th><th colspan="6" class="group group-start">${t('As a share of gross premium', 'Brüt primin yüzdesi olarak')}</th></tr>
+        <tr><th colspan="2"></th><th colspan="3" class="group">${t('Points', 'Puan')}</th><th colspan="5"></th><th colspan="5" class="group group-start">${t('As a share of gross premium', 'Brüt primin yüzdesi olarak')}</th></tr>
         <tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Premium', 'Prim')}</th><th class="sorted">${t('Total', 'Toplam')}</th>
-          <th>${t('Profit', 'Kâr')}</th><th>${t('Gross premium', 'Brüt prim')}</th><th>${t('Market share', 'Pazar payı')}</th><th>${t('Policies', 'Poliçe adedi')}</th><th>${t('Marketing budget', 'Pazarlama bütçesi')}</th><th>${t('Customers from marketing', 'Pazarlamadan gelen müşteri')}</th>
-          <th class="group-start">${t('Loss ratio', 'Hasar oranı')}</th><th>${t('Commission', 'Komisyon')}</th><th>${t('Running costs', 'İşletme gideri')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Combined ratio', 'Bileşik oran')}</th><th>${t('Profit margin', 'Kâr marjı')}</th></tr>
+          <th>${t('Profit', 'Kâr')}</th><th>${t('Gross premium', 'Brüt prim')}</th><th>${t('Market share', 'Pazar payı')}</th><th>${t('Policies', 'Poliçe adedi')}</th><th>${t('Customers from marketing', 'Pazarlamadan gelen müşteri')}</th>
+          <th class="group-start">${t('Loss ratio', 'Hasar oranı')}</th><th>${t('Commission', 'Komisyon')}</th><th>${t('Running costs', 'İşletme gideri')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Combined ratio', 'Bileşik oran')}</th></tr>
       </thead>
       <tbody>${rows.map((r, i) => {
         const t2 = byId(s.teams, r.id), g = r.gwp || 1;
@@ -64,9 +64,9 @@ export function resultsPage() {
         <td><button type="button" class="team-link result-team-link" data-action="team-analysis" data-team="${t2.id}" aria-haspopup="dialog" aria-label="${esc(t(`Open analysis for ${t2.name}`, `${t2.name} takımının analizini aç`))}">${emblem(t2, 'sm')}<b>${short(t2.name)}</b>${icon('chevron', 14)}</button>${r.bankrupt ? `<span class="stamp-bankrupt">${t('BANKRUPT', 'BATTI')}</span>` : ''}</td>
         <td class="num">${fmt(r.components[0], 1)}</td><td class="num">${fmt(r.components[1], 1)}</td><td class="num strong sorted">${fmt(r.score, 1)}</td>
         <td class="num ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num">${money(r.gwp)}</td><td class="num">${pct(r.share)}</td><td class="num">${fmt(r.policies)}</td>
-        <td class="num">${money(yearPlan(t2).marketing)}</td><td class="num">${fmt(r.campaign?.total ?? 0)}</td>
+        <td class="num">${fmt(r.campaign?.total ?? 0)}</td>
         <td class="num group-start ${claims > 1 ? 'down' : ''}">${pct(claims)}</td><td class="num">${pct(commission)}</td><td class="num">${pct(running)}</td><td class="num">${pct(marketing)}</td>
-        <td class="num strong ${combined > 1 ? 'down' : ''}">${pct(combined)}</td><td class="num strong ${1 - combined < 0 ? 'down' : 'up'}">${pct(1 - combined)}</td>
+        <td class="num strong ${combined > 1 ? 'down' : ''}">${pct(combined)}</td>
         </tr>`; }).join('')}</tbody>
     </table></div>
   </section>
