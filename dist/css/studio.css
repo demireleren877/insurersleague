@@ -576,3 +576,15 @@ dialog.modal.segment-prices { width: min(1500px, calc(100vw - 32px)); }
 .sp-table td.sp-best b { color: var(--up); }
 .sp-table td small.sp-top { color: var(--ink); font-weight: 800; text-decoration: underline 2px var(--hl); text-underline-offset: 3px; }
 .sp-table tbody td:not(.sp-market) { text-align: center; }
+.sp-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.sp-tabs button { padding: 8px 14px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--paper); font: 700 14px/1 var(--font); cursor: pointer; }
+.sp-tabs button[aria-selected="true"] { background: var(--hl); }
+.sp-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.sp-filters label { display: grid; gap: 4px; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.sp-filters select { min-height: 36px; padding: 4px 8px; font-size: 14px; }
+.sp-table.profiles col.sp-c-level { width: 300px; }
+.sp-profile { white-space: normal !important; }
+.sp-profile span { display: inline; }
+.sp-profile span + span::before { content: ' · '; color: var(--ink-3); }
+.sp-profile small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--ink-3); }
+.sp-empty { text-align: center !important; color: var(--ink-3); padding: 18px !important; }

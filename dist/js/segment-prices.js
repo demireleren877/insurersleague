@@ -1,9 +1,11 @@
 // Segment prices: every team's average offer and its share of what the teams sold, level by level
-// (city, channel, vehicle age, persona, customer type), next to the rest of the market's price.
+// (city, channel, vehicle age, persona, customer type), next to the rest of the market's price —
+// and the same for every customer profile (one market cell: a city × channel × vehicle age × persona ×
+// customer type), where the price is the team's own offer for exactly that customer.
 // Prices are averaged over the market's own cells (the same weights for every team) and over the
 // twelve months, so a half-year revision counts for the months it ran. Shares come from the traced
 // season: the policies each team sold in the level ÷ all the teams sold there.
-import { rulesOf, marketCells, simulateTraced, strategyAt, offerFor, cellRisk, DIMENSIONS } from '../engine.js';
+import { rulesOf, marketCells, simulateTraced, strategyAt, offerFor, cellRisk, DIMENSIONS, policiesOf } from '../engine.js';
 
 export function segmentPrices(state) {
   const config = state.config, R = rulesOf(config), cells = marketCells(), teams = state.teams;
@@ -13,10 +15,13 @@ export function segmentPrices(state) {
     levels: R.dimensions[dim].map((_, i) => ({ level: i, weight: 0, market: 0, prices: teams.map(() => 0), sold: teams.map(() => 0) }))
   }));
   const plans = Array.from({ length: 12 }, (_, m) => teams.map(team => strategyAt(team, m)));
+  const sample = cells.reduce((a, c) => a + c[5], 0), policies = policiesOf(config), profiles = [];
   cells.forEach((cell, c) => {
     const w = cell[5], reference = cellRisk(cell, R).reference;
     const offers = teams.map((_, i) => plans.reduce((sum, month) => sum + offerFor(month[i], cell), 0) / 12);
     const sold = teams.map((_, i) => season.reduce((sum, month) => sum + Math.max(0, month.trace[i].market[c] + month.trace[i].campaign[c]), 0));
+    const soldAll = sold.reduce((a, b) => a + b, 0);
+    profiles.push({ cell, customers: w / sample * policies, market: reference, prices: offers, shares: sold.map(v => (soldAll ? v / soldAll : 0)), sold: soldAll });
     DIMENSIONS.forEach((_, k) => {
       const row = table[k].levels[cell[k]];
       row.weight += w; row.market += w * reference;
@@ -29,5 +34,6 @@ export function segmentPrices(state) {
     const total = row.sold.reduce((a, b) => a + b, 0);
     row.shares = row.sold.map(v => (total ? v / total : 0));
   }
-  return { teams: teams.map(t => t.id), table };
+  profiles.sort((a, b) => b.customers - a.customers);
+  return { teams: teams.map(t => t.id), table, profiles };
 }

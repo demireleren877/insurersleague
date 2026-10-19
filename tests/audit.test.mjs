@@ -69,7 +69,10 @@ test('segment prices: each level has every team’s average price and shares tha
     reduce(s, { type: 'excel-add-team', name }, { role: 'host', now: 1_001 });
     s.teams.at(-1).strategy = { ...defaultStrategy(name, s.config), basePremium: defaultStrategy(name, s.config).basePremium * (0.9 + k * 0.1) };
   });
-  const { teams, table } = segmentPrices(s);
+  const { teams, table, profiles } = segmentPrices(s);
+  assert.equal(profiles.length, CASCO_MARKET.cells.length, 'one row per customer profile');
+  assert.ok(profiles.every((p, i) => i === 0 || profiles[i - 1].customers >= p.customers), 'largest profiles first');
+  for (const p of profiles) if (p.sold > 0) assert.ok(Math.abs(p.shares.reduce((a, b) => a + b, 0) - 1) < 1e-9);
   assert.equal(teams.length, 3);
   assert.equal(table.length, 5);
   for (const group of table) for (const row of group.levels) {

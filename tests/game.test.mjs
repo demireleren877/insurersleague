@@ -368,3 +368,12 @@ test('the communication asset follows the strategy’s upload windows', async ()
   assert.match(uploadWindowError(s, s.deadline + 1, 'player'), /Time’s up/, 'closed for teams after the deadline');
   assert.equal(uploadWindowError(s, s.deadline + 1, 'host'), null, 'the moderator can still upload');
 });
+
+test('resetting the scoring to default keeps every threshold, and a room missing one still runs', async () => {
+  const { cascoMoney } = await import('../dist/engine.js');
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  assert.ok(reduce(s, { type: 'rules-reset', keys: [], scoring: true }, host(1_001)).changed);
+  for (const key of ['profitFloor', 'profitTarget', 'shareFloor', 'shareTarget', 'bankruptRatio']) assert.ok(Number.isFinite(s.config.assumptions[key]?.value), key);
+  delete s.config.assumptions.shareTarget;
+  assert.equal(cascoMoney(s.config).shareTarget, 0.18, 'a missing threshold falls back to its default');
+});

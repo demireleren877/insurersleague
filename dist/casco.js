@@ -137,8 +137,11 @@ export function cascoMoney(config) {
   const R = cascoRulesOf(config), policies = policiesOf(config);
   const a = config?.assumptions?.budget ? config.assumptions : cascoAssumptions(config?.lang, R, policies);
   const slice = referenceMarket(R, policies).gwp / NOMINAL_TEAMS;
-  // Rooms from before these thresholds carry older ones; they score with the defaults.
-  const sc = a.shareFloor ? a : cascoAssumptions(config?.lang, R, policies);
+  // Rooms from before these thresholds carry older ones; they score with the defaults. Each threshold falls
+  // back on its own, so a room missing one (or holding an old-style value) never stops the season.
+  const def = cascoAssumptions(config?.lang, R, policies), modern = !!a.shareFloor;
+  const pick = key => (modern && Number.isFinite(a[key]?.value) ? a[key] : def[key]);
+  const sc = Object.fromEntries(['profitFloor', 'profitTarget', 'shareFloor', 'shareTarget', 'bankruptRatio'].map(key => [key, pick(key)]));
   return {
     slice, budget: a.budget.value, half: a.budget.value / 2, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.03,
     profitFloor: sc.profitFloor.value, profitTarget: sc.profitTarget.value, shareFloor: sc.shareFloor.value, shareTarget: sc.shareTarget.value,

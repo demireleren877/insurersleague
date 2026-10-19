@@ -7,19 +7,19 @@ import { home } from './views/home.js';
 import { teamPage } from './views/team.js';
 import { prepareBrochure } from './brochure.js';
 import { briefingContent } from './views/briefing.js';
-import { resultsPage } from './views/results.js?v=99';
-import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=99';
-import { segmentPricesModal } from './views/segment-prices.js?v=99';
+import { resultsPage } from './views/results.js?v=101';
+import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=101';
+import { segmentPricesModal, setSegmentPricesMode, setSegmentPricesFilter } from './views/segment-prices.js?v=101';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=99';
+import { stageMarkup, mountStage } from './views/stage.js?v=101';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=99';
-import { buildAuditWorkbook } from './audit.js?v=99';
-import { buildPortfolioWorkbook } from './portfolio.js?v=99';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=101';
+import { buildAuditWorkbook } from './audit.js?v=101';
+import { buildPortfolioWorkbook } from './portfolio.js?v=101';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -323,6 +323,7 @@ document.addEventListener('click', async e => {
       closeModal(); store.forgetHost(); store.disconnect(); go('home');
       break;
     case 'export': exportSession(); break;
+    case 'sp-mode': setSegmentPricesMode(d.mode); renderModal(); break;
     case 'segment-prices': openModal(() => ({ ...segmentPricesModal(), focusReturn: '[data-action="segment-prices"]' })); break;
     case 'audit-workbook': {
       if (el.disabled) break;
@@ -427,6 +428,7 @@ document.addEventListener('input', e => {
 
 document.addEventListener('change', async e => {
   const el = e.target, d = el.dataset;
+  if (d.spFilter !== undefined) { setSegmentPricesFilter(d.spFilter, el.value); renderModal(); return; }
   if (d.brochureUpload !== undefined && el.files?.length) {
     try {
       toast(t('Preparing the communication asset…', 'İletişim materyali hazırlanıyor…'));
