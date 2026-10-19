@@ -411,20 +411,20 @@ export function mountStage(root) {
       <footer class="review-stage-foot"><p><b class="num">${submitted.size}/${s.teams.length}</b> ${t('plans submitted', 'plan gönderildi')}</p>${isHost ? `<button class="btn go lg" data-action="quarter-close">${icon('play', 18)} ${t('Close review and continue', 'Değerlendirmeyi kapat ve devam et')}</button>` : ''}</footer>`;
   }
 
-  // The first half's results stay on screen through the review: the year so far, ranked by points (as the
-  // trophy will be), with what the half-year itself added.
+  // The first half's results stay on screen through the review, in the same terms as the live race: ordered
+  // as the trophy will be (points, then profit) without showing the points.
   function quarterResults(month) {
-    const s = getState(), now = results()[month], before = results()[month - 6];
+    const s = getState(), now = results()[month];
     if (!now) return '';
     const rows = rank(now.rows, 'score');
-    const quarterGwp = r => r.gwp - (before?.rows.find(x => x.id === r.id)?.gwp ?? 0);
     return `<section class="qr-results"><table class="qr-table">
-      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Points', 'Puan')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('This half-year', 'Bu yarıyıl')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Campaign customers', 'Kampanya müşterisi')}</th></tr></thead>
+      <thead><tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th class="r">${t('Combined ratio', 'Bileşik oran')}</th><th class="r">${t('Share', 'Pay')}</th><th class="r">${t('Profit / loss', 'Kâr / zarar')}</th><th class="r">${t('Loss ratio', 'Hasar / prim')}</th><th class="r">${t('Gross premium', 'Brüt prim')}</th><th class="r">${t('Policies', 'Poliçe')}</th></tr></thead>
       <tbody>${rows.map((r, i) => { const team = byId(s.teams, r.id); return `<tr style="--team:${team.color}" class="${i === 0 ? 'leader' : ''}">
         <td class="num rank">${pad(i + 1)}</td>
         <td><span class="qr-team">${emblem(team, 'sm')}<b class="display">${stamped(short(team.name), r.bankrupt)}</b></span></td>
-        <td class="num r strong">${fmt(r.score, 1)}</td><td class="num r">${money(r.gwp)}</td><td class="num r">${money(quarterGwp(r))}</td><td class="num r">${pct(r.share)}</td>
-        <td class="num r ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num r ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio, 0)}</td><td class="num r">${fmt(r.campaign?.total ?? 0)}</td>
+        <td class="num r strong ${r.combinedRatio > 1 ? 'down' : ''}">${pct(r.combinedRatio, 0)}</td><td class="num r">${pct(r.share)}</td>
+        <td class="num r ${r.profit < 0 ? 'down' : ''}">${money(r.profit)}</td><td class="num r ${r.grossLossRatio > 1 ? 'down' : ''}">${pct(r.grossLossRatio, 0)}</td>
+        <td class="num r">${money(r.gwp)}</td><td class="num r">${fmt(r.policies)}</td>
       </tr>`; }).join('')}</tbody>
     </table></section>`;
   }
