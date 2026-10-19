@@ -549,3 +549,5 @@
 .team-links .linklike { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--ink-2); }
 .team-links .team-leave { margin-left: auto; font-weight: 500; color: var(--ink-3); }
 
+.team-asset { display: grid; }
+.team-asset .btn { justify-content: center; }

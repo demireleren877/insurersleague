@@ -355,3 +355,16 @@ test('a brochure version is set only by the room server, never by a device actio
   reduce(s, { type: 'brochure-set', teamId: id, brochure: null }, { role: 'system', now: 1_005 });
   assert.equal(s.teams[0].brochure, null);
 });
+
+test('the communication asset follows the strategy’s upload windows', async () => {
+  const { uploadWindowError } = await import('../dist/js/game.js');
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  reduce(s, { type: 'excel-add-team', name: 'Atlas' }, host(1_001));
+  reduce(s, { type: 'excel-add-team', name: 'Nova' }, host(1_001));
+  assert.match(uploadWindowError(s, 1_002, 'player'), /decision window starts/, 'closed in the lobby');
+  reduce(s, { type: 'phase', to: 'briefing' }, host(1_003));
+  reduce(s, { type: 'phase', to: 'decisions' }, host(1_004));
+  assert.equal(uploadWindowError(s, 1_005, 'player'), null, 'open in the decision window');
+  assert.match(uploadWindowError(s, s.deadline + 1, 'player'), /Time’s up/, 'closed for teams after the deadline');
+  assert.equal(uploadWindowError(s, s.deadline + 1, 'host'), null, 'the moderator can still upload');
+});

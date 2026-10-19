@@ -1,7 +1,7 @@
 // INSURERS LEAGUE — online room server (Cloudflare Worker + Durable Object).
 // Every PIN is a Room object. The room is the sole owner of game state; clients only send actions.
 import { DurableObject } from 'cloudflare:workers';
-import { freshSession, reduce, viewFor, nextWake, currentRound, currentStrategyReview, questionOf } from '../dist/js/game.js';
+import { freshSession, reduce, viewFor, nextWake, currentRound, currentStrategyReview, questionOf, uploadWindowError } from '../dist/js/game.js';
 import { PRESET_IDS } from '../dist/engine.js';
 import { JEV_MODEL, nextAiIdentity, buildJevRequest, strategyFromJev, buildJevQuizRequest, quizChoicesFromJev, aiProfile } from '../dist/js/jev.js';
 
@@ -316,8 +316,11 @@ export class Room extends DurableObject {
     const team = this.state.teams.find(t => t.id === teamId);
     if (!team || team.ai) return json({ error: this.m('That team is not in this game.', 'Bu takım oyunda yok.') }, 404);
     const player = request.headers.get('x-player') || '';
-    const allowed = request.headers.get('x-host-key') === this.hostKey || (player && team.owner === player);
+    const isHost = request.headers.get('x-host-key') === this.hostKey, allowed = isHost || (player && team.owner === player);
     if (!allowed) return json({ error: this.m('Only the moderator or the team itself can change its communication asset.', 'İletişim materyalini yalnızca moderatör ya da takımın kendisi değiştirebilir.') }, 403);
+    // The communication asset is handed in like the strategy: in the decision window and at the half-year review.
+    const closed = uploadWindowError(this.state, Date.now(), isHost ? 'host' : 'player', this.msgLang ?? undefined);
+    if (closed) return json({ error: closed }, 409);
     if (request.method === 'DELETE') {
       await this.ctx.storage.delete(key);
       reduce(this.state, { type: 'brochure-set', teamId, brochure: null }, { role: 'system', now: Date.now() });

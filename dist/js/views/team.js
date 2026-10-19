@@ -58,7 +58,7 @@ export function teamPage() {
   const review = currentStrategyReview(), months = monthsOf(getLang());
   const head = `<div class="team-preview" style="--team:${team.color};--team-soft:color-mix(in oklab, ${team.color} 22%, var(--canvas))">${emblem(team, 'md')}<strong class="display">${short(team.name)}</strong></div>`;
 
-  // One thing at a time: a title, one line, at most two buttons. Everything optional sits in small links below.
+  // One thing at a time: a title, one line and the buttons for what to hand in now; extras sit in small links below.
   const screen = ({ kicker, title, text = '', timer = '', actions = '', links = [] }) => shell(`${head}
     ${timer}
     <div class="team-now"><p class="kicker amber">${kicker}</p><h1 class="display">${title}</h1>${text ? `<p class="muted">${text}</p>` : ''}</div>
@@ -68,7 +68,8 @@ export function teamPage() {
   const uploadBtn = (quarter, done) => `<button class="btn ${done ? '' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your strategy', 'Stratejini değiştir') : t('Upload your strategy', 'Stratejini yükle')}</button><input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>`;
   const templateBtn = (quarter, cls = 'btn lg') => `<button class="${cls}" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', cls.startsWith('btn') ? 18 : 15)} ${quarter ? t('Download your current plan', 'Güncel planını indir') : t('Download your template', 'Şablonunu indir')}</button>`;
   const dataLink = (cls = 'btn lg') => `<a class="${cls}" href="${CASE_DATA}" download>${icon('chart', cls.startsWith('btn') ? 18 : 15)} ${t('Download the casco data', 'Kasko verisini indir')}</a>`;
-  const assetLink = `<span data-brochure-box><button class="linklike" data-action="brochure-upload" data-team="${team.id}">${team.brochure ? icon('check', 15) : icon('upload', 15)} ${team.brochure ? t('Communication asset uploaded · replace', 'İletişim materyali yüklendi · değiştir') : t('Upload your communication asset', 'İletişim materyalini yükle')}</button><input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden></span>`;
+  // The communication asset is handed in exactly like the strategy: same windows, same kind of button.
+  const assetBtn = () => `<div class="team-asset" data-brochure-box><button class="btn ${team.brochure ? '' : 'go'} lg" data-action="brochure-upload" data-team="${team.id}">${icon(team.brochure ? 'check' : 'upload', 18)} ${team.brochure ? t('Replace your communication asset', 'İletişim materyalini değiştir') : t('Upload your communication asset', 'İletişim materyalini yükle')}</button><input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden></div>`;
   const leave = `<button class="linklike team-leave" data-action="team-leave">${t('Not your team? Leave', 'Takımın bu değil mi? Ayrıl')}</button>`;
 
   if (seasonDone()) return screen({ kicker: t('Season over', 'Sezon bitti'), title: t('Look at the stage', 'Sahneye bak'), text: t('The trophies are handed out on the stage screen.', 'Kupalar sahne ekranında veriliyor.') });
@@ -79,9 +80,8 @@ export function teamPage() {
       kicker: t('Half-year review', 'Yarıyıl molası'),
       timer: clockLine(t('Closes in', 'Kapanmasına'), Math.max(0, (review.closesAt - now_()) / 1000), 'data-quarter-clock'),
       title: done ? t('Second-half plan received', 'İkinci yarıyıl planın alındı') : t('Change your plan for July–December', 'Temmuz–Aralık planını değiştir'),
-      text: done ? t('You can replace it while the review is open.', 'Mola açıkken değiştirebilirsin.') : t('Download your current plan, change it and upload it. If you upload nothing, it carries on as it is.', 'Güncel planını indir, değiştir ve yükle. Yüklemezsen plan aynen sürer.'),
-      actions: `${templateBtn(true)}${uploadBtn(true, done)}`,
-      links: [assetLink]
+      text: done ? t('You can replace your strategy and your communication asset while the review is open.', 'Mola açıkken stratejini ve iletişim materyalini değiştirebilirsin.') : t('Download your current plan, change it and upload it; you can also replace your communication asset. If you upload nothing, both carry on as they are.', 'Güncel planını indir, değiştir ve yükle; iletişim materyalini de değiştirebilirsin. Yüklemezsen ikisi de aynen sürer.'),
+      actions: `${templateBtn(true)}${uploadBtn(true, done)}${assetBtn()}`
     });
   }
 
@@ -94,18 +94,18 @@ export function teamPage() {
   if (s.phase !== 'decisions') return screen({
     kicker: t('Getting ready', 'Hazırlık'),
     title: t('Prepare your strategy', 'Stratejini hazırla'),
-    text: t('Study the data and fill in your template. Uploading opens when the moderator starts the decision window.', 'Veriyi incele ve şablonunu doldur. Yükleme, moderatör karar aşamasını başlatınca açılır.'),
+    text: t('Study the data, fill in your template and prepare your communication asset. Uploading both opens when the moderator starts the decision window.', 'Veriyi incele, şablonunu doldur ve iletişim materyalini hazırla. İkisinin de yüklenmesi, moderatör karar aşamasını başlatınca açılır.'),
     actions: `${dataLink()}${templateBtn(false)}`,
-    links: [assetLink, leave]
+    links: [leave]
   });
 
   const left = timeLeft(), late = left !== null && left <= 0;
   return screen({
     kicker: t('Decision window', 'Karar aşaması'),
     timer: left === null ? '' : late ? `<p class="form-error">${t('Time’s up. Ask the moderator for more time.', 'Süre doldu. Moderatörden süre iste.')}</p>` : clockLine(t('Time left', 'Kalan süre'), left, 'data-clock'),
-    title: team.locked ? t('Strategy received', 'Stratejin alındı') : t('Upload your strategy', 'Stratejini yükle'),
-    text: team.locked ? t('You can replace it until the race starts.', 'Yarış başlayana kadar değiştirebilirsin.') : t('Upload your filled-in template before the time runs out.', 'Doldurduğun şablonu süre bitmeden yükle.'),
-    actions: uploadBtn(false, team.locked),
-    links: [dataLink('linklike'), templateBtn(false, 'linklike'), assetLink, leave]
+    title: team.locked && team.brochure ? t('Strategy and communication asset received', 'Stratejin ve iletişim materyalin alındı') : t('Upload your strategy and communication asset', 'Stratejini ve iletişim materyalini yükle'),
+    text: team.locked && team.brochure ? t('You can replace either until the race starts.', 'Yarış başlayana kadar ikisini de değiştirebilirsin.') : t('Upload your filled-in template and your communication asset before the time runs out.', 'Doldurduğun şablonu ve iletişim materyalini süre bitmeden yükle.'),
+    actions: `${uploadBtn(false, team.locked)}${assetBtn()}`,
+    links: [dataLink('linklike'), templateBtn(false, 'linklike'), leave]
   });
 }

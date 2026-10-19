@@ -623,6 +623,11 @@ body.on-stage { overflow: hidden; }
 .xl-team.waiting .xl-team-status { color: var(--warn); }
 .xl-team-status .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 .xl-team-plan { margin: 0; font-size: 13.5px; line-height: 1.4; color: var(--ink-2); }
+/* What a team has handed in: its strategy and its communication asset, side by side. */
+.xl-team-handins { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; font-weight: 600; color: var(--ink-3); }
+.xl-team-handins li { display: flex; align-items: center; gap: 6px; }
+.xl-team-handins li.ok { color: var(--up); }
+.xl-team-handins .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn-mark, #FD7E14); }
 .xl-team-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .xl-team-actions .btn { flex: 1 1 auto; }
 .st-review .xl-teams, .st-pre .xl-teams { margin-bottom: 12px; }

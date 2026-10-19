@@ -99,6 +99,18 @@ export const canEditTeam = (s, team, now) => {
   return !!review && !team.ai && !!team.quarterDraft && !review.submitted?.[team.id] && now <= review.closesAt;
 };
 
+// When a team may hand something in — its strategy file and its communication asset follow the same rule:
+// during the decision window (teams until the deadline, the moderator also after it) and while the
+// half-year review is open. Returns the reason it can't, or null.
+export function uploadWindowError(s, now, role, lang) {
+  const m = (en, tr) => M(s.config, en, tr, lang), review = currentStrategyReview(s);
+  if (s.phase === 'race' && !review) return m('Uploads open only in the decision window or at the half-year review.', 'Yükleme yalnızca karar aşamasında ya da yarıyıl molasında açıktır.');
+  if (s.phase !== 'race' && s.phase !== 'decisions') return m('Uploads open once the decision window starts.', 'Yükleme karar aşaması başlayınca açılır.');
+  if (role !== 'host' && s.phase === 'decisions' && s.deadline && now > s.deadline) return m('Time’s up for the decisions. Ask the moderator to add time.', 'Karar süresi doldu. Moderatörden süre eklemesini iste.');
+  if (role !== 'host' && review && now > review.closesAt) return m('The half-year strategy review is closed.', 'Yarıyıl strateji molası kapandı.');
+  return null;
+}
+
 export function teamStatus(s, team, now, lang) {
   const m = (en, tr) => M(s.config, en, tr, lang);
   const review = currentStrategyReview(s);

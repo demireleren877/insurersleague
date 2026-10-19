@@ -57,13 +57,16 @@ function excelTeamCard(team, { quarter = false, canManage = true, submitted = fa
       ${manage && !quarter && s.phase !== 'race' ? `<button class="icon-btn sm" data-action="remove-team" data-team="${team.id}" aria-label="${t(`Remove ${esc(team.name)}`, `${esc(team.name)} takımını çıkar`)}" title="${t('Remove team', 'Takımı çıkar')}">${icon('x', 14)}</button>` : ''}</header>
     ${team.brochure ? `<button class="xl-brochure" data-action="brochure-view" data-team="${team.id}" aria-label="${t(`Open ${esc(team.name)}’s communication asset`, `${esc(team.name)} iletişim materyalini aç`)}"><img src="${brochureUrl(team.id, team.brochure)}" alt="${t(`${esc(team.name)} communication asset`, `${esc(team.name)} iletişim materyali`)}" loading="lazy" style="aspect-ratio:${team.brochure.w} / ${team.brochure.h}"></button>`
       : quarter && !team.ai ? `<div class="xl-brochure empty">${icon('file', 18)} ${t('No communication asset yet', 'Henüz iletişim materyali yok')}</div>` : ''}
-    <p class="xl-team-plan">${team.locked || team.ai ? t('Strategy received. It stays private until the season ends.', 'Strateji alındı. Sezon bitene kadar gizli kalır.') : t('No strategy yet. The team uploads its own file.', 'Henüz strateji yok. Takım kendi dosyasını yükler.')}</p>
+    <ul class="xl-team-handins">
+      <li class="${team.locked || team.ai ? 'ok' : ''}">${team.locked || team.ai ? icon('check', 13) : '<i class="dot"></i>'} ${team.locked || team.ai ? t('Strategy received', 'Strateji alındı') : t('Strategy awaited', 'Strateji bekleniyor')}</li>
+      ${team.ai ? '' : `<li class="${team.brochure ? 'ok' : ''}">${team.brochure ? icon('check', 13) : '<i class="dot"></i>'} ${team.brochure ? t('Communication asset received', 'İletişim materyali alındı') : t('Communication asset awaited', 'İletişim materyali bekleniyor')}</li>`}
+    </ul>
     ${manage ? `<div class="xl-team-actions">
       <button class="btn ghost sm" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', 14)} ${quarter ? t('Its current plan', 'Güncel planı') : t('Its template', 'Şablonu')}</button>
       ${quarter || s.phase === 'decisions' ? `<button class="btn ${done ? 'ghost' : 'gold'} sm" data-action="excel-team-upload" data-team="${team.id}">${icon('upload', 14)} ${done ? t('Replace file', 'Dosyayı değiştir') : t('Upload file', 'Dosya yükle')}</button>
       <input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>` : ''}
-      <button class="btn ghost sm" data-action="brochure-upload" data-team="${team.id}">${icon('eye', 14)} ${team.brochure ? t('Replace communication asset', 'İletişim materyalini değiştir') : t('Communication asset', 'İletişim materyali')}</button>
-      <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>
+      ${quarter || s.phase === 'decisions' ? `<button class="btn ${team.brochure ? 'ghost' : 'gold'} sm" data-action="brochure-upload" data-team="${team.id}">${icon('upload', 14)} ${team.brochure ? t('Replace asset', 'Materyali değiştir') : t('Upload asset', 'Materyal yükle')}</button>
+      <input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden>` : ''}
     </div>` : ''}
   </article>`;
 }
@@ -440,7 +443,7 @@ export function mountStage(root) {
     const status = team.ai ? t('Recalculating', 'Yeniden hesaplıyor') : done ? t('Plan received', 'Plan alındı') : t('Keeps its plan', 'Planı aynen sürer');
     return `<article class="xl-chip ${done ? 'done' : ''}" style="--team:${team.color}">
       ${team.brochure ? `<button class="xl-chip-brochure" data-action="brochure-view" data-team="${team.id}" aria-label="${t(`Open ${esc(team.name)}’s communication asset`, `${esc(team.name)} iletişim materyalini aç`)}"><img src="${brochureUrl(team.id, team.brochure)}" alt="" loading="lazy"></button>` : `<span class="xl-chip-brochure empty" title="${t('No communication asset yet', 'Henüz iletişim materyali yok')}">${icon('file', 16)}</span>`}
-      <div class="xl-chip-who"><b>${short(team.name)}</b><small>${done ? icon('check', 12) : '<i class="dot"></i>'} ${status}</small></div>
+      <div class="xl-chip-who"><b>${short(team.name)}</b><small>${done ? icon('check', 12) : '<i class="dot"></i>'} ${status}</small>${team.ai ? '' : `<small>${team.brochure ? icon('check', 12) : '<i class="dot"></i>'} ${team.brochure ? t('Asset received', 'Materyal alındı') : t('Asset awaited', 'Materyal bekleniyor')}</small>`}</div>
       ${manage ? `<div class="xl-chip-actions">
         <button class="icon-btn sm" data-action="excel-team-template" data-team="${team.id}" data-quarter="true" title="${t('Its current plan', 'Güncel planı')}" aria-label="${t(`${esc(team.name)}: current plan`, `${esc(team.name)}: güncel plan`)}">${icon('file', 14)}</button>
         <button class="icon-btn sm" data-action="excel-team-upload" data-team="${team.id}" title="${t('Upload file', 'Dosya yükle')}" aria-label="${t(`${esc(team.name)}: upload file`, `${esc(team.name)}: dosya yükle`)}">${icon('upload', 14)}</button>
