@@ -7,18 +7,19 @@ import { home } from './views/home.js';
 import { teamPage } from './views/team.js';
 import { prepareBrochure } from './brochure.js';
 import { briefingContent } from './views/briefing.js';
-import { resultsPage } from './views/results.js?v=95';
-import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=95';
+import { resultsPage } from './views/results.js?v=97';
+import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=97';
+import { segmentPricesModal } from './views/segment-prices.js?v=97';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=95';
+import { stageMarkup, mountStage } from './views/stage.js?v=97';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=95';
-import { buildAuditWorkbook } from './audit.js?v=95';
-import { buildPortfolioWorkbook } from './portfolio.js?v=95';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=97';
+import { buildAuditWorkbook } from './audit.js?v=97';
+import { buildPortfolioWorkbook } from './portfolio.js?v=97';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
@@ -322,6 +323,7 @@ document.addEventListener('click', async e => {
       closeModal(); store.forgetHost(); store.disconnect(); go('home');
       break;
     case 'export': exportSession(); break;
+    case 'segment-prices': openModal(() => ({ ...segmentPricesModal(), focusReturn: '[data-action="segment-prices"]' })); break;
     case 'audit-workbook': {
       if (el.disabled) break;
       el.disabled = true;

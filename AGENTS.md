@@ -36,6 +36,7 @@ It runs on Cloudflare Workers:
 - `dist/js/jev.js`: AI rivals.
 - `dist/js/balance.js`: balance test bots.
 - `dist/js/attribution.js`: "why you finished here".
+- `dist/js/segment-prices.js` (+ `views/segment-prices.js`): results page → "Segment prices": each team's average price and its share among the teams per segment level.
 - `scripts/`: Python and Node builders for data and workbooks.
 
 ## Invariants (each one broke something before)

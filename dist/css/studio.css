@@ -555,3 +555,24 @@ dialog.team-analysis[open] { display: flex; flex-direction: column; }
 .host-main.full .results-table td.strong, .host-main.full .results-table td.rank { font-size: clamp(20px, 1.45vw, 27px); }
 .host-main.full .results-table .result-team-link b { font-size: clamp(17px, 1.2vw, 22px); }
 .host-main.full .results-table .emblem { --size: 36px; }
+
+/* Segment prices: one row per level, one column per team (price, and the share won below it). */
+dialog.modal.segment-prices { width: min(1500px, calc(100vw - 32px)); }
+.sp-lead { margin: 0 0 12px; font-size: 14.5px; color: var(--ink-2); max-width: 90ch; }
+.sp-table { table-layout: fixed; width: 100%; min-width: 760px; font-size: 14px; }
+.sp-table col.sp-c-level { width: 190px; } .sp-table col.sp-c-market { width: 96px; }
+.sp-table th, .sp-table td { padding: 8px 10px; text-align: right; white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.sp-table thead th { position: sticky; top: 0; z-index: 1; background: var(--paper); vertical-align: bottom; border-bottom: 1.5px solid var(--ink); font-size: 12px; color: var(--ink-2); }
+.sp-table th:first-child { text-align: left; }
+.sp-table .sp-team { text-align: center; }
+.sp-team .emblem { margin: 0 auto 4px; }
+.sp-team span { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 700; color: var(--ink); }
+.sp-table tbody th { border-bottom: 1px dashed var(--line-2); }
+.sp-group th { padding-top: 18px; text-align: left; font-size: 12.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); border-bottom: 1.5px solid var(--line-2) !important; }
+.sp-table .sp-level { text-align: left; font-weight: 600; font-size: 14.5px; color: var(--ink); }
+.sp-market { color: var(--ink-3); border-right: 1.5px solid var(--line-2); }
+.sp-table td b { display: block; font-size: 15px; }
+.sp-table td small { display: block; font-size: 12.5px; color: var(--ink-3); }
+.sp-table td.sp-best b { color: var(--up); }
+.sp-table td small.sp-top { color: var(--ink); font-weight: 800; text-decoration: underline 2px var(--hl); text-underline-offset: 3px; }
+.sp-table tbody td:not(.sp-market) { text-align: center; }

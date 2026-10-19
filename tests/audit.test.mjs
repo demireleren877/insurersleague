@@ -61,3 +61,20 @@ test('the policy file keeps the engine’s claims exactly and its policies to th
   assert.ok(files['xl/sharedStrings.xml'].includes('Reconciliation') || files['xl/workbook.xml'].includes('Reconciliation'));
   assert.equal((files['xl/worksheets/sheet2.xml'].match(/<row>/g) || []).length, pf.policies.length + 1);
 });
+
+test('segment prices: each level has every team’s average price and shares that add up to 100%', async () => {
+  const { segmentPrices } = await import('../dist/js/segment-prices.js');
+  const s = freshSession(1_000, { code: '123456', lang: 'en' });
+  ['Kartal', 'Nova', 'Atlas'].forEach((name, k) => {
+    reduce(s, { type: 'excel-add-team', name }, { role: 'host', now: 1_001 });
+    s.teams.at(-1).strategy = { ...defaultStrategy(name, s.config), basePremium: defaultStrategy(name, s.config).basePremium * (0.9 + k * 0.1) };
+  });
+  const { teams, table } = segmentPrices(s);
+  assert.equal(teams.length, 3);
+  assert.equal(table.length, 5);
+  for (const group of table) for (const row of group.levels) {
+    assert.ok(row.market > 0 && row.prices.every(p => p > 0));
+    assert.ok(Math.abs(row.shares.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+    assert.ok(row.prices[0] < row.prices[1] && row.prices[1] < row.prices[2], 'a lower base premium is a lower price in every segment');
+  }
+});

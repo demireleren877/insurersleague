@@ -5,7 +5,7 @@ import { t, languageControl } from '../i18n.js';
 
 // The case data teams analyse: 50,000 customers with corrected claims, a column dictionary and the marketing inputs.
 // Versioned like the other assets, so a stale cached answer from right after a deploy can't stick.
-export const CASE_DATA = 'data/katilimci-verisi.xlsx?v=95';
+export const CASE_DATA = 'data/katilimci-verisi.xlsx?v=97';
 
 // Everyone watches the moderator's screen; the home page is where the moderator starts or resumes a game.
 export function home() {
