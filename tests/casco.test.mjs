@@ -197,14 +197,14 @@ test('marketing has two half-year budgets, each spent evenly over its six months
   assert.equal(monthlyMarketing(t0, 6), 40000);
   assert.equal(marketingSpent(t0, 6), 120000);
   assert.equal(marketingSpent(t0, 12), 360000);
-  assert.deepEqual(commissionOf(c.rules), [0.05, 0.1, 0.02, 0.1]);
+  assert.deepEqual(commissionOf(c.rules), [0.03, 0.08, 0.02, 0.08]);
   const season = simulateCasco([t0, withCampaign(1, 0.6, {})], c);
   const fixed = c.assumptions.fixedCost.value / 12;
   for (let m = 0; m < 12; m++) {
     const r = season[m].rows.find(x => x.id === 0), before = m ? season[m - 1].rows.find(x => x.id === 0).expenses : 0;
-    // Expenses: fixed cost, 5% of the month's premium, the channel commission, and only what marketing bought (media + gifts handed out).
-    assert.ok(Math.abs(r.expenses - before - fixed - r.monthGwp * 0.05 - r.monthCommission - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
-    assert.ok(r.monthCommission >= r.monthGwp * 0.02 - 1e-6 && r.monthCommission <= r.monthGwp * 0.1 + 1e-6, 'commission sits between the cheapest and dearest channel');
+    // Expenses: fixed cost, 3% of the month's premium, the channel commission, and only what marketing bought (media + gifts handed out).
+    assert.ok(Math.abs(r.expenses - before - fixed - r.monthGwp * 0.03 - r.monthCommission - r.campaign.media - r.campaign.giftsUsed) < 1e-6);
+    assert.ok(r.monthCommission >= r.monthGwp * 0.02 - 1e-6 && r.monthCommission <= r.monthGwp * 0.08 + 1e-6, 'commission sits between the cheapest and dearest channel');
     assert.ok(r.campaign.giftsUsed <= r.campaign.giftBudget + 1e-6, 'never more gifts than their budget');
   }
   assert.ok(Math.abs(season[6].rows.find(x => x.id === 0).campaign.media - 40000 * t0.strategy.mediaShare / 100) < 1e-6, 'from July the media follows the second-half budget');

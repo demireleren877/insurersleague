@@ -1,6 +1,6 @@
 import { getState, results, seasonDone } from '../store.js';
 import { buildTeamAnalysis } from '../team-analysis.js';
-import { attribution } from '../attribution.js?v=97';
+import { attribution } from '../attribution.js?v=99';
 import { icon, emblem } from '../ui.js';
 import { esc, fmt, money, pct, points } from '../format.js';
 import { t, getLang } from '../i18n.js';

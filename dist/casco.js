@@ -40,7 +40,7 @@ export function defaultCascoRules() {
     commercialPrice: 0.8,
     market: { outside: 1.1, seasonality: 0.06 },
     // Channel commission on written premium, told to the teams: Agency, Bank, Digital, Broker.
-    commission: [0.05, 0.1, 0.02, 0.1],
+    commission: [0.03, 0.08, 0.02, 0.08],
     coef: { min: 0.5, max: 2.5, step: 0.05 },
     // The digital acquisition campaign (Marketing_Input.xlsx): the whole marketing budget runs it. Media buys
     // reach in the target group; the ads show each gift in proportion to its weight, reached people go
@@ -113,15 +113,15 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
     // €500k per team at the default market size; it scales with the policy count like the other money.
     budget: A(Math.round(500000 * policies / DEFAULT_POLICIES / 1000) * 1000, 1000, 1e9, 'EUR', 'Marketing budget', 'Pazarlama bütçesi',
       'The most a team can spend on its digital campaign in the year: half of it in each half-year, nothing carried over.', 'Bir takımın yıl içinde dijital kampanyasına harcayabileceği en fazla tutar: yarısı her yarıyıl için, devretmez.'),
-    // €200k a year at the default market size, scaling with the policy count like the budget.
-    fixedCost: A(Math.round(200000 * policies / DEFAULT_POLICIES / 1000) * 1000, 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
+    // €100k a year at the default market size, scaling with the policy count like the budget.
+    fixedCost: A(Math.round(100000 * policies / DEFAULT_POLICIES / 1000) * 1000, 0, 1e9, 'EUR', 'Fixed operating cost', 'Sabit işletme gideri',
       'Yearly overhead every company carries, claims handling included.', 'Her şirketin taşıdığı yıllık genel gider; hasar yönetimi dahil.'),
-    expenseRatio: A(0.05, 0, 0.5, 'ratio', 'Expense ratio', 'Gider oranı',
+    expenseRatio: A(0.03, 0, 0.5, 'ratio', 'Expense ratio', 'Gider oranı',
       'Share of every euro of premium spent on running the business (sales, policy administration). Told to the teams.', 'Her euro primin işletmeye (satış, poliçe yönetimi) giden payı. Takımlara açıklanır.'),
     // Scoring: no points below a component's floor; from it 50, rising to 100 at the target. The score is the sum.
-    profitFloor: A(scaled(0), -1e9, 1e9, 'EUR', 'Profit floor', 'Kâr alt sınırı',
+    profitFloor: A(scaled(1500000), -1e9, 1e9, 'EUR', 'Profit floor', 'Kâr alt sınırı',
       'Year-end profit from which profit points start (50); below it, no profit points.', 'Kâr puanının başladığı yıl sonu kârı (50 puan); altında kâr puanı yok.'),
-    profitTarget: A(scaled(1000000), -1e9, 1e10, 'EUR', 'Profit target', 'Kâr hedefi',
+    profitTarget: A(scaled(3000000), -1e9, 1e10, 'EUR', 'Profit target', 'Kâr hedefi',
       'Year-end profit that earns the full 100 profit points.', 'Tam 100 kâr puanı getiren yıl sonu kârı.'),
     shareFloor: A(0.15, 0, 1, 'ratio', 'Market share floor', 'Pazar payı alt sınırı',
       'Gross premium share among the teams from which share points start (50); below it, no share points.', 'Pay puanının başladığı, takımlar arasındaki brüt prim payı (50 puan); altında pay puanı yok.'),
@@ -140,7 +140,7 @@ export function cascoMoney(config) {
   // Rooms from before these thresholds carry older ones; they score with the defaults.
   const sc = a.shareFloor ? a : cascoAssumptions(config?.lang, R, policies);
   return {
-    slice, budget: a.budget.value, half: a.budget.value / 2, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.05,
+    slice, budget: a.budget.value, half: a.budget.value / 2, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.03,
     profitFloor: sc.profitFloor.value, profitTarget: sc.profitTarget.value, shareFloor: sc.shareFloor.value, shareTarget: sc.shareTarget.value,
     bankruptRatio: sc.bankruptRatio?.value ?? 1.35
   };
