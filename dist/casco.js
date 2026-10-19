@@ -125,7 +125,7 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
       'Year-end profit that earns the full 100 profit points.', 'Tam 100 kâr puanı getiren yıl sonu kârı.'),
     shareFloor: A(0.15, 0, 1, 'ratio', 'Market share floor', 'Pazar payı alt sınırı',
       'Gross premium share among the teams from which share points start (50); below it, no share points.', 'Pay puanının başladığı, takımlar arasındaki brüt prim payı (50 puan); altında pay puanı yok.'),
-    shareTarget: A(0.2, 0, 1, 'ratio', 'Market share target', 'Pazar payı hedefi',
+    shareTarget: A(0.18, 0, 1, 'ratio', 'Market share target', 'Pazar payı hedefi',
       'Gross premium share among the teams that earns the full 100 share points.', 'Tam 100 pay puanı getiren, takımlar arasındaki brüt prim payı.'),
     bankruptRatio: A(1.35, 1, 5, 'ratio', 'Bankruptcy line', 'Batış sınırı',
       'A combined ratio above this is bankruptcy: the team is stamped and ranked last.', 'Bileşik oran bunu aşarsa takım batar: damgalanır ve en sona düşer.')

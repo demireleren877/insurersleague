@@ -7,18 +7,18 @@ import { home } from './views/home.js';
 import { teamPage } from './views/team.js';
 import { prepareBrochure } from './brochure.js';
 import { briefingContent } from './views/briefing.js';
-import { resultsPage } from './views/results.js?v=91';
-import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=91';
+import { resultsPage } from './views/results.js?v=92';
+import { teamAnalysisModal, TEAM_ANALYSIS_TABS } from './views/team-analysis.js?v=92';
 import { settingsPanel } from './views/settings.js';
 import { rulesPage, rulesState, rulesPackage, sectionOf } from './views/rules.js';
 import { fieldSpec, getPath } from './rules.js';
-import { stageMarkup, mountStage } from './views/stage.js?v=91';
+import { stageMarkup, mountStage } from './views/stage.js?v=92';
 import { historyPage, historyState, loadHistory } from './views/history.js';
 import { archiveSeason, putSession, deleteSession, useHistoryCode, historyCode, cachedSessions } from './history.js';
 import { balanceState, runBalanceTest } from './views/balance.js';
-import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=91';
-import { buildAuditWorkbook } from './audit.js?v=91';
-import { buildPortfolioWorkbook } from './portfolio.js?v=91';
+import { buildTemplate, readSheets, readTeamSheet } from './sheet.js?v=92';
+import { buildAuditWorkbook } from './audit.js?v=92';
+import { buildPortfolioWorkbook } from './portfolio.js?v=92';
 
 const { getState, getSession, timeLeft, playhead, dispatch, subscribe } = store;
 
