@@ -123,10 +123,10 @@ export function cascoAssumptions(lang = 'en', R = DEFAULT_RULES, policies = DEFA
       'Year-end profit from which profit points start (50); below it, no profit points.', 'Kâr puanının başladığı yıl sonu kârı (50 puan); altında kâr puanı yok.'),
     profitTarget: A(scaled(1000000), -1e9, 1e10, 'EUR', 'Profit target', 'Kâr hedefi',
       'Year-end profit that earns the full 100 profit points.', 'Tam 100 kâr puanı getiren yıl sonu kârı.'),
-    premiumFloor: A(scaled(4000000), 0, 1e10, 'EUR', 'Premium floor', 'Prim alt sınırı',
-      'Year-end gross premium from which premium points start (50); below it, no premium points.', 'Prim puanının başladığı yıl sonu brüt primi (50 puan); altında prim puanı yok.'),
-    premiumTarget: A(scaled(8000000), 0, 1e10, 'EUR', 'Premium target', 'Prim hedefi',
-      'Year-end gross premium that earns the full 100 premium points.', 'Tam 100 prim puanı getiren yıl sonu brüt primi.'),
+    shareFloor: A(0.15, 0, 1, 'ratio', 'Market share floor', 'Pazar payı alt sınırı',
+      'Gross premium share among the teams from which share points start (50); below it, no share points.', 'Pay puanının başladığı, takımlar arasındaki brüt prim payı (50 puan); altında pay puanı yok.'),
+    shareTarget: A(0.2, 0, 1, 'ratio', 'Market share target', 'Pazar payı hedefi',
+      'Gross premium share among the teams that earns the full 100 share points.', 'Tam 100 pay puanı getiren, takımlar arasındaki brüt prim payı.'),
     bankruptRatio: A(1.35, 1, 5, 'ratio', 'Bankruptcy line', 'Batış sınırı',
       'A combined ratio above this is bankruptcy: the team is stamped and ranked last.', 'Bileşik oran bunu aşarsa takım batar: damgalanır ve en sona düşer.')
   };
@@ -137,11 +137,11 @@ export function cascoMoney(config) {
   const R = cascoRulesOf(config), policies = policiesOf(config);
   const a = config?.assumptions?.budget ? config.assumptions : cascoAssumptions(config?.lang, R, policies);
   const slice = referenceMarket(R, policies).gwp / NOMINAL_TEAMS;
-  // Rooms from before the euro thresholds carry ratio thresholds; they score with the defaults.
-  const sc = a.premiumTarget ? a : cascoAssumptions(config?.lang, R, policies);
+  // Rooms from before these thresholds carry older ones; they score with the defaults.
+  const sc = a.shareFloor ? a : cascoAssumptions(config?.lang, R, policies);
   return {
     slice, budget: a.budget.value, half: a.budget.value / 2, fixedMonthly: a.fixedCost.value / 12, expenseRatio: a.expenseRatio?.value ?? 0.05,
-    profitFloor: sc.profitFloor.value, profitTarget: sc.profitTarget.value, premiumFloor: sc.premiumFloor.value, premiumTarget: sc.premiumTarget.value,
+    profitFloor: sc.profitFloor.value, profitTarget: sc.profitTarget.value, shareFloor: sc.shareFloor.value, shareTarget: sc.shareTarget.value,
     bankruptRatio: sc.bankruptRatio?.value ?? 1.35
   };
 }
@@ -406,8 +406,9 @@ export function simulateCasco(teamList, config, { trace = false } = {}) {
       r.share = totalGwp ? r.gwp / totalGwp : 0;
       r.unitShare = totalPolicies ? r.policies / totalPolicies : 0;
       r.monthShare = monthGwp ? r.monthGwp / monthGwp : 0;
-      // No points below the floor, 50 at it, 100 at the target (both pro-rated to the months played); the score is the sum.
-      r.components = [points(r.profit, money.profitFloor, money.profitTarget, pace), points(r.gwp, money.premiumFloor, money.premiumTarget, pace)];
+      // No points below the floor, 50 at it, 100 at the target; the score is the sum. Profit thresholds are
+      // pro-rated to the months played (monthly fit to the business plan); market share is a ratio already.
+      r.components = [points(r.profit, money.profitFloor, money.profitTarget, pace), points(r.share, money.shareFloor, money.shareTarget, 1)];
       r.score = r.components[0] + r.components[1];
       r.bankrupt = r.combinedRatio > money.bankruptRatio;
       r.eligible = !r.bankrupt;

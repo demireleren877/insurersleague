@@ -12,7 +12,7 @@ import { checkRule, setPath, sanitizeRules } from './rules.js';
 export const SCHEMA = 5;
 export const MIN_TEAMS = 2;
 // The scoring thresholds (rule studio → Scoring).
-export const SCORE_KEYS = ['profitFloor', 'profitTarget', 'premiumFloor', 'premiumTarget', 'bankruptRatio'];
+export const SCORE_KEYS = ['profitFloor', 'profitTarget', 'shareFloor', 'shareTarget', 'bankruptRatio'];
 export const MAX_TEAMS = 12;
 export const COUNTDOWN_MS = 4000; // 3 · 2 · 1 · GO, a second each
 export const REVEAL_MS = 10000;
@@ -907,13 +907,13 @@ function reduceAction(s, action, ctx) {
     case 'assumption': {
       if (s.phase === 'race') return { error: M(cfg, 'The race has started.', 'Yarış başladı.') };
       // Rooms from before the euro thresholds get them on first edit.
-      if (SCORE_KEYS.includes(action.key) && !s.config.assumptions.premiumTarget) { const a = assumptionsFor(cfg?.lang); for (const k of SCORE_KEYS) s.config.assumptions[k] = { ...a[k] }; }
+      if (SCORE_KEYS.includes(action.key) && !s.config.assumptions.shareFloor) { const a = assumptionsFor(cfg?.lang); for (const k of SCORE_KEYS) s.config.assumptions[k] = { ...a[k] }; }
       const def = s.config.assumptions[action.key], v = Number(action.value);
       if (!def || !Number.isFinite(v) || v < def.min || v > def.max) return { error: M(cfg, 'Enter the assumption within its allowed range.', 'Varsayımı izin verilen aralıkta girin.') };
       // A bigger market needs bigger budgets: money moves with the policy count, keeping its proportions.
       if (action.key === 'policies' && def.value > 0) {
         const k = v / def.value;
-        for (const key of ['budget', 'fixedCost', 'profitFloor', 'profitTarget', 'premiumFloor', 'premiumTarget']) if (s.config.assumptions[key]) s.config.assumptions[key].value = Math.round(s.config.assumptions[key].value * k / 1000) * 1000;
+        for (const key of ['budget', 'fixedCost', 'profitFloor', 'profitTarget']) if (s.config.assumptions[key]) s.config.assumptions[key].value = Math.round(s.config.assumptions[key].value * k / 1000) * 1000;
         for (const team of s.teams) if (team.excel || team.ai) for (const key of ['marketing', 'marketing2']) if (Number.isFinite(team.strategy[key])) team.strategy[key] = Math.round(team.strategy[key] * k);
       }
       s.config.assumptions[action.key].value = v;

@@ -11,8 +11,8 @@ const pageHead = (kicker, title, lead, extra = '') => `<div class="page-head"><d
 
 // The trophies: each criterion crowns its own podium.
 export const AWARDS = [
-  // One trophy: total points (profit points + premium points), then profit. Bankrupt teams can't win it.
-  { id: 'score', icon: 'cup', get label() { return t('SVM Cup', 'SVM Kupası'); }, get basis() { return t('Total points: profit + premium, 0–200', 'Toplam puan: kâr + prim, 0–200'); }, value: r => `${fmt(r.score, 1)} ${t('pts', 'puan')}`, sort: (a, b) => b.score - a.score || b.profit - a.profit }
+  // One trophy: total points (profit points + share points), then profit. Bankrupt teams can't win it.
+  { id: 'score', icon: 'cup', get label() { return t('SVM Cup', 'SVM Kupası'); }, get basis() { return t('Total points: profit + market share, 0–200', 'Toplam puan: kâr + pazar payı, 0–200'); }, value: r => `${fmt(r.score, 1)} ${t('pts', 'puan')}`, sort: (a, b) => b.score - a.score || b.profit - a.profit }
 ];
 
 export function podium(rows, teams, cls = '', award = AWARDS[0]) {
@@ -44,13 +44,13 @@ export function resultsPage() {
   // The trophy table: ranked by total points, then profit; bankrupt teams last and stamped.
   const rows = results()[11].rows, cup = AWARDS[0];
   const content = `
-  ${pageHead(t(`Season finale · ${s.config.year}`, `Sezon finali · ${s.config.year}`), cup.label, t('The ranking is the trophy: total points (profit points + premium points), ties broken by profit.', 'Sıralama kupanın kendisi: toplam puan (kâr puanı + prim puanı), eşitlikte kâr.'), '')}
+  ${pageHead(t(`Season finale · ${s.config.year}`, `Sezon finali · ${s.config.year}`), cup.label, t('The ranking is the trophy: total points (profit points + share points), ties broken by profit.', 'Sıralama kupanın kendisi: toplam puan (kâr puanı + pay puanı), eşitlikte kâr.'), '')}
   <section class="panel standings">
-    <header><span class="faint small">${t(`Profit points: below €0 none, €0 → 50, ${money(cascoMoney(s.config).profitTarget)} → 100. Premium points: below ${money(cascoMoney(s.config).premiumFloor)} none, from it 50, ${money(cascoMoney(s.config).premiumTarget)} → 100. A combined ratio above ${pct(cascoMoney(s.config).bankruptRatio, 0)} is bankruptcy.`, `Kâr puanı: €0 altı yok, €0 → 50, ${money(cascoMoney(s.config).profitTarget)} → 100. Prim puanı: ${money(cascoMoney(s.config).premiumFloor)} altı yok, ondan itibaren 50, ${money(cascoMoney(s.config).premiumTarget)} → 100. Bileşik oran ${pct(cascoMoney(s.config).bankruptRatio, 0)}’i aşarsa takım batar.`)}</span><span class="results-analysis-hint">${icon('eye', 16)} ${t('Select a team name for its detailed analysis.', 'Detaylı analiz için takım adına tıkla.')}</span></header>
+    <header><span class="faint small">${t(`Profit points: below €0 none, €0 → 50, ${money(cascoMoney(s.config).profitTarget)} → 100. Share points: below ${pct(cascoMoney(s.config).shareFloor, 0)} none, from it 50, ${pct(cascoMoney(s.config).shareTarget, 0)} → 100. A combined ratio above ${pct(cascoMoney(s.config).bankruptRatio, 0)} is bankruptcy.`, `Kâr puanı: €0 altı yok, €0 → 50, ${money(cascoMoney(s.config).profitTarget)} → 100. Pay puanı: ${pct(cascoMoney(s.config).shareFloor, 0)} altı yok, ondan itibaren 50, ${pct(cascoMoney(s.config).shareTarget, 0)} → 100. Bileşik oran ${pct(cascoMoney(s.config).bankruptRatio, 0)}’i aşarsa takım batar.`)}</span><span class="results-analysis-hint">${icon('eye', 16)} ${t('Select a team name for its detailed analysis.', 'Detaylı analiz için takım adına tıkla.')}</span></header>
     <div class="table-wrap"><table class="results-table">
       <thead>
         <tr><th colspan="2"></th><th colspan="3" class="group">${t('Points', 'Puan')}</th><th colspan="5"></th><th colspan="5" class="group group-start">${t('As a share of gross premium', 'Brüt primin yüzdesi olarak')}</th></tr>
-        <tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Premium', 'Prim')}</th><th class="sorted">${t('Total', 'Toplam')}</th>
+        <tr><th>${t('Rank', 'Sıra')}</th><th>${t('Team', 'Takım')}</th><th>${t('Profit', 'Kâr')}</th><th>${t('Share', 'Pay')}</th><th class="sorted">${t('Total', 'Toplam')}</th>
           <th>${t('Profit', 'Kâr')}</th><th>${t('Gross premium', 'Brüt prim')}</th><th>${t('Market share', 'Pazar payı')}</th><th>${t('Policies', 'Poliçe adedi')}</th><th>${t('Customers from marketing', 'Pazarlamadan gelen müşteri')}</th>
           <th class="group-start">${t('Loss ratio', 'Hasar oranı')}</th><th>${t('Commission', 'Komisyon')}</th><th>${t('Running costs', 'İşletme gideri')}</th><th>${t('Marketing', 'Pazarlama')}</th><th>${t('Combined ratio', 'Bileşik oran')}</th></tr>
       </thead>

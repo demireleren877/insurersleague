@@ -11,7 +11,7 @@ import { t, getLang } from '../i18n.js';
 
 const NOISE = 0.05; // below this a line says nothing; don't spend a row on it
 
-const componentNames = () => [t('profit points', 'kâr puanı'), t('premium points', 'prim puanı')];
+const componentNames = () => [t('profit points', 'kâr puanı'), t('share points', 'pay puanı')];
 
 // What the team actually chose, in words, so the row reads as "this choice, worth this much".
 function decisionLabel(key, strategy, config) {

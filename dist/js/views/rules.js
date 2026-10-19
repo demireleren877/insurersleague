@@ -18,7 +18,7 @@ import { t, getLang } from '../i18n.js';
 
 export const rulesState = { open: new Set() };
 
-const SCORING_KEYS = ['profitFloor', 'profitTarget', 'premiumFloor', 'premiumTarget', 'bankruptRatio'];
+const SCORING_KEYS = ['profitFloor', 'profitTarget', 'shareFloor', 'shareTarget', 'bankruptRatio'];
 const MONEY_KEYS = ['policies', 'budget', 'fixedCost', 'expenseRatio'];
 
 const within = prefixes => path => prefixes.some(p => path === p || path.startsWith(`${p}.`));
@@ -83,7 +83,7 @@ function block(title, lead, body, { aside = '' } = {}) {
 const formula = parts => `<p class="rb-formula" aria-label="${t('Formula', 'Formül')}">${parts.map(p => (p.op ? `<i>${p.op}</i>` : `<span>${p}</span>`)).join('')}</p>`;
 const insight = items => `<ul class="rb-insight">${items.map(x => `<li>${x}</li>`).join('')}</ul>`;
 
-const RATIO_KEYS = ['bankruptRatio'];
+const RATIO_KEYS = ['bankruptRatio', 'shareFloor', 'shareTarget'];
 function assumptionField(key, { hint = '' } = {}) {
   const s = getState(), a = localizedAssumption(s.config, key, getLang()), def = assumptionsFor(s.config.lang)[key].value, changed = a.value !== def, locked = raceStarted();
   const isPct = RATIO_KEYS.includes(key), k = isPct ? 100 : 1;
@@ -109,17 +109,17 @@ function levelShares(dim) {
 
 function scoringSection(s) {
   const m = cascoMoney(s.config);
-  return block(t('Points and the trophy', 'Puan ve kupa'), t('Two components: no points below a floor, 50 from it, rising to 100 at the target (pro-rated during the year). The total is their sum, 0–200; the one trophy goes by it, ties by profit.', 'İki bileşen: alt sınırın altında puan yok, alt sınırdan itibaren 50, hedefte 100 (yıl içinde oranlanır). Toplam ikisinin toplamıdır, 0–200; tek kupa buna göre, eşitlikte kâra göre verilir.'), `
+  return block(t('Points and the trophy', 'Puan ve kupa'), t('Two components: no points below a floor, 50 from it, rising to 100 at the target (profit pro-rated during the year). The total is their sum, 0–200; the one trophy goes by it, ties by profit.', 'İki bileşen: alt sınırın altında puan yok, alt sınırdan itibaren 50, hedefte 100 (kâr yıl içinde oranlanır). Toplam ikisinin toplamıdır, 0–200; tek kupa buna göre, eşitlikte kâra göre verilir.'), `
       <div class="rf-grid">
         ${assumptionField('profitFloor')}
         ${assumptionField('profitTarget')}
-        ${assumptionField('premiumFloor')}
-        ${assumptionField('premiumTarget')}
+        ${assumptionField('shareFloor')}
+        ${assumptionField('shareTarget')}
         ${assumptionField('bankruptRatio')}
       </div>
       ${insight([
         t(`Profit points: below ${money(m.profitFloor)} none, from it 50, ${money(m.profitTarget)} or more → 100.`, `Kâr puanı: ${money(m.profitFloor)} altı yok, ondan itibaren 50, ${money(m.profitTarget)} ve üstü → 100.`),
-        t(`Premium points: below ${money(m.premiumFloor)} none, from it 50, ${money(m.premiumTarget)} or more → 100.`, `Prim puanı: ${money(m.premiumFloor)} altı yok, ondan itibaren 50, ${money(m.premiumTarget)} ve üstü → 100.`),
+        t(`Share points: below ${pct(m.shareFloor, 0)} none, from it 50, ${pct(m.shareTarget, 0)} or more → 100 (gross premium share among the teams).`, `Pay puanı: ${pct(m.shareFloor, 0)} altı yok, ondan itibaren 50, ${pct(m.shareTarget, 0)} ve üstü → 100 (takımlar arasındaki brüt prim payı).`),
         t(`A combined ratio above ${pct(m.bankruptRatio, 0)} is bankruptcy: stamped and ranked last, no trophy.`, `Bileşik oran ${pct(m.bankruptRatio, 0)}’i aşarsa takım batar: damgalanır, en sona düşer, kupa alamaz.`)
       ])}`);
 }

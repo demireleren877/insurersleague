@@ -29,7 +29,7 @@ const DECISIONS = [
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const economicDelta = (actual, counter) => ({ profitDelta: actual.profit - counter.profit, shareDelta: actual.share - counter.share, counterProfit: counter.profit, counterShare: counter.share });
 
-// Which score component moved most, and by how much: profit points or premium points (the score is their sum).
+// Which score component moved most, and by how much: profit points or share points (the score is their sum).
 function componentDelta(actual, counter) {
   const parts = actual.components.map((v, i) => v - counter.components[i]);
   let top = 0;
