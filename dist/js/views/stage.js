@@ -13,7 +13,7 @@ import { monthDigest } from '../narrative.js';
 import { sfx } from '../audio.js';
 import { podium, AWARDS } from './results.js';
 import { spark } from './charts.js';
-import { sampleWorkbook, CASE_DATA } from './home.js';
+import { CASE_DATA } from './home.js';
 
 const LANES_H = 672;
 const phasesOf = () => [
@@ -73,7 +73,6 @@ function excelAddTeam() {
     <label for="xl-new-team">${t('Add a team', 'Takım ekle')}</label>
     <input class="input" id="xl-new-team" name="name" maxlength="40" autocomplete="off" placeholder="${t('Team name', 'Takım adı')}">
     <button class="btn go" type="submit">${icon('plus', 16)} ${t('Add', 'Ekle')}</button>
-    <a class="btn ghost" href="${sampleWorkbook()}" download>${icon('eye', 16)} ${t('Filled-in example', 'Doldurulmuş örnek')}</a>
     <a class="btn ghost" href="${CASE_DATA}" download>${icon('chart', 16)} ${t('Casco data', 'Kasko verisi')}</a>
   </form>`;
 }

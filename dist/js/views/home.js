@@ -1,13 +1,11 @@
 import { savedHost } from '../store.js';
 import { icon } from '../ui.js';
 import { esc } from '../format.js';
-import { t, getLang, languageControl } from '../i18n.js';
+import { t, languageControl } from '../i18n.js';
 
-// A filled-in example of what teams hand in (built by scripts/build-samples.mjs).
 // The case data teams analyse: 50,000 customers with corrected claims, a column dictionary and the marketing inputs.
 // Versioned like the other assets, so a stale cached answer from right after a deploy can't stick.
-export const CASE_DATA = 'data/katilimci-verisi.xlsx?v=92';
-export const sampleWorkbook = () => (getLang() === 'tr' ? 'samples/kasko-karar-ornegi.xlsx' : 'samples/casco-decision-sample.xlsx');
+export const CASE_DATA = 'data/katilimci-verisi.xlsx?v=93';
 
 // Everyone watches the moderator's screen; the home page is where the moderator starts or resumes a game.
 export function home() {

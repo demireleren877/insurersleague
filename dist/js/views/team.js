@@ -6,7 +6,7 @@ import { icon, emblem } from '../ui.js';
 import { esc, clock, short } from '../format.js';
 import { monthsOf } from '../../engine.js';
 import { t, getLang, languageControl } from '../i18n.js';
-import { sampleWorkbook, CASE_DATA } from './home.js';
+import { CASE_DATA } from './home.js';
 
 const shell = (body, pin) => `<div class="join-app team-app">
   <header class="join-brand"><span class="brand-mark">${icon('bolt', 20)}</span><strong class="display">Insurers<b>League</b></strong>${pin ? `<span class="chip">PIN <b class="num">${esc(pin.replace(/(\d{3})(\d{3})/, '$1 $2'))}</b></span>` : ''}${languageControl()}</header>
@@ -68,7 +68,6 @@ export function teamPage() {
   const uploadBtn = (quarter, done) => `<button class="btn ${done ? '' : 'go'} lg" data-action="team-upload">${icon('upload', 18)} ${done ? t('Replace your strategy', 'Stratejini değiştir') : t('Upload your strategy', 'Stratejini yükle')}</button><input type="file" data-team-upload="${team.id}" ${quarter ? 'data-quarter="true"' : ''} accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>`;
   const templateBtn = (quarter, cls = 'btn lg') => `<button class="${cls}" data-action="excel-team-template" data-team="${team.id}" ${quarter ? 'data-quarter="true"' : ''}>${icon('file', cls.startsWith('btn') ? 18 : 15)} ${quarter ? t('Download your current plan', 'Güncel planını indir') : t('Download your template', 'Şablonunu indir')}</button>`;
   const dataLink = (cls = 'btn lg') => `<a class="${cls}" href="${CASE_DATA}" download>${icon('chart', cls.startsWith('btn') ? 18 : 15)} ${t('Download the casco data', 'Kasko verisini indir')}</a>`;
-  const exampleLink = `<a class="linklike" href="${sampleWorkbook()}" download>${icon('eye', 15)} ${t('Filled-in example', 'Doldurulmuş örnek')}</a>`;
   const assetLink = `<span data-brochure-box><button class="linklike" data-action="brochure-upload" data-team="${team.id}">${team.brochure ? icon('check', 15) : icon('upload', 15)} ${team.brochure ? t('Communication asset uploaded · replace', 'İletişim materyali yüklendi · değiştir') : t('Upload your communication asset', 'İletişim materyalini yükle')}</button><input type="file" data-brochure-upload="${team.id}" accept="image/png,image/jpeg,image/webp,application/pdf" hidden></span>`;
   const leave = `<button class="linklike team-leave" data-action="team-leave">${t('Not your team? Leave', 'Takımın bu değil mi? Ayrıl')}</button>`;
 
@@ -97,7 +96,7 @@ export function teamPage() {
     title: t('Prepare your strategy', 'Stratejini hazırla'),
     text: t('Study the data and fill in your template. Uploading opens when the moderator starts the decision window.', 'Veriyi incele ve şablonunu doldur. Yükleme, moderatör karar aşamasını başlatınca açılır.'),
     actions: `${dataLink()}${templateBtn(false)}`,
-    links: [exampleLink, assetLink, leave]
+    links: [assetLink, leave]
   });
 
   const left = timeLeft(), late = left !== null && left <= 0;

@@ -36,7 +36,7 @@ It runs on Cloudflare Workers:
 - `dist/js/jev.js`: AI rivals.
 - `dist/js/balance.js`: balance test bots.
 - `dist/js/attribution.js`: "why you finished here".
-- `scripts/`: Python and Node builders for data, samples and workbooks.
+- `scripts/`: Python and Node builders for data and workbooks.
 
 ## Invariants (each one broke something before)
 1. **`reduce` runs twice:** on the server (the truth) and optimistically in each browser. A team's browser sees rivals' plans hidden (`strategy._hidden`), so client-side code must never re-run `simulate` there (see `recalculateSeason`). Test any player action against a `viewFor(..., {role:'player'})` copy, not only the full state.
